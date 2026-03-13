@@ -59,7 +59,7 @@
 
   /* ===== HERO ===== */
   .hero {
-    position: relative; min-height: 80vh;
+    position: relative; aspect-ratio: 16/7;
     display: flex; align-items: flex-end; overflow: hidden;
     margin-top: 64px;
   }
@@ -72,12 +72,12 @@
   }
   .hero-bg::after {
     content: ''; position: absolute; inset: 0;
-    background: rgba(0,0,0,0.65);
+    background: rgba(0,0,0,0.6);
   }
   .hero-content {
     position: relative; z-index: 2;
     max-width: 1200px; margin: 0 auto;
-    padding: 0 24px 72px; width: 100%;
+    padding: 0 48px 0; width: 100%; padding-bottom: 16px;
   }
   .hero-badge {
     display: inline-flex; align-items: center; gap: 8px;
@@ -100,7 +100,7 @@
   }
   .hero h1 .line1 { color: var(--cream); display: block; }
   .hero h1 .line2 { color: var(--yellow); display: block; }
-  .hero-sub { font-size: 18px; color: var(--cream-dim); max-width: 480px; margin-bottom: 32px; }
+  .hero-sub { font-size: 18px; color: var(--white); max-width: 480px; margin-bottom: 0; }
   .hero-cta {
     display: inline-flex; align-items: center; gap: 8px;
     background: var(--yellow); color: var(--black);
@@ -197,12 +197,12 @@
   .cal-body { padding: 8px 14px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
   .cal-title {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 15px; font-weight: 700; color: var(--cream); text-transform: uppercase;
+    font-size: 18px; font-weight: 700; color: var(--cream); text-transform: uppercase;
   }
   .cal-meta { display: flex; gap: 12px; margin-top: 2px; }
-  .cal-time { font-size: 12px; color: var(--yellow-light); font-weight: 600; }
-  .cal-location { font-size: 12px; color: var(--text-dim); }
-  .cal-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .cal-time { font-size: 13px; color: var(--yellow-light); font-weight: 600; }
+  .cal-location { font-size: 13px; color: var(--text-dim); }
+  .cal-desc { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
   .cal-empty {
     background: var(--dark-card); border: 1px solid var(--dark-border);
     border-radius: 10px; padding: 40px; text-align: center; color: var(--text-dim);
@@ -253,10 +253,11 @@
   }
   .news-card:hover { border-color: rgba(255,255,255,0.12); }
   .news-image {
-    width: 180px; min-height: 120px; flex-shrink: 0;
+    width: 100px; height: 100px; flex-shrink: 0;
     background: var(--dark); display: flex;
     align-items: center; justify-content: center;
     color: var(--text-dim); font-size: 32px; overflow: hidden;
+    margin: 16px 0 16px 16px; border-radius: 8px;
   }
   .news-image img { width: 100%; height: 100%; object-fit: cover; }
   .news-body { padding: 20px; flex: 1; }
@@ -323,10 +324,10 @@
   .jahres-badge p { font-size: 13px; color: var(--text); margin-top: 4px; }
 
   /* ===== MAP ===== */
-  .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; }
   .map-embed {
     background: var(--dark-card); border: 1px solid var(--dark-border);
-    border-radius: 12px; overflow: hidden; aspect-ratio: 16/10;
+    border-radius: 12px; overflow: hidden;
   }
   .map-embed iframe { width: 100%; height: 100%; border: 0; display: block; }
   .contact-info {
@@ -381,9 +382,9 @@
     }
     .nav-toggle { display: block; }
     .info-grid, .map-grid { grid-template-columns: 1fr; }
-    .hero { min-height: 70vh; }
-    .news-card { flex-direction: column; }
-    .news-image { width: 100%; min-height: 160px; }
+    .hero { aspect-ratio: auto; min-height: 60vh; }
+    .hero-content { padding: 0 24px 32px; }
+    .news-image { width: 80px; height: 80px; margin: 12px 0 12px 12px; }
   }
 </style>
 </head>
@@ -410,8 +411,8 @@
 <section class="hero">
   <div class="hero-bg"></div>
   <div class="hero-content">
-    <img id="heroLogo" src="" alt="Zugzwang Boulderhalle" style="max-width:210px; width:40%; margin-bottom:24px; display:none;">
-    <p class="hero-sub">Bouldern in Auerbach seit 2014.</p>
+    <img id="heroLogo" src="" alt="Zugzwang Boulderhalle" style="max-width:210px; width:40%; margin-bottom:8px; display:none;">
+    <p class="hero-sub"><strong>Bouldern in Auerbach seit 2014.</strong></p>
   </div>
 </section>
 
@@ -419,21 +420,12 @@
 <!-- TERMINE -->
 <section id="termine">
   <span class="section-label">Termine</span>
-  <h2 class="section-title">Kalender & Termine</h2>
+  <h2 class="section-title">Öffnungszeiten & Termine</h2>
   <div id="calFilters" class="cal-filters" style="display:none;"></div>
   <div class="cal-scroll-container">
     <div id="calFeed" class="cal-feed">
       <div class="cal-empty"><div class="skeleton" style="width:160px;height:18px;margin:0 auto 12px;"></div>Termine werden geladen...</div>
     </div>
-  </div>
-</section>
-
-<!-- BILDER -->
-<section class="section-divider">
-  <span class="section-label">Eindrücke</span>
-  <h2 class="section-title">Aus der Halle</h2>
-  <div id="imageStrip" class="strip-wrapper">
-    <div class="strip-empty"><div class="skeleton" style="width:200px;height:20px;margin-bottom:8px;"></div><span>Bilder werden geladen...</span></div>
   </div>
 </section>
 
@@ -457,33 +449,40 @@
       <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">6,00 €</span></div>
       <div class="price-row"><span class="price-label">Ermäßigt</span><span class="price-value">5,00 €</span></div>
       <div class="price-row"><span class="price-label">Familien</span><span class="price-value">12,00 €</span></div>
-      <div class="price-section-title">Fördermitglieder</div>
-      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">5,00 €</span></div>
-      <div class="price-row"><span class="price-label">Ermäßigt</span><span class="price-value">4,00 €</span></div>
-      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">10,00 €</span></div>
       <div class="price-section-title">Kinder & Ausleihe</div>
       <div class="price-row"><span class="price-label">Kinder bis 10 Jahre</span><span class="price-value">4,00 €</span></div>
       <div class="price-row"><span class="price-label">Leihschuhe</span><span class="price-value">3,00 €</span></div>
+      <div class="price-note"><span>⭐</span><span>Fördermitglieder: 1 € Rabatt bei den Eintrittspreisen</span></div>
       <div class="price-note"><span>💳</span><span>Es kann nur bargeldlos bezahlt werden</span></div>
-    </div>
-    <div class="info-card">
-      <h3>Öffnungszeiten</h3>
-      <div class="zeit-block">
-        <h4>Winterhalbjahr (Oktober — März)</h4>
-        <div class="zeit-row"><span class="zeit-day">Mittwoch</span><span class="zeit-time">18:00 — 21:00</span></div>
-        <div class="zeit-row"><span class="zeit-day">Freitag</span><span class="zeit-time">18:00 — 21:00</span></div>
-        <div class="zeit-row"><span class="zeit-day">Sonntag</span><span class="zeit-time">14:00 — 17:00</span></div>
-      </div>
-      <div class="zeit-block">
-        <h4>Sommerhalbjahr (April — September)</h4>
-        <div class="zeit-row"><span class="zeit-day">Freitag</span><span class="zeit-time">18:00 — 21:00</span></div>
-        <p class="zeit-note">Ab den bayr. Pfingstferien bis Ende September geschlossen.</p>
-      </div>
       <div class="jahres-badge">
         <strong>🔑 Jahreskarte</strong>
         <p>Täglich von 7:00 bis 22:00 Uhr bouldern. Infos unter „Der Verein".</p>
       </div>
     </div>
+    <div class="info-card">
+      <h3>Öffnungszeiten</h3>
+      <p class="zeit-note" style="font-style:normal; margin-bottom:16px;">Die aktuellen Öffnungszeiten findet ihr bei den Terminen. Wir versuchen regelmäßig die Halle zu öffnen. Aus verschiedenen Gründen können wir die regelmäßigen Öffnungszeiten nicht immer einhalten.</p>
+      <div class="zeit-block">
+        <h4>Oktober — März</h4>
+        <div class="zeit-row"><span class="zeit-day">Mittwoch</span><span class="zeit-time">18:00 — 21:00</span></div>
+        <div class="zeit-row"><span class="zeit-day">Freitag</span><span class="zeit-time">18:00 — 21:00</span></div>
+        <div class="zeit-row"><span class="zeit-day">Sonntag</span><span class="zeit-time">14:00 — 17:00</span></div>
+      </div>
+      <div class="zeit-block">
+        <h4>April — Mai</h4>
+        <div class="zeit-row"><span class="zeit-day">Freitag</span><span class="zeit-time">18:00 — 21:00</span></div>
+      </div>
+      <p class="zeit-note">Ab den bayerischen Pfingstferien bis zum Ende der Sommerferien keine öffentlichen Öffnungszeiten.</p>
+    </div>
+  </div>
+</section>
+
+<!-- BILDER -->
+<section class="section-divider">
+  <span class="section-label">Eindrücke</span>
+  <h2 class="section-title">Aus der Halle</h2>
+  <div id="imageStrip" class="strip-wrapper">
+    <div class="strip-empty"><div class="skeleton" style="width:200px;height:20px;margin-bottom:8px;"></div><span>Bilder werden geladen...</span></div>
   </div>
 </section>
 
@@ -493,14 +492,14 @@
   <h2 class="section-title">So findet ihr uns</h2>
   <div class="map-grid">
     <div class="map-embed">
-      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2557.0!2d11.626!3d49.693!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47a1f8c8b8b8b8b8%3A0x0!2zNDnCsDQxJzM0LjgiTiAxMcKwMzcnMzMuNiJF!5e0!3m2!1sde!2sde!4v1" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2551.0!2d11.6302402!3d49.6905224!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47a1c60d80f40f9b%3A0x3c50355a71e728f0!2sBoulderhalle%20Zugzwang!5e0!3m2!1sde!2sde!4v1" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
     </div>
     <div class="contact-info">
       <h3>Kontakt</h3>
       <div class="contact-row"><span class="contact-icon">📍</span><span>Neuhauser Straße 1<br>91275 Auerbach i.d.OPf.</span></div>
       <div class="contact-row"><span class="contact-icon">📧</span><a href="mailto:info&#64;boulderhalle-auerbach.de">info&#64;boulderhalle-auerbach.de</a></div>
       <div class="contact-row"><span class="contact-icon">📱</span><span><a href="https://www.instagram.com/" target="_blank">Instagram</a> · <a href="https://facebook.com/bouldernauerbach" target="_blank">Facebook</a></span></div>
-      <div class="contact-row"><span class="contact-icon">🏠</span><span>In der Helmut-Ott-Halle (Kellergeschoss)</span></div>
+      <div class="contact-row"><span class="contact-icon">🏠</span><span>In der Helmut-Ott-Halle. Eingang links neben der Ladesäule</span></div>
     </div>
   </div>
 </section>

@@ -208,6 +208,9 @@ function getNews() {
   while (files.hasNext()) {
     const file = files.next();
 
+    // Template-Dateien ignorieren
+    if (file.getName().toLowerCase().indexOf('template') !== -1) continue;
+
     try {
       const doc = DocumentApp.openById(file.getId());
       const body = doc.getBody();
