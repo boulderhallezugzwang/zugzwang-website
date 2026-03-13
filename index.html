@@ -61,7 +61,7 @@
   .hero {
     position: relative; aspect-ratio: 16/7;
     display: flex; align-items: flex-end; overflow: hidden;
-    margin-top: 64px;
+    margin-top: 64px; max-height: 50vh;
   }
   .hero-bg {
     position: absolute; inset: 0;
@@ -75,9 +75,9 @@
     background: rgba(0,0,0,0.6);
   }
   .hero-content {
-    position: relative; z-index: 2;
+    position: absolute; bottom: 28px; left: 0; right: 0; z-index: 2;
     max-width: 1200px; margin: 0 auto;
-    padding: 0 48px 24px; width: 100%;
+    padding: 0 48px; width: 100%;
   }
   .hero-badge {
     display: inline-flex; align-items: center; gap: 8px;
@@ -467,7 +467,7 @@
     .nav-links { gap: 0; }
     .nav-links a { font-size: 12px; padding: 8px 8px; }
     .info-grid, .map-grid { grid-template-columns: 1fr; }
-    .hero { aspect-ratio: auto; min-height: 60vh; }
+    .hero { aspect-ratio: 16/9; max-height: 40vh; }
     .hero-content { padding: 0 24px 32px; }
     .news-image { width: 80px; height: 80px; margin: 12px 0 12px 12px; }
   }
