@@ -132,7 +132,7 @@
   .waiver-text {
     background: var(--dark); border: 1px solid var(--dark-border);
     border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
-    max-height: 300px; overflow-y: auto; font-size: 14px; line-height: 1.6;
+    font-size: 14px; line-height: 1.6;
   }
   .waiver-text p { margin-bottom: 10px; }
 
@@ -354,6 +354,22 @@
               <div class="ferr" id="aEmailErr">Bitte gib eine gültige E-Mail-Adresse ein.</div>
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="aStrasse">Straße, Nr. <span class="req">*</span></label>
+              <input type="text" id="aStrasse" autocomplete="street-address">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex:0.4">
+              <label for="aPlz">PLZ <span class="req">*</span></label>
+              <input type="text" id="aPlz" autocomplete="postal-code">
+            </div>
+            <div class="form-group">
+              <label for="aOrt">Ort <span class="req">*</span></label>
+              <input type="text" id="aOrt" autocomplete="address-level2">
+            </div>
+          </div>
         </div>
       </div>
 
@@ -376,6 +392,22 @@
               <label for="eEmail">E-Mail <span class="req">*</span></label>
               <input type="email" id="eEmail" autocomplete="email">
               <div class="ferr" id="eEmailErr">Bitte gib eine gültige E-Mail-Adresse ein.</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="eStrasse">Straße, Nr. <span class="req">*</span></label>
+              <input type="text" id="eStrasse" autocomplete="street-address">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex:0.4">
+              <label for="ePlz">PLZ <span class="req">*</span></label>
+              <input type="text" id="ePlz" autocomplete="postal-code">
+            </div>
+            <div class="form-group">
+              <label for="eOrt">Ort <span class="req">*</span></label>
+              <input type="text" id="eOrt" autocomplete="address-level2">
             </div>
           </div>
         </div>
@@ -715,6 +747,9 @@ function checkForm() {
     const aEmail = document.getElementById('aEmail');
     if (!aEmail.value.trim()) ok = false;
     if (aEmail.value && !emailRegex.test(aEmail.value)) ok = false;
+    if (!document.getElementById('aStrasse').value.trim()) ok = false;
+    if (!document.getElementById('aPlz').value.trim()) ok = false;
+    if (!document.getElementById('aOrt').value.trim()) ok = false;
     if (!document.getElementById('confirmWaiver').checked) ok = false;
     if (!document.getElementById('confirmDsgvo').checked) ok = false;
   }
@@ -725,6 +760,9 @@ function checkForm() {
     const eEmail = document.getElementById('eEmail');
     if (!eEmail.value.trim()) ok = false;
     if (eEmail.value && !emailRegex.test(eEmail.value)) ok = false;
+    if (!document.getElementById('eStrasse').value.trim()) ok = false;
+    if (!document.getElementById('ePlz').value.trim()) ok = false;
+    if (!document.getElementById('eOrt').value.trim()) ok = false;
     // Check all children
     document.querySelectorAll('.child-entry').forEach(entry => {
       if (!entry.querySelector('.cVorname').value.trim()) ok = false;
@@ -764,6 +802,9 @@ form.addEventListener('submit', async (e) => {
       nachname: document.getElementById('aNachname').value.trim(),
       geburtsdatum: document.getElementById('aGeburt').value,
       email: document.getElementById('aEmail').value.trim(),
+      strasse: document.getElementById('aStrasse').value.trim(),
+      plz: document.getElementById('aPlz').value.trim(),
+      ort: document.getElementById('aOrt').value.trim(),
       datum: now
     };
   } else {
@@ -780,6 +821,9 @@ form.addEventListener('submit', async (e) => {
       eVorname: document.getElementById('eVorname').value.trim(),
       eNachname: document.getElementById('eNachname').value.trim(),
       email: document.getElementById('eEmail').value.trim(),
+      strasse: document.getElementById('eStrasse').value.trim(),
+      plz: document.getElementById('ePlz').value.trim(),
+      ort: document.getElementById('eOrt').value.trim(),
       kinder: kinder,
       datum: now
     };
