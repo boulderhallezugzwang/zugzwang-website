@@ -23,6 +23,7 @@
     --red: #c0392b;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 130px; }
   body {
     background: var(--black); color: var(--text);
     font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.6;
@@ -35,10 +36,10 @@
     background: rgba(20,20,20,0.92); backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--dark-border);
   }
-  .nav-inner {
+  .nav-top {
     max-width: 1200px; margin: 0 auto;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px; height: 64px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 24px 4px;
   }
   .nav-logo {
     font-family: 'Barlow Condensed', sans-serif;
@@ -47,25 +48,47 @@
   }
   .nav-logo .zug { color: var(--cream); }
   .nav-logo .zwang { color: var(--yellow); }
-  .nav-links { display: flex; gap: 4px; align-items: center; }
+  .nav-links {
+    display: flex; gap: 2px; align-items: center; justify-content: center;
+    flex-wrap: wrap; padding: 0 24px 8px;
+    max-width: 1200px; margin: 0 auto;
+  }
   .nav-links a {
     color: var(--cream-dim); text-decoration: none;
-    font-size: 14px; font-weight: 500;
-    padding: 8px 14px; border-radius: 6px; transition: all 0.2s;
+    font-size: 13px; font-weight: 500;
+    padding: 6px 12px; border-radius: 6px; transition: all 0.2s;
+    white-space: nowrap;
   }
   .nav-links a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
   .nav-links a.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
-  .nav-toggle {
-    display: none; background: none; border: 1px solid var(--dark-border);
-    color: var(--cream); font-size: 22px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+
+  /* Sub-Navigation */
+  .sub-nav {
+    background: rgba(28,28,28,0.95); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--dark-border);
+    position: fixed; top: 82px; left: 0; right: 0; z-index: 99;
+    overflow-x: auto; scrollbar-width: none;
   }
-  .nav-toggle:hover { background: rgba(255,255,255,0.06); }
+  .sub-nav::-webkit-scrollbar { display: none; }
+  .sub-nav-inner {
+    max-width: 1200px; margin: 0 auto; padding: 0 24px;
+    display: flex; gap: 2px; align-items: center; justify-content: center;
+    height: 36px;
+  }
+  .sub-nav a {
+    color: var(--text-dim); text-decoration: none;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+    padding: 5px 10px; border-radius: 100px; transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+  .sub-nav a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
+  .sub-nav a.sub-active { color: var(--yellow); background: rgba(212,160,32,0.1); }
 
   /* ===== HERO ===== */
   .hero {
     position: relative; aspect-ratio: 16/7;
     display: flex; align-items: flex-end; overflow: hidden;
-    margin-top: 64px; max-height: 50vh;
+    margin-top: 82px; max-height: 50vh;
   }
   .hero-bg {
     position: absolute; inset: 0;
@@ -468,16 +491,9 @@
 
   /* ===== RESPONSIVE ===== */
   @media (max-width: 768px) {
-    .nav-toggle { display: block; }
-    .nav-links {
-      display: none; flex-direction: column;
-      position: absolute; top: 64px; left: 0; right: 0;
-      background: rgba(20,20,20,0.98); backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--dark-border);
-      padding: 8px 16px;
-    }
-    .nav-links.open { display: flex; }
-    .nav-links a { padding: 12px 16px; font-size: 15px; width: 100%; }
+    .nav-links a { font-size: 11px; padding: 5px 8px; }
+    .sub-nav-inner { padding: 0 8px; }
+    .sub-nav a { font-size: 11px; padding: 4px 7px; }
     .info-grid, .map-grid { grid-template-columns: 1fr; }
     .hero { aspect-ratio: 16/9; max-height: 40vh; }
     .hero-content { padding: 0 24px 32px; }
@@ -489,21 +505,29 @@
 
 <!-- NAV -->
 <nav>
-  <div class="nav-inner">
-    <a href="#" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
-    <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
-    <div class="nav-links">
-      <a href="index.html" class="active">Boulderhalle</a>
-      <a href="verein.html">Verein</a>
-      <a href="jugendtraining.html">Jugendtraining</a>
-      <a href="info.html">Info</a>
-      <a href="intern.html">Intern</a>
-    </div>
+  <div class="nav-top">
+    <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+  </div>
+  <div class="nav-links">
+    <a href="index.html" class="active">Boulderhalle</a>
+    <a href="verein.html">Verein</a>
+    <a href="jugendtraining.html">Jugendtraining</a>
+    <a href="info.html">Info</a>
+    <a href="intern.html">Intern</a>
   </div>
 </nav>
+<div class="sub-nav">
+  <div class="sub-nav-inner">
+    <a href="#termine">Termine</a>
+    <a href="#news">News</a>
+    <a href="#preise">Preise & Zeiten</a>
+    <a href="#kontakt">Kontakt</a>
+    <a href="#bilder">Bilder</a>
+  </div>
+</div>
 
 <!-- HERO -->
-<section class="hero">
+<section class="hero" style="margin-top:118px;">
   <div class="hero-bg"></div>
   <div class="hero-content">
     <img id="heroLogo" src="" alt="Zugzwang Boulderhalle" style="max-width:210px; width:40%; margin-bottom:2px; display:none;">
@@ -526,7 +550,7 @@
 </section>
 
 <!-- NEWS -->
-<section class="section-divider">
+<section class="section-divider" id="news">
   <span class="section-label">Neuigkeiten</span>
   <h2 class="section-title">News</h2>
   <div id="newsList" class="news-list">
@@ -592,7 +616,7 @@
 </section>
 
 <!-- BILDER -->
-<section class="section-divider">
+<section class="section-divider" id="bilder">
   <span class="section-label">Eindrücke</span>
   <h2 class="section-title">Aus der Halle</h2>
   <div id="imageStrip" class="strip-wrapper">
@@ -896,6 +920,21 @@ function renderNews(news) {
   }).join('');
 }
 
+// ===================== SUB-NAV HIGHLIGHT =====================
+const subLinks = document.querySelectorAll('.sub-nav a');
+const subSections = [...subLinks].map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+
+function updateSubNav() {
+  let current = '';
+  subSections.forEach(sec => {
+    if (sec.getBoundingClientRect().top <= 140) current = sec.id;
+  });
+  subLinks.forEach(a => {
+    a.classList.toggle('sub-active', a.getAttribute('href') === '#' + current);
+  });
+}
+window.addEventListener('scroll', updateSubNav, { passive: true });
+updateSubNav();
 
 </script>
 </body>
