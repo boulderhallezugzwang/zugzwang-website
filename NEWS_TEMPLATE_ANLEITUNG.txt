@@ -1,0 +1,36 @@
+VORLAGE: So sieht ein News-Dokument aus
+======================================================
+
+Erstelle in Google Docs ein neues Dokument mit genau diesem Aufbau:
+
+------------------------------------------------------
+Zeile 1:  Titel der News
+Zeile 2:  TT.MM.JJJJ
+Zeile 3:  Vorname Nachname
+Zeile 4+: Hier kommt der Inhalt...
+------------------------------------------------------
+
+BEISPIEL (so würde ein echtes Doc aussehen):
+======================================================
+
+Umschraubaktion 3 mit Kraut
+08.12.2025
+Baumann Holger
+Halle geschlossen von 13.12.2025 bis einschließlich 19.12.2025 wegen Umschraubaktion. Danach erwarten euch komplett neue Boulder in allen Schwierigkeitsgraden!
+
+======================================================
+
+ANLEITUNG:
+1. Kopiere das Template-Doc in Google Drive
+2. Ändere Titel, Datum, Autor und Inhalt
+3. Optional: Füge ein Bild ins Dokument ein (wird als Vorschaubild genutzt)
+4. Verschiebe das fertige Doc in den Ordner "Zugzwang_News"
+5. Die Website zeigt die News automatisch an!
+
+TIPPS:
+- Das Datum MUSS im Format TT.MM.JJJJ sein (z.B. 08.12.2025)
+- Der Titel sollte kurz und knackig sein
+- Der erste Absatz des Inhalts wird als Vorschautext genutzt
+- Bilder im Doc werden als Thumbnail auf der Website angezeigt
+- News werden nach Datum sortiert (neueste oben)
+- Zum Löschen: Doc einfach aus dem Ordner entfernen

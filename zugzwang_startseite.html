@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boulderhalle Zugzwang — Bouldern in Auerbach i.d.OPf.</title>
+<meta name="description" content="Boulderhalle Zugzwang in Auerbach i.d.OPf. — Bouldern für Anfänger und Fortgeschrittene mit Kilter Board. Seit 2014.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #141414;
+    --dark: #1c1c1c;
+    --dark-card: #232323;
+    --dark-border: #333;
+    --yellow: #D4A020;
+    --yellow-light: #E8B930;
+    --cream: #E8DCC8;
+    --cream-dim: #c4b9a6;
+    --white: #f0ece4;
+    --text: #d4d0c8;
+    --text-dim: #8a8680;
+    --red: #c0392b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--black); color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== NAV ===== */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(20,20,20,0.92); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--dark-border);
+  }
+  .nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 64px;
+  }
+  .nav-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 22px;
+    letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+  }
+  .nav-logo .zug { color: var(--cream); }
+  .nav-logo .zwang { color: var(--yellow); }
+  .nav-links { display: flex; gap: 4px; align-items: center; }
+  .nav-links a {
+    color: var(--cream-dim); text-decoration: none;
+    font-size: 14px; font-weight: 500;
+    padding: 8px 14px; border-radius: 6px; transition: all 0.2s;
+  }
+  .nav-links a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
+  .nav-links a.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
+  .nav-toggle { display: none; background: none; border: none; color: var(--cream); font-size: 24px; cursor: pointer; padding: 8px; }
+
+  /* ===== HERO ===== */
+  .hero {
+    position: relative; min-height: 80vh;
+    display: flex; align-items: flex-end; overflow: hidden;
+    margin-top: 64px;
+  }
+  .hero-bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #2c2416 0%, #1a1408 40%, #0d0d0d 100%);
+  }
+  .hero-bg img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .hero-bg::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(0,0,0,0.65);
+  }
+  .hero-content {
+    position: relative; z-index: 2;
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 24px 72px; width: 100%;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(212,160,32,0.12); border: 1px solid rgba(212,160,32,0.25);
+    color: var(--yellow-light);
+    font-size: 13px; font-weight: 600;
+    padding: 6px 16px; border-radius: 100px;
+    margin-bottom: 24px; letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .hero-badge .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--yellow);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  .hero h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: clamp(48px,8vw,96px);
+    line-height: 0.95; text-transform: uppercase; letter-spacing: -1px;
+    margin-bottom: 20px;
+  }
+  .hero h1 .line1 { color: var(--cream); display: block; }
+  .hero h1 .line2 { color: var(--yellow); display: block; }
+  .hero-sub { font-size: 18px; color: var(--cream-dim); max-width: 480px; margin-bottom: 32px; }
+  .hero-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--yellow); color: var(--black);
+    font-weight: 700; font-size: 15px;
+    padding: 14px 28px; border-radius: 8px; text-decoration: none;
+    transition: all 0.2s;
+  }
+  .hero-cta:hover { background: var(--yellow-light); transform: translateY(-1px); }
+
+  /* ===== SECTIONS ===== */
+  section { max-width: 1200px; margin: 0 auto; padding: 72px 24px; }
+  .section-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--yellow); margin-bottom: 8px;
+  }
+  .section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 36px; font-weight: 700;
+    color: var(--cream); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 32px;
+  }
+  .section-divider { border-top: 1px solid var(--dark-border); }
+
+  /* ===== IMAGE STRIP ===== */
+  .strip-wrapper {
+    border-radius: 12px; border: 1px solid var(--dark-border);
+    background: var(--dark-card); overflow: hidden; position: relative;
+  }
+  .strip-track-outer {
+    overflow-x: auto; overflow-y: hidden; position: relative;
+    scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .strip-track-outer::-webkit-scrollbar { display: none; }
+  .strip-fade-left, .strip-fade-right {
+    position: absolute; top: 0; bottom: 0; width: 60px;
+    z-index: 3; pointer-events: none;
+  }
+  .strip-fade-left { left: 0; background: linear-gradient(to right, var(--dark-card), transparent); }
+  .strip-fade-right { right: 0; background: linear-gradient(to left, var(--dark-card), transparent); }
+  .strip-track { display: flex; gap: 6px; width: max-content; padding: 0 4px; }
+  .strip-item {
+    height: 280px; flex-shrink: 0; border-radius: 8px;
+    overflow: hidden; position: relative; cursor: pointer;
+  }
+  .strip-item img {
+    height: 100%; width: auto; display: block; object-fit: contain;
+    transition: transform 0.4s;
+  }
+  .strip-item:hover img { transform: scale(1.03); }
+  .strip-caption {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
+    padding: 32px 14px 10px; color: var(--cream); font-size: 13px; font-weight: 500;
+    opacity: 0; transition: opacity 0.3s; white-space: nowrap;
+  }
+  .strip-item:hover .strip-caption { opacity: 1; }
+  .strip-empty {
+    height: 200px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 14px; flex-direction: column; gap: 8px; width: 100%;
+  }
+  @media (max-width: 768px) { .strip-item { height: 200px; } }
+
+  /* ===== CALENDAR FEED ===== */
+  .cal-scroll-container {
+    max-height: 400px; overflow-y: auto; border-radius: 12px;
+    border: 1px solid var(--dark-border); background: var(--dark-card);
+    padding: 12px; scrollbar-width: thin; scrollbar-color: var(--dark-border) transparent;
+  }
+  .cal-scroll-container::-webkit-scrollbar { width: 6px; }
+  .cal-scroll-container::-webkit-scrollbar-track { background: transparent; }
+  .cal-scroll-container::-webkit-scrollbar-thumb { background: var(--dark-border); border-radius: 3px; }
+  .cal-scroll-container::-webkit-scrollbar-thumb:hover { background: #555; }
+  .cal-feed { display: flex; flex-direction: column; gap: 8px; }
+  .cal-card {
+    background: rgba(255,255,255,0.02); border: 1px solid var(--dark-border);
+    border-radius: 8px; display: flex; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .cal-card:hover { border-color: rgba(255,255,255,0.12); }
+  .cal-date-box {
+    width: 64px; flex-shrink: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 8px 0;
+    background: rgba(212,160,32,0.06); border-right: 3px solid var(--yellow);
+  }
+  .cal-day-name { font-size: 11px; font-weight: 700; color: var(--yellow); text-transform: uppercase; letter-spacing: 1px; }
+  .cal-day-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px; font-weight: 800; color: var(--cream); line-height: 1;
+  }
+  .cal-month { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .cal-body { padding: 8px 14px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .cal-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px; font-weight: 700; color: var(--cream); text-transform: uppercase;
+  }
+  .cal-meta { display: flex; gap: 12px; margin-top: 2px; }
+  .cal-time { font-size: 12px; color: var(--yellow-light); font-weight: 600; }
+  .cal-location { font-size: 12px; color: var(--text-dim); }
+  .cal-desc { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .cal-empty {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 10px; padding: 40px; text-align: center; color: var(--text-dim);
+  }
+
+  /* Calendar filter tabs */
+  .cal-filters { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .cal-filter-btn {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    color: var(--text-dim); font-size: 13px; font-weight: 600;
+    padding: 8px 16px; border-radius: 100px; cursor: pointer;
+    transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .cal-filter-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+  .cal-filter-btn.active { background: rgba(212,160,32,0.12); border-color: rgba(212,160,32,0.3); color: var(--yellow-light); }
+  .cal-filter-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+
+  /* Calendar color accents */
+  .cal-card[data-calendar="oeffnungszeiten"] .cal-date-box { border-right-color: var(--yellow); background: rgba(212,160,32,0.06); }
+  .cal-card[data-calendar="oeffnungszeiten"] .cal-day-name { color: var(--yellow); }
+  .cal-card[data-calendar="events"] .cal-date-box { border-right-color: #3498db; background: rgba(52,152,219,0.06); }
+  .cal-card[data-calendar="events"] .cal-day-name { color: #5dade2; }
+  .cal-card[data-calendar="events"] .cal-time { color: #5dade2; }
+  .cal-card[data-calendar="trainingstermine"] .cal-date-box { border-right-color: #2ecc71; background: rgba(46,204,113,0.06); }
+  .cal-card[data-calendar="trainingstermine"] .cal-day-name { color: #58d68d; }
+  .cal-card[data-calendar="trainingstermine"] .cal-time { color: #58d68d; }
+  .cal-card[data-calendar="arbeitsdienste"] .cal-date-box { border-right-color: #e67e22; background: rgba(230,126,34,0.06); }
+  .cal-card[data-calendar="arbeitsdienste"] .cal-day-name { color: #f0a04b; }
+  .cal-card[data-calendar="arbeitsdienste"] .cal-time { color: #f0a04b; }
+  .cal-card.cal-hidden { display: none; }
+  .cal-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .cal-badge[data-calendar="oeffnungszeiten"] { background: rgba(212,160,32,0.15); color: var(--yellow-light); }
+  .cal-badge[data-calendar="events"] { background: rgba(52,152,219,0.15); color: #5dade2; }
+  .cal-badge[data-calendar="trainingstermine"] { background: rgba(46,204,113,0.15); color: #58d68d; }
+  .cal-badge[data-calendar="arbeitsdienste"] { background: rgba(230,126,34,0.15); color: #f0a04b; }
+
+  /* ===== NEWS ===== */
+  .news-list { display: flex; flex-direction: column; gap: 16px; }
+  .news-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 10px; overflow: hidden;
+    display: flex; transition: border-color 0.2s;
+  }
+  .news-card:hover { border-color: rgba(255,255,255,0.12); }
+  .news-image {
+    width: 180px; min-height: 120px; flex-shrink: 0;
+    background: var(--dark); display: flex;
+    align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 32px; overflow: hidden;
+  }
+  .news-image img { width: 100%; height: 100%; object-fit: cover; }
+  .news-body { padding: 20px; flex: 1; }
+  .news-meta { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+  .news-date { font-size: 12px; font-weight: 700; color: var(--yellow); letter-spacing: 0.5px; }
+  .news-author { font-size: 12px; color: var(--text-dim); }
+  .news-card h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px; font-weight: 700; color: var(--cream);
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .news-preview {
+    font-size: 14px; color: var(--text-dim); line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .news-empty {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 10px; padding: 40px; text-align: center; color: var(--text-dim);
+  }
+
+  /* ===== PREISE & ZEITEN ===== */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .info-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 12px; padding: 32px;
+  }
+  .info-card h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px; font-weight: 700; color: var(--cream);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--yellow);
+  }
+  .price-row {
+    display: flex; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .price-row:last-child { border-bottom: none; }
+  .price-label { color: var(--text); font-size: 15px; }
+  .price-value { color: var(--cream); font-weight: 600; font-size: 15px; }
+  .price-note {
+    background: rgba(212,160,32,0.08); border: 1px solid rgba(212,160,32,0.2);
+    border-radius: 8px; padding: 12px 16px; margin-top: 16px;
+    font-size: 13px; color: var(--yellow-light);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .price-section-title {
+    font-size: 13px; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px;
+  }
+  .price-section-title:first-of-type { margin-top: 0; }
+  .zeit-block { margin-bottom: 20px; }
+  .zeit-block h4 { font-size: 14px; font-weight: 700; color: var(--yellow-light); margin-bottom: 8px; }
+  .zeit-row { display: flex; justify-content: space-between; padding: 6px 0; }
+  .zeit-day { color: var(--text); font-size: 15px; }
+  .zeit-time { color: var(--cream); font-weight: 500; font-size: 15px; }
+  .zeit-note { font-size: 13px; color: var(--text-dim); margin-top: 8px; font-style: italic; }
+  .jahres-badge {
+    background: linear-gradient(135deg, rgba(212,160,32,0.15), rgba(232,220,200,0.08));
+    border: 1px solid rgba(212,160,32,0.25); border-radius: 10px;
+    padding: 16px 20px; margin-top: 20px;
+  }
+  .jahres-badge strong { color: var(--yellow-light); }
+  .jahres-badge p { font-size: 13px; color: var(--text); margin-top: 4px; }
+
+  /* ===== MAP ===== */
+  .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .map-embed {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 12px; overflow: hidden; aspect-ratio: 16/10;
+  }
+  .map-embed iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .contact-info {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 12px; padding: 32px;
+  }
+  .contact-info h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px; font-weight: 700; color: var(--cream);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
+  }
+  .contact-row {
+    display: flex; gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .contact-row:last-child { border-bottom: none; }
+  .contact-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+  .contact-row span { color: var(--text); font-size: 15px; }
+  .contact-row a { color: var(--yellow); text-decoration: none; }
+
+  /* ===== FOOTER ===== */
+  footer {
+    border-top: 1px solid var(--dark-border);
+    padding: 40px 24px; text-align: center; max-width: 1200px; margin: 0 auto;
+  }
+  .footer-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 20px; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .footer-logo .zug { color: var(--cream); }
+  .footer-logo .zwang { color: var(--yellow); }
+  .footer-links { display: flex; gap: 24px; justify-content: center; margin: 16px 0; }
+  .footer-links a { color: var(--text-dim); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--cream); }
+  .footer-copy { color: var(--text-dim); font-size: 12px; margin-top: 16px; }
+
+  /* ===== LOADING ===== */
+  .skeleton {
+    background: linear-gradient(90deg, var(--dark-card) 25%, #2a2a2a 50%, var(--dark-card) 75%);
+    background-size: 200% 100%; animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .nav-links.open {
+      display: flex; flex-direction: column;
+      position: absolute; top: 64px; left: 0; right: 0;
+      background: var(--dark); border-bottom: 1px solid var(--dark-border); padding: 16px;
+    }
+    .nav-toggle { display: block; }
+    .info-grid, .map-grid { grid-template-columns: 1fr; }
+    .hero { min-height: 70vh; }
+    .news-card { flex-direction: column; }
+    .news-image { width: 100%; min-height: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+    <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
+    <div class="nav-links">
+      <a href="#" class="active">Startseite</a>
+      <a href="#">Der Verein</a>
+      <a href="#">Bouldern</a>
+      <a href="#">Kilter Board</a>
+      <a href="#">Jugendtraining</a>
+      <a href="#termine">Öffnungszeiten & Termine</a>
+      <a href="#kontakt">Kontakt</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <img id="heroLogo" src="" alt="Zugzwang Boulderhalle" style="max-width:210px; width:40%; margin-bottom:24px; display:none;">
+    <p class="hero-sub">Bouldern in Auerbach seit 2014.</p>
+  </div>
+</section>
+
+
+<!-- TERMINE -->
+<section id="termine">
+  <span class="section-label">Termine</span>
+  <h2 class="section-title">Kalender & Termine</h2>
+  <div id="calFilters" class="cal-filters" style="display:none;"></div>
+  <div class="cal-scroll-container">
+    <div id="calFeed" class="cal-feed">
+      <div class="cal-empty"><div class="skeleton" style="width:160px;height:18px;margin:0 auto 12px;"></div>Termine werden geladen...</div>
+    </div>
+  </div>
+</section>
+
+<!-- BILDER -->
+<section class="section-divider">
+  <span class="section-label">Eindrücke</span>
+  <h2 class="section-title">Aus der Halle</h2>
+  <div id="imageStrip" class="strip-wrapper">
+    <div class="strip-empty"><div class="skeleton" style="width:200px;height:20px;margin-bottom:8px;"></div><span>Bilder werden geladen...</span></div>
+  </div>
+</section>
+
+<!-- NEWS -->
+<section class="section-divider">
+  <span class="section-label">Neuigkeiten</span>
+  <h2 class="section-title">News</h2>
+  <div id="newsList" class="news-list">
+    <div class="news-empty"><div class="skeleton" style="width:160px;height:18px;margin:0 auto 12px;"></div>News werden geladen...</div>
+  </div>
+</section>
+
+<!-- PREISE & ZEITEN -->
+<section id="preise" class="section-divider">
+  <span class="section-label">Infos</span>
+  <h2 class="section-title">Eintrittspreise & Öffnungszeiten</h2>
+  <div class="info-grid">
+    <div class="info-card">
+      <h3>Eintrittspreise</h3>
+      <div class="price-section-title">Regulär</div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">6,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt</span><span class="price-value">5,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">12,00 €</span></div>
+      <div class="price-section-title">Fördermitglieder</div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">5,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt</span><span class="price-value">4,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">10,00 €</span></div>
+      <div class="price-section-title">Kinder & Ausleihe</div>
+      <div class="price-row"><span class="price-label">Kinder bis 10 Jahre</span><span class="price-value">4,00 €</span></div>
+      <div class="price-row"><span class="price-label">Leihschuhe</span><span class="price-value">3,00 €</span></div>
+      <div class="price-note"><span>💳</span><span>Es kann nur bargeldlos bezahlt werden</span></div>
+    </div>
+    <div class="info-card">
+      <h3>Öffnungszeiten</h3>
+      <div class="zeit-block">
+        <h4>Winterhalbjahr (Oktober — März)</h4>
+        <div class="zeit-row"><span class="zeit-day">Mittwoch</span><span class="zeit-time">18:00 — 21:00</span></div>
+        <div class="zeit-row"><span class="zeit-day">Freitag</span><span class="zeit-time">18:00 — 21:00</span></div>
+        <div class="zeit-row"><span class="zeit-day">Sonntag</span><span class="zeit-time">14:00 — 17:00</span></div>
+      </div>
+      <div class="zeit-block">
+        <h4>Sommerhalbjahr (April — September)</h4>
+        <div class="zeit-row"><span class="zeit-day">Freitag</span><span class="zeit-time">18:00 — 21:00</span></div>
+        <p class="zeit-note">Ab den bayr. Pfingstferien bis Ende September geschlossen.</p>
+      </div>
+      <div class="jahres-badge">
+        <strong>🔑 Jahreskarte</strong>
+        <p>Täglich von 7:00 bis 22:00 Uhr bouldern. Infos unter „Der Verein".</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAP & KONTAKT -->
+<section id="kontakt" class="section-divider">
+  <span class="section-label">Anfahrt</span>
+  <h2 class="section-title">So findet ihr uns</h2>
+  <div class="map-grid">
+    <div class="map-embed">
+      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2557.0!2d11.626!3d49.693!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47a1f8c8b8b8b8b8%3A0x0!2zNDnCsDQxJzM0LjgiTiAxMcKwMzcnMzMuNiJF!5e0!3m2!1sde!2sde!4v1" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
+    <div class="contact-info">
+      <h3>Kontakt</h3>
+      <div class="contact-row"><span class="contact-icon">📍</span><span>Neuhauser Straße 1<br>91275 Auerbach i.d.OPf.</span></div>
+      <div class="contact-row"><span class="contact-icon">📧</span><a href="mailto:info&#64;boulderhalle-auerbach.de">info&#64;boulderhalle-auerbach.de</a></div>
+      <div class="contact-row"><span class="contact-icon">📱</span><span><a href="https://www.instagram.com/" target="_blank">Instagram</a> · <a href="https://facebook.com/bouldernauerbach" target="_blank">Facebook</a></span></div>
+      <div class="contact-row"><span class="contact-icon">🏠</span><span>In der Helmut-Ott-Halle (Kellergeschoss)</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo"><span class="zug">Zug</span><span class="zwang">zwang</span> Boulderhalle</div>
+  <div class="footer-links">
+    <a href="#">Impressum</a>
+    <a href="#">Datenschutz</a>
+    <a href="#">Haftungsausschluss</a>
+    <a href="#">Downloads</a>
+  </div>
+  <p class="footer-copy">© 2026 Boulderverein Zugzwang e.V. — Neuhauser Straße 1, 91275 Auerbach i.d.OPf.</p>
+</footer>
+
+<script>
+// ===================== CONFIG =====================
+const API_URL = 'https://script.google.com/macros/s/AKfycbyAJvJGsBQni5D-LvvuskgklAm1MgdxuNr1f0PAO_ITzha72pxWPYsiDMbKdRf_C9LwoA/exec';
+
+const GRADIENTS = [
+  'linear-gradient(135deg, #2c2416, #1a1408)',
+  'linear-gradient(135deg, #1a2a1a, #0d1a0d)',
+  'linear-gradient(135deg, #2a1a1a, #1a0d0d)',
+  'linear-gradient(135deg, #1a1a2a, #0d0d1a)',
+];
+const EMOJIS = ['🧗', '🪨', '💪', '🏆'];
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const res = await fetch(API_URL + '?action=all', { redirect: 'follow' });
+    const data = await res.json();
+    if (data.success) {
+      if (data.logo) {
+        if (data.logo.logo) renderLogo(data.logo.logo);
+        if (data.logo.background) renderHeroBg(data.logo.background);
+      }
+      if (data.images) renderImageStrip(data.images);
+      if (data.events) renderCalendar(data.events);
+      if (data.news) renderNews(data.news);
+    }
+  } catch (err) {
+    console.error('Backend-Fehler:', err);
+    document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Bilder konnten nicht geladen werden</div>';
+    document.getElementById('calFeed').innerHTML = '<div class="cal-empty">Termine konnten nicht geladen werden</div>';
+    document.getElementById('newsList').innerHTML = '<div class="news-empty">News konnten nicht geladen werden</div>';
+  }
+});
+
+// ===================== LOGO =====================
+function renderLogo(logo) {
+  const el = document.getElementById('heroLogo');
+  el.src = logo.url;
+  el.onerror = function() {
+    this.onerror = function() { this.src = logo.urlExport; };
+    this.src = logo.urlAlt;
+  };
+  el.style.display = '';
+}
+
+// ===================== HERO HINTERGRUND =====================
+function renderHeroBg(bg) {
+  const el = document.querySelector('.hero-bg');
+  const img = new Image();
+  img.referrerPolicy = 'no-referrer';
+  img.src = bg.url;
+  img.onerror = function() {
+    this.onerror = function() { this.src = bg.urlExport; };
+    this.src = bg.urlAlt;
+  };
+  el.prepend(img);
+}
+
+// ===================== IMAGE STRIP (Endlosschleife) =====================
+function renderImageStrip(images) {
+  const el = document.getElementById('imageStrip');
+  if (!images.length) { el.innerHTML = '<div class="strip-empty">Keine Bilder vorhanden</div>'; return; }
+
+  function makeItem(img, i) {
+    const hasUrl = img.url && img.url.length > 10;
+    const fb2 = img.urlExport ? `this.src='${img.urlExport}'` : `this.parentElement.innerHTML='<div style="height:100%;width:300px;display:flex;align-items:center;justify-content:center;font-size:48px;background:${GRADIENTS[i%GRADIENTS.length]}">${EMOJIS[i%EMOJIS.length]}</div>'`;
+    const fb1 = img.urlAlt ? `this.onerror=function(){${fb2}};this.src='${img.urlAlt}'` : fb2;
+    const tag = hasUrl
+      ? `<img src="${img.url}" alt="${img.name}" loading="lazy" referrerpolicy="no-referrer" onerror="${fb1}">`
+      : `<div style="height:100%;width:300px;display:flex;align-items:center;justify-content:center;font-size:48px;background:${GRADIENTS[i%GRADIENTS.length]}">${EMOJIS[i%EMOJIS.length]}</div>`;
+    return `<div class="strip-item">${tag}<div class="strip-caption">${img.name}</div></div>`;
+  }
+
+  // 3x dupliziert für nahtlose Endlosschleife
+  const repeated = [...images, ...images, ...images];
+  el.innerHTML = `
+    <div class="strip-fade-left"></div>
+    <div class="strip-fade-right"></div>
+    <div class="strip-track-outer" id="stripScroller">
+      <div class="strip-track" id="stripTrack">${repeated.map((img,i) => makeItem(img,i)).join('')}</div>
+    </div>
+  `;
+
+  const scroller = document.getElementById('stripScroller');
+
+  // Start in der Mitte
+  requestAnimationFrame(() => {
+    const oneSet = document.getElementById('stripTrack').scrollWidth / 3;
+    scroller.style.scrollBehavior = 'auto';
+    scroller.scrollLeft = oneSet;
+    scroller.style.scrollBehavior = '';
+  });
+
+  // Endlos-Loop: unsichtbar zurücksetzen bei Set-Grenze
+  scroller.addEventListener('scroll', () => {
+    const oneSet = document.getElementById('stripTrack').scrollWidth / 3;
+    if (scroller.scrollLeft >= oneSet * 2) {
+      scroller.style.scrollBehavior = 'auto';
+      scroller.scrollLeft -= oneSet;
+      scroller.style.scrollBehavior = '';
+    } else if (scroller.scrollLeft < 10) {
+      scroller.style.scrollBehavior = 'auto';
+      scroller.scrollLeft += oneSet;
+      scroller.style.scrollBehavior = '';
+    }
+  });
+
+  // Drag to scroll
+  let isDown = false, startX, scrollLeft, paused = false;
+  const pause = (ms) => { paused = true; setTimeout(() => paused = false, ms); };
+  scroller.addEventListener('mouseenter', () => pause(2000));
+  scroller.addEventListener('mousedown', (e) => {
+    isDown = true; scroller.style.cursor = 'grabbing';
+    startX = e.pageX - scroller.offsetLeft; scrollLeft = scroller.scrollLeft; pause(3000);
+  });
+  scroller.addEventListener('mouseleave', () => { isDown = false; scroller.style.cursor = ''; });
+  scroller.addEventListener('mouseup', () => { isDown = false; scroller.style.cursor = ''; });
+  scroller.addEventListener('mousemove', (e) => {
+    if (!isDown) return; e.preventDefault();
+    scroller.scrollLeft = scrollLeft - (e.pageX - scroller.offsetLeft - startX);
+  });
+  scroller.addEventListener('touchstart', () => pause(4000), { passive: true });
+
+  // Auto-scroll
+  setInterval(() => { if (!paused) scroller.scrollLeft += 1; }, 30);
+}
+
+// ===================== KALENDER-KONFIGURATION =====================
+const CAL_CONFIG = {
+  oeffnungszeiten:  { label: 'Öffnungszeiten', color: '#D4A020' },
+  events:           { label: 'Events', color: '#3498db' },
+  trainingstermine: { label: 'Trainingstermine', color: '#2ecc71' },
+  arbeitsdienste:   { label: 'Arbeitsdienste', color: '#e67e22' },
+};
+
+// ===================== KALENDER-FEED =====================
+let activeFilter = 'alle';
+
+function renderCalendar(events) {
+  const el = document.getElementById('calFeed');
+  if (!events.length) { el.innerHTML = '<div class="cal-empty">Keine anstehenden Termine</div>'; return; }
+
+  // Welche Kalender sind in den Daten vorhanden?
+  const calendars = [...new Set(events.map(ev => ev.calendar).filter(Boolean))];
+
+  // Filter-Tabs nur anzeigen wenn mehrere Kalender
+  if (calendars.length > 1) {
+    const filterEl = document.getElementById('calFilters');
+    filterEl.style.display = '';
+    filterEl.innerHTML = `
+      <button class="cal-filter-btn active" data-filter="alle">Alle</button>
+      ${calendars.map(cal => {
+        const cfg = CAL_CONFIG[cal] || { label: cal, color: '#888' };
+        return `<button class="cal-filter-btn" data-filter="${cal}">
+          <span class="cal-filter-dot" style="background:${cfg.color}"></span>${cfg.label}
+        </button>`;
+      }).join('')}
+    `;
+    filterEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.cal-filter-btn');
+      if (!btn) return;
+      filterEl.querySelectorAll('.cal-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.filter;
+      el.querySelectorAll('.cal-card').forEach(card => {
+        card.classList.toggle('cal-hidden', activeFilter !== 'alle' && card.dataset.calendar !== activeFilter);
+      });
+    });
+  }
+
+  el.innerHTML = events.map(ev => {
+    const cal = ev.calendar || '';
+    const cfg = CAL_CONFIG[cal];
+    const time = ev.allDay
+      ? '<span class="cal-time">Ganztägig</span>'
+      : `<span class="cal-time">${ev.timeStart} — ${ev.timeEnd}</span>`;
+    const loc = ev.location ? `<span class="cal-location">📍 ${ev.location}</span>` : '';
+    const desc = ev.description ? `<p class="cal-desc">${ev.description.substring(0, 120)}${ev.description.length > 120 ? '…' : ''}</p>` : '';
+    const badge = cfg ? `<span class="cal-badge" data-calendar="${cal}">${cfg.label}</span>` : '';
+    return `
+      <div class="cal-card" data-calendar="${cal}">
+        <div class="cal-date-box">
+          <span class="cal-day-name">${ev.dayName}</span>
+          <span class="cal-day-num">${ev.dayNum}</span>
+          <span class="cal-month">${ev.month}</span>
+        </div>
+        <div class="cal-body">
+          <div class="cal-title">${ev.title} ${badge}</div>
+          <div class="cal-meta">${time}${loc}</div>
+          ${desc}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ===================== NEWS =====================
+function renderNews(news) {
+  const el = document.getElementById('newsList');
+  if (!news.length) { el.innerHTML = '<div class="news-empty">Keine News vorhanden</div>'; return; }
+  el.innerHTML = news.map((n, i) => {
+    const img = n.imageUrl
+      ? `<img src="${n.imageUrl}" alt="" referrerpolicy="no-referrer">`
+      : `<span style="font-size:32px">${['📢','🔧','📅','🏆','🎉'][i%5]}</span>`;
+    return `
+      <div class="news-card">
+        <div class="news-image">${img}</div>
+        <div class="news-body">
+          <div class="news-meta">
+            <span class="news-date">${n.dateFormatted}</span>
+            <span class="news-author">${n.author}</span>
+          </div>
+          <h3>${n.title}</h3>
+          <p class="news-preview">${n.contentPreview || n.content}</p>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+
+</script>
+</body>
+</html>
+      
