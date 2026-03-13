@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verein — Boulderverein Zugzwang e.V.</title>
+<meta name="description" content="Boulderverein Zugzwang e.V. — Vereinsinfo, Vorstand, Mitgliedschaft und Jahreskarte.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #141414;
+    --dark: #1c1c1c;
+    --dark-card: #232323;
+    --dark-border: #333;
+    --yellow: #D4A020;
+    --yellow-light: #E8B930;
+    --cream: #E8DCC8;
+    --cream-dim: #c4b9a6;
+    --white: #f0ece4;
+    --text: #d4d0c8;
+    --text-dim: #8a8680;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--black); color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== NAV ===== */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(20,20,20,0.92); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--dark-border);
+  }
+  .nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 64px;
+  }
+  .nav-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 22px;
+    letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+  }
+  .nav-logo .zug { color: var(--cream); }
+  .nav-logo .zwang { color: var(--yellow); }
+  .nav-links { display: flex; gap: 4px; align-items: center; }
+  .nav-links a {
+    color: var(--cream-dim); text-decoration: none;
+    font-size: 14px; font-weight: 500;
+    padding: 8px 14px; border-radius: 6px; transition: all 0.2s;
+  }
+  .nav-links a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
+  .nav-links a.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
+
+  /* ===== PAGE HEADER ===== */
+  .page-header {
+    margin-top: 64px; padding: 48px 24px 0;
+    max-width: 1200px; margin-left: auto; margin-right: auto;
+  }
+  .section-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--yellow); margin-bottom: 8px;
+  }
+  .section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 36px; font-weight: 700;
+    color: var(--cream); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 32px;
+  }
+
+  /* ===== SECTIONS ===== */
+  section { max-width: 1200px; margin: 0 auto; padding: 48px 24px; }
+  .section-divider { border-top: 1px solid var(--dark-border); }
+
+  /* ===== CARDS ===== */
+  .info-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 12px; padding: 32px;
+  }
+  .info-card h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px; font-weight: 700; color: var(--cream);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--yellow);
+  }
+
+  /* ===== INTRO ===== */
+  .intro-text {
+    font-size: 17px; color: var(--text); line-height: 1.7; max-width: 800px;
+  }
+  .intro-text strong { color: var(--cream); }
+
+  /* ===== VORSTAND ===== */
+  .vorstand-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;
+  }
+  .vorstand-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+  }
+  .vorstand-icon {
+    width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(212,160,32,0.1); border: 2px solid rgba(212,160,32,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: var(--yellow-light); overflow: hidden;
+  }
+  .vorstand-icon img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .vorstand-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px; font-weight: 700; color: var(--cream); text-transform: uppercase;
+  }
+  .vorstand-role { font-size: 14px; color: var(--yellow-light); font-weight: 600; }
+
+  /* ===== BEITRÄGE TABELLE ===== */
+  .beitrag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .price-section-title {
+    font-size: 13px; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px;
+  }
+  .price-section-title:first-of-type { margin-top: 0; }
+  .price-row {
+    display: flex; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .price-row:last-child { border-bottom: none; }
+  .price-label { color: var(--text); font-size: 15px; }
+  .price-value { color: var(--cream); font-weight: 600; font-size: 15px; }
+  .price-note {
+    background: rgba(212,160,32,0.08); border: 1px solid rgba(212,160,32,0.2);
+    border-radius: 8px; padding: 12px 16px; margin-top: 16px;
+    font-size: 13px; color: var(--yellow-light);
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .price-highlight {
+    color: var(--yellow); font-weight: 700; font-size: 16px;
+  }
+
+  /* ===== JAHRESKARTE FEATURE ===== */
+  .jk-feature {
+    background: linear-gradient(135deg, rgba(212,160,32,0.12), rgba(232,220,200,0.04));
+    border: 2px solid rgba(212,160,32,0.3);
+    border-radius: 14px; padding: 32px; margin-bottom: 24px;
+  }
+  .jk-feature h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px; font-weight: 800; color: var(--yellow);
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .jk-feature p { font-size: 15px; color: var(--text); line-height: 1.7; }
+  .jk-feature strong { color: var(--cream); }
+  .jk-chips {
+    display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .jk-chip {
+    background: rgba(212,160,32,0.1); border: 1px solid rgba(212,160,32,0.25);
+    border-radius: 100px; padding: 6px 16px;
+    font-size: 13px; font-weight: 600; color: var(--yellow-light);
+  }
+
+  /* ===== HINWEISE ===== */
+  .hinweis-list { display: flex; flex-direction: column; gap: 12px; }
+  .hinweis-item {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 10px; padding: 16px 20px;
+    font-size: 14px; color: var(--text); line-height: 1.6;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .hinweis-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ===== ACTION CARDS ===== */
+  .action-card {
+    background: var(--dark-card); border: 2px solid var(--dark-border);
+    border-radius: 12px; padding: 28px; text-decoration: none;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    transition: all 0.2s; gap: 8px;
+  }
+  .action-card:hover { transform: translateY(-2px); }
+  .action-icon {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 800; color: #fff;
+  }
+  .action-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px; font-weight: 700; text-transform: uppercase; color: var(--cream);
+  }
+  .action-desc { font-size: 13px; color: var(--text-dim); }
+  .action-green { border-color: rgba(46,204,113,0.3); }
+  .action-green:hover { border-color: #2ecc71; background: rgba(46,204,113,0.06); }
+  .action-green .action-icon { background: #2ecc71; }
+  .action-red { border-color: rgba(231,76,60,0.3); }
+  .action-red:hover { border-color: #e74c3c; background: rgba(231,76,60,0.06); }
+  .action-red .action-icon { background: #e74c3c; }
+
+  /* ===== FOOTER ===== */
+  footer {
+    border-top: 1px solid var(--dark-border);
+    padding: 40px 24px; text-align: center; max-width: 1200px; margin: 0 auto;
+  }
+  .footer-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 20px; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .footer-logo .zug { color: var(--cream); }
+  .footer-logo .zwang { color: var(--yellow); }
+  .footer-links { display: flex; gap: 24px; justify-content: center; margin: 16px 0; }
+  .footer-links a { color: var(--text-dim); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--cream); }
+  .footer-copy { color: var(--text-dim); font-size: 12px; margin-top: 16px; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .nav-links { gap: 0; }
+    .nav-links a { font-size: 12px; padding: 8px 8px; }
+    .beitrag-grid { grid-template-columns: 1fr; }
+    .vorstand-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+    <div class="nav-links">
+      <a href="index.html">Boulderhalle</a>
+      <a href="verein.html" class="active">Verein</a>
+      <a href="jugendtraining.html">Jugendtraining</a>
+      <a href="#">Info</a>
+      <a href="intern.html">Intern</a>
+    </div>
+  </div>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <span class="section-label">Verein</span>
+  <h2 class="section-title">Boulderverein Zugzwang e.V.</h2>
+</div>
+
+<!-- ÜBER UNS -->
+<section>
+  <div class="intro-text">
+    <p>Der Boulderverein Zugzwang e.V. wurde am <strong>20. Dezember 2013</strong> von 24 Personen gegründet und ist als gemeinnützig eingetragen. Unser Zweck ist die <strong>Förderung des Klettersports in Auerbach und Umgebung</strong>.</p>
+  </div>
+</section>
+
+<!-- VORSTAND -->
+<section class="section-divider">
+  <span class="section-label">Team</span>
+  <h2 class="section-title">Vorstand</h2>
+  <div class="vorstand-grid">
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/mueller.jpg" alt="Detlef Müller" onerror="this.parentElement.textContent='DM'"></div>
+      <div><div class="vorstand-name">Detlef Müller</div><div class="vorstand-role">1. Vorstand</div></div>
+    </div>
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/baumann.jpg" alt="Holger Baumann" onerror="this.parentElement.textContent='HB'"></div>
+      <div><div class="vorstand-name">Holger Baumann</div><div class="vorstand-role">2. Vorstand</div></div>
+    </div>
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/christof.jpg" alt="Fabian Christof" onerror="this.parentElement.textContent='FC'"></div>
+      <div><div class="vorstand-name">Fabian Christof</div><div class="vorstand-role">Kassier</div></div>
+    </div>
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/sperber.jpg" alt="Anne Sperber" onerror="this.parentElement.textContent='AS'"></div>
+      <div><div class="vorstand-name">Anne Sperber</div><div class="vorstand-role">Schriftführer</div></div>
+    </div>
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/ziegler.jpg" alt="Simon Ziegler" onerror="this.parentElement.textContent='SZ'"></div>
+      <div><div class="vorstand-name">Simon Ziegler</div><div class="vorstand-role">Beisitzer</div></div>
+    </div>
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/mueller-lilly.jpg" alt="Lilly Müller" onerror="this.parentElement.textContent='LM'"></div>
+      <div><div class="vorstand-name">Lilly Müller</div><div class="vorstand-role">Beisitzer</div></div>
+    </div>
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/eckert-alois.jpg" alt="Alois Eckert" onerror="this.parentElement.textContent='AE'"></div>
+      <div><div class="vorstand-name">Alois Eckert</div><div class="vorstand-role">Beisitzer</div></div>
+    </div>
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/eckert-holger.jpg" alt="Holger Eckert" onerror="this.parentElement.textContent='HE'"></div>
+      <div><div class="vorstand-name">Holger Eckert</div><div class="vorstand-role">Revisor</div></div>
+    </div>
+    <div class="vorstand-card">
+      <div class="vorstand-icon"><img src="img/vorstand/ziebell.jpg" alt="Michael Ziebell" onerror="this.parentElement.textContent='MZ'"></div>
+      <div><div class="vorstand-name">Michael Ziebell</div><div class="vorstand-role">Revisor</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- JAHRESKARTE -->
+<section class="section-divider">
+  <span class="section-label">Jahreskarte</span>
+  <h2 class="section-title">Mitgliedschaft mit Jahreskarte</h2>
+  <div class="jk-feature">
+    <h3>Zutrittschip für die Halle</h3>
+    <p>Als Vollmitglied erhaltet ihr einen <strong>Zutrittschip</strong> und könnt die Halle <strong>täglich von 7:00 bis 22:00 Uhr</strong> nutzen. Alternativ ist auch eine Fördermitgliedschaft ohne Jahreskarte möglich.</p>
+    <div class="jk-chips">
+      <span class="jk-chip">Täglich 7 — 22 Uhr</span>
+      <span class="jk-chip">Eigener Zutrittschip</span>
+      <span class="jk-chip">Unabhängig von Öffnungszeiten</span>
+    </div>
+  </div>
+</section>
+
+<!-- BEITRÄGE -->
+<section class="section-divider">
+  <span class="section-label">Beiträge</span>
+  <h2 class="section-title">Mitgliedsbeiträge</h2>
+  <div class="beitrag-grid">
+    <div class="info-card">
+      <h3>Vollmitgliedschaft</h3>
+      <div class="price-section-title">Mitgliedsbeitrag</div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">40,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value">20,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">80,00 €</span></div>
+      <div class="price-section-title">Jahreskarte</div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">110,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value">70,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">220,00 €</span></div>
+      <div class="price-section-title">Gesamtbeitrag (Mitgliedschaft + Jahreskarte)</div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value price-highlight">150,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value price-highlight">90,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value price-highlight">300,00 €</span></div>
+      <div class="price-note"><span>*</span><span>Kinder unter 10 Jahren sind bei elterlicher Mitgliedschaft kostenfrei</span></div>
+    </div>
+    <div class="info-card">
+      <h3>Fördermitgliedschaft</h3>
+      <div class="price-section-title">Jahresbeitrag</div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">20,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value">16,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">40,00 €</span></div>
+      <div class="price-note"><span>*</span><span>Fördermitglieder erhalten 1 € Rabatt auf die regulären Eintrittspreise</span></div>
+      <div class="price-note"><span>*</span><span>Keine Jahreskarte / kein Zutrittschip</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- HINWEISE -->
+<section class="section-divider">
+  <span class="section-label">Gut zu wissen</span>
+  <h2 class="section-title">Hinweise zur Mitgliedschaft</h2>
+  <div class="hinweis-list">
+    <div class="hinweis-item"><span class="hinweis-icon">*</span><span>Eine Mitgliedschaft erstreckt sich über ein <strong>Kalenderjahr</strong>. Wenn die Mitgliedschaft nicht vor dem 31.12. gekündigt wird, verlängert sich diese um ein weiteres Kalenderjahr.</span></div>
+    <div class="hinweis-item"><span class="hinweis-icon">*</span><span>Vollmitglieder sind verpflichtet, mindestens <strong>einen Arbeitsdienst pro Jahr</strong> zu leisten.</span></div>
+    <div class="hinweis-item"><span class="hinweis-icon">*</span><span>Kündigungen erfolgen online.</span></div>
+  </div>
+</section>
+
+<!-- FORMULARE -->
+<section class="section-divider">
+  <span class="section-label">Online-Formulare</span>
+  <h2 class="section-title">Mitgliedschaft verwalten</h2>
+  <div class="beitrag-grid">
+    <a href="antrag.html" class="action-card action-green">
+      <span class="action-icon">+</span>
+      <span class="action-label">Mitgliedsantrag</span>
+      <span class="action-desc">Jetzt Mitglied werden</span>
+    </a>
+    <a href="kuendigung.html" class="action-card action-red">
+      <span class="action-icon">x</span>
+      <span class="action-label">Kündigung</span>
+      <span class="action-desc">Mitgliedschaft kündigen</span>
+    </a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo"><span class="zug">Zug</span><span class="zwang">zwang</span> Boulderhalle</div>
+  <div class="footer-links">
+    <a href="#">Impressum</a>
+    <a href="#">Datenschutz</a>
+    <a href="#">Haftungsausschluss</a>
+    <a href="#">Downloads</a>
+  </div>
+  <p class="footer-copy">&copy; 2026 Boulderverein Zugzwang e.V. — Neuhauser Straße 1, 91275 Auerbach i.d.OPf.</p>
+</footer>
+
+</body>
+</html>

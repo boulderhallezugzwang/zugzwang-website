@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intern — Boulderverein Zugzwang e.V.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #141414;
+    --dark: #1c1c1c;
+    --dark-card: #232323;
+    --dark-border: #333;
+    --yellow: #D4A020;
+    --yellow-light: #E8B930;
+    --cream: #E8DCC8;
+    --cream-dim: #c4b9a6;
+    --white: #f0ece4;
+    --text: #d4d0c8;
+    --text-dim: #8a8680;
+    --error: #e74c3c;
+    --success: #2ecc71;
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; line-height: 1.5;
+    color: var(--text); background: var(--black);
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== NAV ===== */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(20,20,20,0.92); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--dark-border);
+  }
+  .nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 64px;
+  }
+  .nav-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 22px;
+    letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+  }
+  .nav-logo .zug { color: var(--cream); }
+  .nav-logo .zwang { color: var(--yellow); }
+  .nav-links { display: flex; gap: 4px; align-items: center; }
+  .nav-links a {
+    color: var(--cream-dim); text-decoration: none;
+    font-size: 14px; font-weight: 500;
+    padding: 8px 14px; border-radius: 6px; transition: all 0.2s;
+  }
+  .nav-links a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
+  .nav-links a.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
+
+  /* ===== LOGIN ===== */
+  .login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 20px;
+  }
+  .login-box {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 16px; padding: 48px 40px;
+    max-width: 380px; width: 100%; text-align: center;
+  }
+  .login-box h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px; font-weight: 800; color: var(--yellow);
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .login-box .subtitle { font-size: 13px; color: var(--text-dim); margin-bottom: 28px; }
+  .login-box input {
+    width: 100%; padding: 12px 16px; font-size: 16px;
+    font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--dark-border); border-radius: var(--radius);
+    background: var(--dark); color: var(--cream);
+    outline: none; text-align: center; letter-spacing: 1px;
+    transition: border-color 0.2s;
+  }
+  .login-box input:focus { border-color: var(--yellow); }
+  .login-box input.error {
+    border-color: var(--error); animation: shake 0.4s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  .login-box button {
+    width: 100%; margin-top: 14px; padding: 12px;
+    font-size: 15px; font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--black); background: var(--yellow);
+    border: none; border-radius: var(--radius);
+    cursor: pointer; transition: background 0.2s;
+  }
+  .login-box button:hover { background: var(--yellow-light); }
+  .login-err { color: var(--error); font-size: 13px; margin-top: 10px; display: none; }
+
+  /* ===== APP ===== */
+  .app { display: none; padding-top: 64px; }
+  .app-header {
+    background: var(--dark-card); border-bottom: 1px solid var(--dark-border);
+    padding: 16px 24px; position: sticky; top: 64px; z-index: 50;
+  }
+  .app-header-inner {
+    max-width: 720px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+  .app-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px; font-weight: 700; color: var(--yellow);
+    text-transform: uppercase;
+  }
+  .app-count {
+    font-size: 12px; font-weight: 600; color: var(--yellow-light);
+    background: rgba(212,160,32,0.12); padding: 3px 10px;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .logout-btn {
+    background: none; border: 1px solid var(--dark-border);
+    color: var(--text-dim); font-size: 13px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; padding: 4px 12px; border-radius: 6px; transition: all 0.15s;
+  }
+  .logout-btn:hover { border-color: var(--error); color: var(--error); }
+
+  .search-bar { max-width: 720px; margin: 20px auto 0; padding: 0 24px; }
+  .search-bar input {
+    width: 100%; padding: 12px 16px; font-size: 16px;
+    font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--dark-border); border-radius: var(--radius);
+    background: var(--dark-card); color: var(--cream); outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-bar input::placeholder { color: var(--text-dim); }
+  .search-bar input:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(212,160,32,0.12); }
+
+  .list-container { max-width: 720px; margin: 16px auto; padding: 0 24px 40px; }
+
+  .member-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 14px; transition: border-color 0.15s;
+  }
+  .member-card:hover { border-color: rgba(255,255,255,0.12); }
+  .member-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: rgba(212,160,32,0.1); color: var(--yellow);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px; flex-shrink: 0;
+  }
+  .member-info { flex: 1; min-width: 0; }
+  .member-name {
+    font-weight: 600; font-size: 15px; color: var(--cream);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .member-name .highlight { background: rgba(212,160,32,0.3); border-radius: 2px; padding: 0 1px; }
+  .member-meta {
+    font-size: 13px; color: var(--text-dim);
+    display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px;
+  }
+  .member-meta a { color: var(--yellow); text-decoration: none; }
+  .member-meta a:hover { text-decoration: underline; }
+  .member-status {
+    font-size: 11px; font-weight: 600; color: var(--yellow-light);
+    background: rgba(212,160,32,0.12); padding: 2px 8px;
+    border-radius: 12px; white-space: nowrap; flex-shrink: 0;
+  }
+  .member-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .chip-badge {
+    font-size: 11px; font-weight: 500; padding: 2px 8px;
+    border-radius: 12px; white-space: nowrap; cursor: pointer; transition: background 0.15s;
+  }
+  .chip-badge.has-chip { background: rgba(46,204,113,0.15); color: #58d68d; }
+  .chip-badge.no-chip { background: rgba(231,76,60,0.15); color: #e74c3c; }
+  .chip-badge:hover { filter: brightness(1.2); }
+  .chip-edit { display: flex; align-items: center; gap: 6px; }
+  .chip-edit input {
+    width: 80px; padding: 4px 8px; font-size: 12px; font-family: inherit;
+    border: 1px solid var(--dark-border); border-radius: 6px;
+    background: var(--dark); color: var(--cream); outline: none;
+  }
+  .chip-edit input:focus { border-color: var(--yellow); }
+  .chip-edit select {
+    padding: 4px; font-size: 12px; border-radius: 6px;
+    border: 1px solid var(--dark-border); background: var(--dark); color: var(--cream);
+  }
+  .chip-edit button {
+    padding: 3px 10px; font-size: 11px; font-family: inherit;
+    border: none; border-radius: 6px; cursor: pointer;
+  }
+  .chip-edit .save-btn { background: var(--yellow); color: var(--black); font-weight: 600; }
+  .chip-edit .cancel-btn { background: var(--dark-border); color: var(--text); }
+
+  .no-results { text-align: center; padding: 48px 20px; color: var(--text-dim); }
+  .no-results .nr-icon { font-size: 36px; margin-bottom: 8px; }
+  .loading { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--dark-border); border-top-color: var(--yellow);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 768px) {
+    .nav-links { gap: 0; }
+    .nav-links a { font-size: 12px; padding: 8px 8px; }
+  }
+  @media (max-width: 520px) {
+    .app-header { padding: 12px 16px; }
+    .search-bar, .list-container { padding-left: 16px; padding-right: 16px; }
+    .member-card { padding: 12px 14px; }
+    .member-meta { flex-direction: column; gap: 2px; }
+    .login-box { padding: 36px 28px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+    <div class="nav-links">
+      <a href="index.html">Boulderhalle</a>
+      <a href="verein.html">Verein</a>
+      <a href="jugendtraining.html">Jugendtraining</a>
+      <a href="#">Info</a>
+      <a href="intern.html" class="active">Intern</a>
+    </div>
+  </div>
+</nav>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h1>Interner Bereich</h1>
+    <div class="subtitle">Boulderverein Zugzwang e.V.</div>
+    <input type="password" id="pwInput" placeholder="Passwort" autocomplete="off">
+    <button onclick="doLogin()">Anmelden</button>
+    <div class="login-err" id="loginErr">Falsches Passwort</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="app-header">
+    <div class="app-header-inner">
+      <span class="app-title">Mitgliederliste</span>
+      <span class="app-count" id="countBadge">-</span>
+      <button class="logout-btn" onclick="doLogout()">Abmelden</button>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Name, E-Mail oder Telefon suchen..." autocomplete="off">
+  </div>
+
+  <div class="list-container" id="listContainer">
+    <div class="loading" id="loadingMsg">
+      <div class="spinner"></div>
+      Mitglieder werden geladen...
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec';
+
+let allMembers = [];
+
+function doLogin() {
+  const pw = document.getElementById('pwInput').value;
+  if (!pw) return;
+  const inp = document.getElementById('pwInput');
+  const err = document.getElementById('loginErr');
+  inp.classList.remove('error'); err.style.display = 'none';
+
+  fetch(API_URL + '?pw=' + encodeURIComponent(pw))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { inp.classList.add('error'); err.style.display = 'block'; return; }
+      sessionStorage.setItem('zz_pw', pw);
+      allMembers = (data.members || []).reverse();
+      showApp();
+    })
+    .catch(() => {
+      inp.classList.add('error');
+      err.textContent = 'Verbindungsfehler'; err.style.display = 'block';
+    });
+}
+
+document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogout() {
+  sessionStorage.removeItem('zz_pw');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('pwInput').value = '';
+  allMembers = [];
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
+  document.getElementById('searchInput').focus();
+  renderList(allMembers);
+}
+
+(function autoLogin() {
+  const pw = sessionStorage.getItem('zz_pw');
+  if (!pw) return;
+  fetch(API_URL + '?pw=' + encodeURIComponent(pw))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { sessionStorage.removeItem('zz_pw'); return; }
+      allMembers = (data.members || []).reverse();
+      showApp();
+    }).catch(() => {});
+})();
+
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', e => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) { renderList(allMembers); return; }
+    const terms = q.split(/\s+/);
+    const filtered = allMembers.filter(m => {
+      const h = (m.nachname+' '+m.vorname+' '+m.email+' '+m.telefon+' '+m.ort+' '+m.chipnr).toLowerCase();
+      return terms.every(t => h.includes(t));
+    });
+    renderList(filtered, q);
+  }, 150);
+});
+
+function renderList(members, query) {
+  const container = document.getElementById('listContainer');
+  if (members.length === 0) {
+    container.innerHTML = `<div class="no-results"><div class="nr-icon">🔍</div>${query ? 'Kein Mitglied gefunden für „'+escHtml(query)+'"' : 'Keine Mitglieder vorhanden'}</div>`;
+    updateCount(members.length); return;
+  }
+  let html = '';
+  members.forEach(m => {
+    const initials = (m.vorname.charAt(0)+m.nachname.charAt(0)).toUpperCase();
+    const name = escHtml(m.vorname)+' '+escHtml(m.nachname);
+    const displayName = query ? highlightMatch(name, query) : name;
+    html += `<div class="member-card"><div class="member-avatar">${initials}</div><div class="member-info"><div class="member-name">${displayName}</div><div class="member-meta">`;
+    if (m.telefon) html += `<span><a href="tel:${escAttr(m.telefon)}">${escHtml(m.telefon)}</a></span>`;
+    if (m.email) html += `<span><a href="mailto:${escAttr(m.email)}">${escHtml(m.email)}</a></span>`;
+    if (m.ort) html += `<span>${escHtml(m.ort)}</span>`;
+    html += `</div></div><div class="member-badges">`;
+    if (m.status) html += `<span class="member-status">${escHtml(m.status)}</span>`;
+    const chipClass = m.chip==='Ja'?'has-chip':'no-chip';
+    const chipLabel = m.chip==='Ja'?'Chip: '+escHtml(m.chipnr||'-'):'Kein Chip';
+    const idx = allMembers.indexOf(m);
+    html += `<span class="chip-badge ${chipClass}" onclick="editChip(${idx})" title="Klicken zum Bearbeiten">${chipLabel}</span>`;
+    html += `<div class="chip-edit" id="chipEdit${idx}" style="display:none">
+      <select id="chipSel${idx}"><option value="Ja" ${m.chip==='Ja'?'selected':''}>Ja</option><option value="Nein" ${m.chip!=='Ja'?'selected':''}>Nein</option></select>
+      <input id="chipNr${idx}" value="${escAttr(m.chipnr||'')}" placeholder="ChipNr.">
+      <button class="save-btn" onclick="saveChip(${idx})">OK</button>
+      <button class="cancel-btn" onclick="cancelChip(${idx})">✕</button>
+    </div>`;
+    html += `</div></div>`;
+  });
+  container.innerHTML = html;
+  updateCount(members.length);
+}
+
+function updateCount(n) {
+  const t = allMembers.length;
+  document.getElementById('countBadge').textContent = n===t?t+' Mitglieder':n+' / '+t;
+}
+
+function highlightMatch(text, query) {
+  const terms = query.split(/\s+/);
+  let result = text;
+  terms.forEach(term => {
+    if (!term) return;
+    const re = new RegExp('('+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+    result = result.replace(re,'<span class="highlight">$1</span>');
+  });
+  return result;
+}
+
+function escHtml(s) { const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+function escAttr(s) { return s.replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function editChip(idx) { document.getElementById('chipEdit'+idx).style.display='flex'; }
+function cancelChip(idx) { document.getElementById('chipEdit'+idx).style.display='none'; }
+
+function saveChip(idx) {
+  const m=allMembers[idx];
+  const chip=document.getElementById('chipSel'+idx).value;
+  const chipnr=document.getElementById('chipNr'+idx).value.trim();
+  const pw=sessionStorage.getItem('zz_pw');
+  m.chip=chip; m.chipnr=chipnr;
+  fetch(API_URL+'?pw='+encodeURIComponent(pw)+'&action=updateChip&nachname='+encodeURIComponent(m.nachname)+'&vorname='+encodeURIComponent(m.vorname)+'&chip='+encodeURIComponent(chip)+'&chipnr='+encodeURIComponent(chipnr))
+    .then(r=>r.json()).then(d=>{if(d.error)alert('Fehler: '+d.error);}).catch(err=>alert('Speichern fehlgeschlagen: '+err));
+  const q=document.getElementById('searchInput').value.trim().toLowerCase();
+  if(q){const terms=q.split(/\s+/);const filtered=allMembers.filter(m2=>{const h=(m2.nachname+' '+m2.vorname+' '+m2.email+' '+m2.telefon+' '+m2.ort+' '+m2.chipnr).toLowerCase();return terms.every(t=>h.includes(t));});renderList(filtered,q);}
+  else renderList(allMembers);
+}
+</script>
+</body>
+</html>
