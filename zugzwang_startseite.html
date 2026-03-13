@@ -536,8 +536,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const data = await res.json();
     if (data.success) {
       if (data.logo) {
-        if (data.logo.logo) renderLogo(data.logo.logo);
-        if (data.logo.background) renderHeroBg(data.logo.background);
+        // Neues Format: {logo: {...}, background: {...}}
+        if (data.logo.logo) {
+          renderLogo(data.logo.logo);
+          if (data.logo.background) renderHeroBg(data.logo.background);
+        }
+        // Altes Format: {url, urlAlt, urlExport} direkt
+        else if (data.logo.url) {
+          renderLogo(data.logo);
+        }
       }
       if (data.images) renderImageStrip(data.images);
       if (data.events) renderCalendar(data.events);
