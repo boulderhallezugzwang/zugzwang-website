@@ -199,6 +199,102 @@
   .action-red:hover { border-color: #e74c3c; background: rgba(231,76,60,0.06); }
   .action-red .action-icon { background: #e74c3c; }
 
+  /* ===== HALLENDIENST ===== */
+  .hd-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;
+  }
+  .hd-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 10px; padding: 16px; text-align: center; transition: all 0.2s;
+  }
+  .hd-card.hd-open { border-color: rgba(46,204,113,0.4); cursor: pointer; }
+  .hd-card.hd-open:hover { border-color: #2ecc71; background: rgba(46,204,113,0.06); }
+  .hd-card.hd-taken { opacity: 0.7; }
+  .hd-wochentag {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--yellow); margin-bottom: 2px;
+  }
+  .hd-datum {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px; font-weight: 700; color: var(--cream);
+  }
+  .hd-uhrzeit { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
+  .hd-name {
+    font-size: 13px; color: var(--yellow-light); font-weight: 600;
+    background: rgba(212,160,32,0.1); border-radius: 100px;
+    padding: 3px 12px; display: inline-block;
+  }
+  .hd-badge-open {
+    font-size: 12px; color: #2ecc71; font-weight: 600;
+    background: rgba(46,204,113,0.1); border-radius: 100px;
+    padding: 3px 12px; display: inline-block;
+  }
+  .hd-loading { text-align: center; padding: 40px; color: var(--text-dim); }
+  .hd-empty { text-align: center; padding: 40px; color: var(--text-dim); font-size: 14px; }
+
+  /* Hallendienst Modal */
+  .hd-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .hd-overlay.show { display: flex; }
+  .hd-modal {
+    background: var(--dark); border: 1px solid var(--dark-border);
+    border-radius: 12px; padding: 28px; width: 90%; max-width: 440px;
+    position: relative;
+  }
+  .hd-modal h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px; font-weight: 700; color: var(--cream);
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .hd-modal .hd-modal-sub {
+    font-size: 14px; color: var(--yellow); margin-bottom: 20px;
+  }
+  .hd-modal .form-row { display: flex; gap: 12px; margin-bottom: 14px; }
+  .hd-modal .form-group { flex: 1; display: flex; flex-direction: column; }
+  .hd-modal label { font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--cream-dim); }
+  .hd-modal label .req { color: #e74c3c; margin-left: 2px; }
+  .hd-modal input[type="text"], .hd-modal input[type="email"], .hd-modal input[type="tel"] {
+    width: 100%; padding: 10px 12px; font-size: 16px;
+    font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--dark-border); border-radius: 8px;
+    background: var(--black); color: var(--cream);
+    outline: none; -webkit-appearance: none;
+  }
+  .hd-modal input:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(212,160,32,0.15); }
+  .hd-close {
+    position: absolute; top: 12px; right: 16px;
+    background: none; border: none; color: var(--text-dim);
+    font-size: 24px; cursor: pointer;
+  }
+  .hd-close:hover { color: var(--cream); }
+  .hd-submit {
+    display: block; width: 100%; padding: 12px 24px; margin-top: 8px;
+    font-size: 15px; font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--black); background: #2ecc71; border: none;
+    border-radius: 8px; cursor: pointer; transition: background 0.2s;
+  }
+  .hd-submit:hover:not(:disabled) { background: #27ae60; }
+  .hd-submit:disabled { background: #555; color: #888; cursor: not-allowed; }
+  .hd-submit.loading { position: relative; color: transparent; }
+  .hd-submit.loading::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 18px; height: 18px; margin: -9px 0 0 -9px;
+    border: 2px solid rgba(0,0,0,0.3); border-top-color: var(--black);
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hd-msg {
+    padding: 14px; border-radius: 8px; text-align: center; margin-bottom: 16px; display: none;
+    font-size: 14px;
+  }
+  .hd-msg.ok { background: rgba(46,204,113,0.1); color: #2ecc71; border: 1px solid #2ecc71; display: block; }
+  .hd-msg.err { background: rgba(231,76,60,0.1); color: #e74c3c; border: 1px solid #e74c3c; display: block; }
+
   /* ===== FOOTER ===== */
   footer {
     border-top: 1px solid var(--dark-border);
@@ -221,6 +317,7 @@
     .nav-links a { font-size: 12px; padding: 8px 8px; }
     .beitrag-grid { grid-template-columns: 1fr; }
     .vorstand-grid { grid-template-columns: 1fr 1fr; }
+    .hd-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   }
 </style>
 </head>
@@ -374,6 +471,53 @@
   </div>
 </section>
 
+<!-- HALLENDIENST -->
+<section class="section-divider" id="hallendienst">
+  <span class="section-label">Mitmachen</span>
+  <h2 class="section-title">Hallendienst</h2>
+  <p style="font-size:15px; color:var(--text); margin-bottom:24px; max-width:700px;">
+    Für den Betrieb der Boulderhalle brauchen wir eure Unterstützung! Suche dir einen freien Termin aus und trage dich ein.
+  </p>
+  <div id="hdMsg"></div>
+  <div id="hdContent">
+    <div class="hd-loading">Termine werden geladen…</div>
+  </div>
+</section>
+
+<!-- HALLENDIENST MODAL -->
+<div class="hd-overlay" id="hdOverlay">
+  <div class="hd-modal">
+    <button class="hd-close" id="hdClose">&times;</button>
+    <h3>Hallendienst eintragen</h3>
+    <div class="hd-modal-sub" id="hdModalDate"></div>
+    <form id="hdForm" novalidate>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Vorname <span class="req">*</span></label>
+          <input type="text" id="hdVorname" autocomplete="given-name">
+        </div>
+        <div class="form-group">
+          <label>Nachname <span class="req">*</span></label>
+          <input type="text" id="hdNachname" autocomplete="family-name">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>E-Mail <span class="req">*</span></label>
+          <input type="email" id="hdEmail" autocomplete="email">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Mobilnummer <span class="req">*</span></label>
+          <input type="tel" id="hdMobil" autocomplete="tel">
+        </div>
+      </div>
+      <button type="submit" class="hd-submit" id="hdSubmit" disabled>Eintragen</button>
+    </form>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo"><span class="zug">Zug</span><span class="zwang">zwang</span> Boulderhalle</div>
@@ -386,5 +530,144 @@
   <p class="footer-copy">&copy; 2026 Boulderverein Zugzwang e.V. — Neuhauser Straße 1, 91275 Auerbach i.d.OPf.</p>
 </footer>
 
+<script>
+// ===== HALLENDIENST =====
+const HD_URL = 'HALLENDIENST_SCRIPT_URL_PLACEHOLDER';
+
+let hdTermine = [];
+let selectedDatum = null;
+
+// Termine laden
+async function loadHallendienst() {
+  const container = document.getElementById('hdContent');
+  try {
+    const resp = await fetch(HD_URL);
+    const json = await resp.json();
+    if (json.success && json.termine) {
+      hdTermine = json.termine;
+      renderHallendienst();
+    } else {
+      container.innerHTML = '<div class="hd-empty">Keine Termine verfügbar.</div>';
+    }
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = '<div class="hd-empty">Termine konnten nicht geladen werden.</div>';
+  }
+}
+
+function renderHallendienst() {
+  const container = document.getElementById('hdContent');
+  if (!hdTermine.length) {
+    container.innerHTML = '<div class="hd-empty">Aktuell keine Hallendienst-Termine verfügbar.</div>';
+    return;
+  }
+
+  let html = '<div class="hd-grid">';
+  hdTermine.forEach(t => {
+    if (t.verfuegbar) {
+      html += `
+        <div class="hd-card hd-open" data-datum="${t.datum}" data-label="${t.wochentagLang}, ${t.datum} · ${t.uhrzeit}">
+          <div class="hd-wochentag">${t.wochentag}</div>
+          <div class="hd-datum">${t.datum}</div>
+          <div class="hd-uhrzeit">${t.uhrzeit}</div>
+          <div class="hd-badge-open">Frei — eintragen</div>
+        </div>`;
+    } else {
+      html += `
+        <div class="hd-card hd-taken">
+          <div class="hd-wochentag">${t.wochentag}</div>
+          <div class="hd-datum">${t.datum}</div>
+          <div class="hd-uhrzeit">${t.uhrzeit}</div>
+          <div class="hd-name">${t.name}</div>
+        </div>`;
+    }
+  });
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Click handler für offene Termine
+  container.querySelectorAll('.hd-open').forEach(card => {
+    card.addEventListener('click', () => {
+      selectedDatum = card.dataset.datum;
+      document.getElementById('hdModalDate').textContent = card.dataset.label;
+      document.getElementById('hdForm').reset();
+      document.getElementById('hdSubmit').disabled = true;
+      document.getElementById('hdOverlay').classList.add('show');
+    });
+  });
+}
+
+// Modal schließen
+document.getElementById('hdClose').addEventListener('click', () => {
+  document.getElementById('hdOverlay').classList.remove('show');
+});
+document.getElementById('hdOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    document.getElementById('hdOverlay').classList.remove('show');
+  }
+});
+
+// Formular-Validierung
+const hdForm = document.getElementById('hdForm');
+const hdSubmit = document.getElementById('hdSubmit');
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function checkHdForm() {
+  let ok = true;
+  if (!document.getElementById('hdVorname').value.trim()) ok = false;
+  if (!document.getElementById('hdNachname').value.trim()) ok = false;
+  const email = document.getElementById('hdEmail').value.trim();
+  if (!email || !emailRegex.test(email)) ok = false;
+  if (!document.getElementById('hdMobil').value.trim()) ok = false;
+  hdSubmit.disabled = !ok;
+}
+hdForm.addEventListener('input', checkHdForm);
+
+// Absenden
+hdForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = {
+    datum: selectedDatum,
+    vorname: document.getElementById('hdVorname').value.trim(),
+    nachname: document.getElementById('hdNachname').value.trim(),
+    email: document.getElementById('hdEmail').value.trim(),
+    mobilnr: document.getElementById('hdMobil').value.trim()
+  };
+
+  hdSubmit.disabled = true;
+  hdSubmit.classList.add('loading');
+
+  try {
+    await fetch(HD_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    // Modal schließen
+    document.getElementById('hdOverlay').classList.remove('show');
+
+    // Erfolg anzeigen
+    const msg = document.getElementById('hdMsg');
+    msg.className = 'hd-msg ok';
+    msg.textContent = 'Du bist eingetragen! Bestätigung kommt per E-Mail.';
+    msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Termine neu laden nach kurzer Verzögerung
+    setTimeout(loadHallendienst, 2000);
+
+  } catch (err) {
+    console.error(err);
+    const msg = document.getElementById('hdMsg');
+    msg.className = 'hd-msg err';
+    msg.textContent = 'Fehler beim Eintragen. Bitte versuche es erneut.';
+  } finally {
+    hdSubmit.classList.remove('loading');
+  }
+});
+
+// Beim Laden starten
+document.addEventListener('DOMContentLoaded', loadHallendienst);
+</script>
 </body>
 </html>
