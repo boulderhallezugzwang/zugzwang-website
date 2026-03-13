@@ -216,23 +216,26 @@ function getNews() {
       const body = doc.getBody();
       const paragraphs = body.getParagraphs();
 
-      if (paragraphs.length < 3) continue;  // Mindestens Titel + Datum + Autor
+      // Nicht-leere Textzeilen sammeln (Bild-Zeilen und Leerzeilen überspringen)
+      const textLines = [];
+      for (let i = 0; i < paragraphs.length; i++) {
+        const text = paragraphs[i].getText().trim();
+        if (text) textLines.push(text);
+      }
+
+      if (textLines.length < 3) continue;  // Mindestens Titel + Datum + Autor
 
       // Zeile 1: Titel
-      const title = paragraphs[0].getText().trim();
+      const title = textLines[0];
 
       // Zeile 2: Datum (Format: TT.MM.JJJJ)
-      const dateStr = paragraphs[1].getText().trim();
+      const dateStr = textLines[1];
 
       // Zeile 3: Autor
-      const author = paragraphs[2].getText().trim();
+      const author = textLines[2];
 
       // Ab Zeile 4: Inhalt
-      const contentParagraphs = [];
-      for (let i = 3; i < paragraphs.length; i++) {
-        const text = paragraphs[i].getText().trim();
-        if (text) contentParagraphs.push(text);
-      }
+      const contentParagraphs = textLines.slice(3);
 
       // Datum parsen (TT.MM.JJJJ)
       let parsedDate = null;
@@ -252,12 +255,14 @@ function getNews() {
       let imageUrl = null;
       const bodyImages = body.getImages();
       if (bodyImages.length > 0) {
-        // Bild als Blob holen und als Base64 Data-URL zurückgeben
-        // (Alternative: Bild in Drive speichern und URL verwenden)
         const blob = bodyImages[0].getBlob();
         const base64 = Utilities.base64Encode(blob.getBytes());
         imageUrl = 'data:' + blob.getContentType() + ';base64,' + base64;
       }
+
+      // Vorschau: max 200 Zeichen
+      const fullContent = contentParagraphs.join('\n\n');
+      const preview = fullContent.length > 200 ? fullContent.substring(0, 200) + '…' : fullContent;
 
       news.push({
         id: file.getId(),
@@ -265,8 +270,8 @@ function getNews() {
         date: parsedDate,
         dateFormatted: dateStr,
         author: author,
-        content: contentParagraphs.join('\n\n'),
-        contentPreview: contentParagraphs[0] || '',
+        content: fullContent,
+        contentPreview: preview,
         imageUrl: imageUrl,
         docUrl: file.getUrl()
       });
