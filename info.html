@@ -60,6 +60,11 @@
   }
   .nav-links a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
   .nav-links a.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
+  .nav-toggle {
+    display: none; background: none; border: 1px solid var(--dark-border);
+    color: var(--cream); font-size: 22px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .nav-toggle:hover { background: rgba(255,255,255,0.06); }
 
   /* ===== PAGE ===== */
   .page-container {
@@ -236,8 +241,16 @@
   #adultFields { display: none; }
 
   @media (max-width: 768px) {
-    .nav-links { gap: 0; }
-    .nav-links a { font-size: 12px; padding: 8px 8px; }
+    .nav-toggle { display: block; }
+    .nav-links {
+      display: none; flex-direction: column;
+      position: absolute; top: 64px; left: 0; right: 0;
+      background: rgba(20,20,20,0.98); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--dark-border);
+      padding: 8px 16px;
+    }
+    .nav-links.open { display: flex; }
+    .nav-links a { padding: 12px 16px; font-size: 15px; width: 100%; }
     .tab-btn { font-size: 13px; padding: 10px 10px; }
   }
   @media (max-width: 500px) {
@@ -254,6 +267,7 @@
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+    <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">&#9776;</button>
     <div class="nav-links">
       <a href="index.html">Boulderhalle</a>
       <a href="verein.html">Verein</a>

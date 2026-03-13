@@ -22,6 +22,7 @@
     --text-dim: #8a8680;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 120px; }
   body {
     background: var(--black); color: var(--text);
     font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.6;
@@ -54,6 +55,32 @@
   }
   .nav-links a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
   .nav-links a.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
+  .nav-toggle {
+    display: none; background: none; border: 1px solid var(--dark-border);
+    color: var(--cream); font-size: 22px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .nav-toggle:hover { background: rgba(255,255,255,0.06); }
+
+  /* Sub-Navigation */
+  .sub-nav {
+    background: rgba(20,20,20,0.95); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--dark-border);
+    position: fixed; top: 64px; left: 0; right: 0; z-index: 99;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .sub-nav::-webkit-scrollbar { display: none; }
+  .sub-nav-inner {
+    max-width: 1200px; margin: 0 auto; padding: 0 24px;
+    display: flex; gap: 4px; align-items: center; height: 40px;
+  }
+  .sub-nav a {
+    color: var(--text-dim); text-decoration: none;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+    padding: 6px 12px; border-radius: 100px; transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+  .sub-nav a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
+  .sub-nav a.sub-active { color: var(--yellow); background: rgba(212,160,32,0.1); }
 
   /* ===== PAGE HEADER ===== */
   .page-header {
@@ -334,8 +361,20 @@
 
   /* ===== RESPONSIVE ===== */
   @media (max-width: 768px) {
-    .nav-links { gap: 0; }
-    .nav-links a { font-size: 12px; padding: 8px 8px; }
+    .nav-toggle { display: block; }
+    .nav-links {
+      display: none; flex-direction: column;
+      position: absolute; top: 64px; left: 0; right: 0;
+      background: rgba(20,20,20,0.98); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--dark-border);
+      padding: 8px 16px;
+    }
+    .nav-links.open { display: flex; }
+    .nav-links a { padding: 12px 16px; font-size: 15px; width: 100%; }
+    .sub-nav { top: 64px; }
+    .sub-nav-inner { padding: 0 12px; gap: 2px; }
+    .sub-nav a { font-size: 11px; padding: 5px 8px; }
+    .page-header { margin-top: 104px; }
     .beitrag-grid { grid-template-columns: 1fr; }
     .vorstand-grid { grid-template-columns: 1fr 1fr; }
     .hd-row { gap: 10px; padding: 10px 14px; }
@@ -349,6 +388,7 @@
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+    <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">&#9776;</button>
     <div class="nav-links">
       <a href="index.html">Boulderhalle</a>
       <a href="verein.html" class="active">Verein</a>
@@ -358,9 +398,19 @@
     </div>
   </div>
 </nav>
+<div class="sub-nav">
+  <div class="sub-nav-inner">
+    <a href="#vorstand">Vorstand</a>
+    <a href="#jahreskarte">Jahreskarte</a>
+    <a href="#beitraege">Beiträge</a>
+    <a href="#hinweise">Hinweise</a>
+    <a href="#formulare">Formulare</a>
+    <a href="#hallendienst">Hallendienst</a>
+  </div>
+</div>
 
 <!-- PAGE HEADER -->
-<div class="page-header">
+<div class="page-header" style="margin-top:104px;">
   <span class="section-label">Verein</span>
   <h2 class="section-title">Boulderverein Zugzwang e.V.</h2>
 </div>
@@ -373,7 +423,7 @@
 </section>
 
 <!-- VORSTAND -->
-<section class="section-divider">
+<section class="section-divider" id="vorstand">
   <span class="section-label">Team</span>
   <h2 class="section-title">Vorstand</h2>
   <div class="vorstand-grid">
@@ -417,7 +467,7 @@
 </section>
 
 <!-- JAHRESKARTE -->
-<section class="section-divider">
+<section class="section-divider" id="jahreskarte">
   <span class="section-label">Jahreskarte</span>
   <h2 class="section-title">Mitgliedschaft mit Jahreskarte</h2>
   <div class="jk-feature">
@@ -432,7 +482,7 @@
 </section>
 
 <!-- BEITRÄGE -->
-<section class="section-divider">
+<section class="section-divider" id="beitraege">
   <span class="section-label">Beiträge</span>
   <h2 class="section-title">Mitgliedsbeiträge</h2>
   <div class="beitrag-grid">
@@ -465,7 +515,7 @@
 </section>
 
 <!-- HINWEISE -->
-<section class="section-divider">
+<section class="section-divider" id="hinweise">
   <span class="section-label">Gut zu wissen</span>
   <h2 class="section-title">Hinweise zur Mitgliedschaft</h2>
   <div class="hinweis-list">
@@ -476,7 +526,7 @@
 </section>
 
 <!-- FORMULARE -->
-<section class="section-divider">
+<section class="section-divider" id="formulare">
   <span class="section-label">Online-Formulare</span>
   <h2 class="section-title">Mitgliedschaft verwalten</h2>
   <div class="beitrag-grid">
@@ -701,6 +751,22 @@ hdForm.addEventListener('submit', async (e) => {
 
 // Beim Laden starten
 document.addEventListener('DOMContentLoaded', loadHallendienst);
+
+// ===== SUB-NAV HIGHLIGHT =====
+const subLinks = document.querySelectorAll('.sub-nav a');
+const sections = [...subLinks].map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+
+function updateSubNav() {
+  let current = '';
+  sections.forEach(sec => {
+    if (sec.getBoundingClientRect().top <= 140) current = sec.id;
+  });
+  subLinks.forEach(a => {
+    a.classList.toggle('sub-active', a.getAttribute('href') === '#' + current);
+  });
+}
+window.addEventListener('scroll', updateSubNav, { passive: true });
+updateSubNav();
 </script>
 </body>
 </html>
