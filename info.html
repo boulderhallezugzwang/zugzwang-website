@@ -250,6 +250,22 @@
     .tab-nav { gap: 0; }
     .tab-btn { font-size: 12px; padding: 10px 8px; letter-spacing: 0; }
   }
+
+  /* ===== FOOTER ===== */
+  footer {
+    border-top: 1px solid var(--dark-border);
+    padding: 40px 24px; text-align: center; max-width: 1200px; margin: 0 auto;
+  }
+  .footer-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 20px; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .footer-logo .zug { color: var(--cream); }
+  .footer-logo .zwang { color: var(--yellow); }
+  .footer-links { display: flex; gap: 24px; justify-content: center; margin: 16px 0; }
+  .footer-links a { color: var(--text-dim); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--cream); }
+  .footer-copy { color: var(--text-dim); font-size: 12px; margin-top: 16px; }
 </style>
 </head>
 <body>
@@ -621,14 +637,27 @@
 
 <script>
 // ===== TAB NAVIGATION =====
+const HASH_TO_TAB = { haftungsausschluss: 'haftung', satzung: 'satzung', datenschutz: 'datenschutz' };
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const btn = document.querySelector('.tab-btn[data-tab="' + tabId + '"]');
+  if (btn) btn.classList.add('active');
+  const panel = document.getElementById('tab-' + tabId);
+  if (panel) panel.classList.add('active');
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-  });
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
+
+// Hash-basiertes Tab-Switching (z.B. info.html#datenschutz)
+if (window.location.hash) {
+  const hash = window.location.hash.substring(1);
+  const tab = HASH_TO_TAB[hash];
+  if (tab) switchTab(tab);
+}
 
 // ===== HAFTUNGSAUSSCHLUSS FORM =====
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtSfw_W_oZAMkONYaXxnrvQOUzO4fTIRreUyZExissE3UEgpu8RfTkPAawsZht6zEJXw/exec';
@@ -853,5 +882,17 @@ form.addEventListener('submit', async (e) => {
   }
 });
 </script>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo"><span class="zug">Zug</span><span class="zwang">zwang</span> Boulderhalle</div>
+  <div class="footer-links">
+    <a href="#">Impressum</a>
+    <a href="info.html#datenschutz">Datenschutz</a>
+    <a href="info.html#haftungsausschluss">Haftungsausschluss</a>
+  </div>
+  <p class="footer-copy">&copy; 2026 Boulderverein Zugzwang e.V. &mdash; Neuhauser Stra&szlig;e 1, 91275 Auerbach i.d.OPf.</p>
+</footer>
+
 </body>
 </html>
