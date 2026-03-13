@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Info — Boulderverein Zugzwang e.V.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #141414;
+    --dark: #1c1c1c;
+    --dark-card: #232323;
+    --dark-border: #333;
+    --yellow: #D4A020;
+    --yellow-light: #E8B930;
+    --cream: #E8DCC8;
+    --cream-dim: #c4b9a6;
+    --white: #f0ece4;
+    --text: #d4d0c8;
+    --text-dim: #8a8680;
+    --error: #e74c3c;
+    --error-bg: rgba(231,76,60,0.1);
+    --success: #2ecc71;
+    --success-bg: rgba(46,204,113,0.1);
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; line-height: 1.55;
+    color: var(--text); background: var(--black);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== NAV ===== */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(20,20,20,0.92); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--dark-border);
+  }
+  .nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 64px;
+  }
+  .nav-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 22px;
+    letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+  }
+  .nav-logo .zug { color: var(--cream); }
+  .nav-logo .zwang { color: var(--yellow); }
+  .nav-links { display: flex; gap: 4px; align-items: center; }
+  .nav-links a {
+    color: var(--cream-dim); text-decoration: none;
+    font-size: 14px; font-weight: 500;
+    padding: 8px 14px; border-radius: 6px; transition: all 0.2s;
+  }
+  .nav-links a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
+  .nav-links a.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
+
+  /* ===== PAGE ===== */
+  .page-container {
+    max-width: 800px; margin: 0 auto;
+    padding: 88px 24px 40px;
+  }
+  .page-header {
+    margin-bottom: 32px; padding-bottom: 20px;
+    border-bottom: 2px solid var(--yellow);
+  }
+  .page-header h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px; font-weight: 800; color: var(--cream);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .page-header p { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ===== TAB NAV ===== */
+  .tab-nav {
+    display: flex; gap: 4px; margin-bottom: 24px;
+    border-bottom: 2px solid var(--dark-border); padding-bottom: 0;
+  }
+  .tab-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; padding: 12px 18px;
+    background: none; border: none; border-bottom: 3px solid transparent;
+    color: var(--text-dim); cursor: pointer; transition: all 0.2s;
+    margin-bottom: -2px;
+  }
+  .tab-btn:hover { color: var(--cream); }
+  .tab-btn.active { color: var(--yellow); border-bottom-color: var(--yellow); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== FORM STYLES ===== */
+  .form-section {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+  }
+  .form-section h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--yellow);
+    margin-bottom: 16px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--dark-border);
+  }
+  .form-row { display: flex; gap: 12px; margin-bottom: 14px; }
+  .form-group { flex: 1; display: flex; flex-direction: column; }
+  label { font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--cream-dim); }
+  label .req { color: var(--error); margin-left: 2px; }
+
+  input[type="text"], input[type="email"], input[type="date"] {
+    width: 100%; padding: 10px 12px; font-size: 16px;
+    font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--dark-border); border-radius: var(--radius);
+    background: var(--dark); color: var(--cream);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none; -webkit-appearance: none; appearance: none;
+  }
+  input:focus {
+    border-color: var(--yellow);
+    box-shadow: 0 0 0 3px rgba(212,160,32,0.15);
+  }
+  input.invalid { border-color: var(--error); background: var(--error-bg); }
+  input::placeholder { color: var(--text-dim); }
+  .ferr { color: var(--error); font-size: 12px; margin-top: 4px; display: none; }
+  .ferr.show { display: block; }
+
+  .waiver-text {
+    background: var(--dark); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
+    max-height: 300px; overflow-y: auto; font-size: 14px; line-height: 1.6;
+  }
+  .waiver-text p { margin-bottom: 10px; }
+
+  .cb-group { margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px; }
+  .cb-group input[type="checkbox"] {
+    width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0;
+    accent-color: var(--yellow);
+  }
+  .cb-group label { font-size: 14px; font-weight: 400; cursor: pointer; line-height: 1.45; color: var(--text); }
+
+  .radio-group { margin-bottom: 16px; }
+  .radio-group .radio-option {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .radio-group input[type="radio"] {
+    width: 18px; height: 18px; flex-shrink: 0;
+    accent-color: var(--yellow);
+  }
+  .radio-group label { font-size: 14px; color: var(--text); cursor: pointer; }
+
+  .child-entry {
+    background: var(--dark); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 14px; margin-bottom: 10px;
+    position: relative;
+  }
+  .child-entry .child-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--yellow); margin-bottom: 10px;
+  }
+  .remove-child {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none; color: var(--error);
+    font-size: 18px; cursor: pointer; padding: 4px 8px;
+    border-radius: 4px; transition: background 0.2s;
+  }
+  .remove-child:hover { background: var(--error-bg); }
+
+  .add-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; font-size: 14px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--yellow); background: rgba(212,160,32,0.1);
+    border: 1px dashed var(--yellow); border-radius: var(--radius);
+    cursor: pointer; transition: all 0.2s; margin-top: 4px;
+  }
+  .add-btn:hover { background: rgba(212,160,32,0.18); }
+
+  .submit-btn {
+    display: block; width: 100%; padding: 14px 24px;
+    font-size: 16px; font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--black); background: var(--yellow); border: none;
+    border-radius: var(--radius); cursor: pointer; transition: background 0.2s;
+  }
+  .submit-btn:hover:not(:disabled) { background: var(--yellow-light); }
+  .submit-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+  .submit-btn.loading { position: relative; color: transparent; }
+  .submit-btn.loading::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 20px; height: 20px; margin: -10px 0 0 -10px;
+    border: 2px solid rgba(0,0,0,0.3); border-top-color: var(--black);
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .form-footer { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 14px; line-height: 1.5; }
+
+  .msg { padding: 20px; border-radius: var(--radius); text-align: center; margin-bottom: 20px; display: none; }
+  .msg h3 { margin-bottom: 6px; }
+  .msg.ok { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
+  .msg.err { background: var(--error-bg); color: var(--error); border: 1px solid var(--error); }
+
+  /* ===== TEXT CONTENT ===== */
+  .text-content {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 28px; line-height: 1.7;
+  }
+  .text-content h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px; font-weight: 700; color: var(--cream);
+    margin: 24px 0 12px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .text-content h2:first-child { margin-top: 0; }
+  .text-content h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px; font-weight: 700; color: var(--yellow);
+    margin: 20px 0 8px;
+  }
+  .text-content p { margin-bottom: 10px; font-size: 14px; }
+  .text-content ul { margin: 8px 0 12px 20px; font-size: 14px; }
+  .text-content li { margin-bottom: 4px; }
+  .text-content .paragraph-title { font-weight: 600; color: var(--cream); }
+  .text-content .info-highlight {
+    background: rgba(212,160,32,0.1); border-left: 3px solid var(--yellow);
+    padding: 12px 14px; border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 16px 0; font-size: 14px;
+  }
+
+  #minorSection { display: none; }
+  #adultFields { display: none; }
+
+  @media (max-width: 768px) {
+    .nav-links { gap: 0; }
+    .nav-links a { font-size: 12px; padding: 8px 8px; }
+    .tab-btn { font-size: 13px; padding: 10px 10px; }
+  }
+  @media (max-width: 500px) {
+    .form-row { flex-direction: column; }
+    .page-container { padding: 80px 14px 32px; }
+    .tab-nav { gap: 0; }
+    .tab-btn { font-size: 12px; padding: 10px 8px; letter-spacing: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+    <div class="nav-links">
+      <a href="index.html">Boulderhalle</a>
+      <a href="verein.html">Verein</a>
+      <a href="jugendtraining.html">Jugendtraining</a>
+      <a href="info.html" class="active">Info</a>
+      <a href="intern.html">Intern</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-container">
+  <div class="page-header">
+    <h1>Informationen</h1>
+    <p>Haftungsausschluss, Satzung & Datenschutz</p>
+  </div>
+
+  <!-- TAB NAVIGATION -->
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="haftung">Haftungsausschluss</button>
+    <button class="tab-btn" data-tab="satzung">Satzung</button>
+    <button class="tab-btn" data-tab="datenschutz">Datenschutz</button>
+  </div>
+
+  <!-- ==================== HAFTUNGSAUSSCHLUSS ==================== -->
+  <div class="tab-panel active" id="tab-haftung">
+
+    <div class="msg ok" id="okMsg">
+      <h3>Haftungsausschluss eingegangen</h3>
+      Der Haftungsausschluss wurde erfolgreich übermittelt und als PDF gespeichert. Du erhältst eine Bestätigung per E-Mail.
+    </div>
+    <div class="msg err" id="errMsg">
+      <h3>Fehler beim Senden</h3>
+      Bitte versuche es erneut oder kontaktiere uns unter
+      <a href="mailto:info@boulderhalle-auerbach.de" style="color:var(--error)">info@boulderhalle-auerbach.de</a>
+    </div>
+
+    <form id="haftungForm" novalidate>
+      <div class="form-section">
+        <h2>Haftungsausschluss — bitte lesen</h2>
+        <div class="waiver-text">
+          <p>Mir ist bewusst, dass Klettern und Bouldern Risikosportarten sind, bei denen Fehler und mögliche Stürze schwerwiegende Folgen haben können. Ich verfüge über die nötige Disziplin, gesunde Selbsteinschätzung und Risikowahrnehmung um diesen Sport verantwortungsvoll auszuüben.</p>
+          <p>Ich versichere hiermit, die Benutzerordnung und die Hallenregeln, die u.a. am Eingang oder in der Boulderhalle einzusehen sind, in ihrer neuesten Fassung gelesen und verstanden zu haben. Diese erkenne ich an und werde mich an sie halten.</p>
+          <p>Ich werde mich an die Anweisungen des Hallenpersonals halten. Bei Unsicherheiten, Fragen oder beim Erkennen von Mängeln an der Anlage werde ich mich an das Personal wenden.</p>
+          <p>Ich bekräftige hiermit ausdrücklich, dass ich die Boulderhalle Zugzwang eigenverantwortlich und auf eigenes Risiko nutze. Für selbstverschuldete Personen- und Sachschäden hafte ich persönlich, nicht der Betreiber der Boulderhalle Zugzwang.</p>
+          <p>Die Haftung des Betreibers ist generell ausgeschlossen, sofern nicht Vorsatz, Pflichtverletzung oder Fahrlässigkeit vorliegen. Auch für Garderobe, Wertsachen oder Verlust und Verschleiß von Kletterausrüstung wird keine Haftung übernommen.</p>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2>Für wen füllst du aus?</h2>
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" id="typeAdult" name="waiverType" value="adult">
+            <label for="typeAdult">Für mich selbst (ab 18 Jahren)</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="typeMinor" name="waiverType" value="minor">
+            <label for="typeMinor">Als Erziehungsberechtigte/r für mein(e) Kind(er) (unter 18)</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADULT: eigene Daten -->
+      <div id="adultFields">
+        <div class="form-section">
+          <h2>Persönliche Daten</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="aVorname">Vorname <span class="req">*</span></label>
+              <input type="text" id="aVorname" autocomplete="given-name">
+            </div>
+            <div class="form-group">
+              <label for="aNachname">Nachname <span class="req">*</span></label>
+              <input type="text" id="aNachname" autocomplete="family-name">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="aGeburt">Geburtsdatum <span class="req">*</span></label>
+              <input type="date" id="aGeburt">
+              <div class="ferr" id="aGeburtErr">Du musst mindestens 18 Jahre alt sein. Wähle sonst die Option für Erziehungsberechtigte.</div>
+            </div>
+            <div class="form-group">
+              <label for="aEmail">E-Mail <span class="req">*</span></label>
+              <input type="email" id="aEmail" autocomplete="email">
+              <div class="ferr" id="aEmailErr">Bitte gib eine gültige E-Mail-Adresse ein.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MINOR: Erziehungsberechtigter + Kinder -->
+      <div id="minorSection">
+        <div class="form-section">
+          <h2>Erziehungsberechtigte/r</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="eVorname">Vorname <span class="req">*</span></label>
+              <input type="text" id="eVorname" autocomplete="given-name">
+            </div>
+            <div class="form-group">
+              <label for="eNachname">Nachname <span class="req">*</span></label>
+              <input type="text" id="eNachname" autocomplete="family-name">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="eEmail">E-Mail <span class="req">*</span></label>
+              <input type="email" id="eEmail" autocomplete="email">
+              <div class="ferr" id="eEmailErr">Bitte gib eine gültige E-Mail-Adresse ein.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>Kind(er)</h2>
+          <div id="childrenList">
+            <div class="child-entry" data-index="0">
+              <div class="child-label">Kind 1</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Vorname <span class="req">*</span></label>
+                  <input type="text" class="cVorname">
+                </div>
+                <div class="form-group">
+                  <label>Nachname <span class="req">*</span></label>
+                  <input type="text" class="cNachname">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Geburtsdatum <span class="req">*</span></label>
+                  <input type="date" class="cGeburt">
+                </div>
+                <div class="form-group"></div>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="add-btn" id="addChildBtn">+ Weiteres Kind hinzufügen</button>
+        </div>
+      </div>
+
+      <!-- BESTÄTIGUNG -->
+      <div class="form-section" id="confirmSection" style="display:none">
+        <h2>Bestätigung</h2>
+        <div class="cb-group">
+          <input type="checkbox" id="confirmWaiver">
+          <label for="confirmWaiver">
+            Ich habe den Haftungsausschluss gelesen und erkenne ihn an. <span class="req">*</span>
+          </label>
+        </div>
+        <div class="cb-group" id="confirmParentGroup" style="display:none">
+          <input type="checkbox" id="confirmParent">
+          <label for="confirmParent">
+            Ich bestätige als Erziehungsberechtigte/r, dass der Haftungsausschluss für alle oben genannten Kinder gilt. <span class="req">*</span>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn" style="display:none" disabled>Haftungsausschluss absenden</button>
+      <div class="form-footer" id="formFooter" style="display:none">
+        Der Haftungsausschluss wird als PDF gespeichert.<br>
+        Du erhältst eine Kopie per E-Mail.
+      </div>
+    </form>
+  </div>
+
+  <!-- ==================== SATZUNG ==================== -->
+  <div class="tab-panel" id="tab-satzung">
+    <div class="text-content">
+      <h2>Satzung — Boulderverein Zugzwang e.V.</h2>
+
+      <h3>§ 1 Name, Sitz, Geschäftsjahr</h3>
+      <p>Der Verein führt den Namen „Boulderverein Zugzwang". Er soll in das Vereinsregister eingetragen werden. Nach der Eintragung führt der Verein den Namenszusatz „e.V.". Der Verein hat seinen Sitz in 91275, Auerbach i.d.OPf.</p>
+      <p>Das Geschäftsjahr des Vereins ist das Kalenderjahr.</p>
+
+      <h3>§ 2 Vereinszweck</h3>
+      <p>Zweck des Vereins ist die Förderung des Klettersports in Auerbach und Umgebung, insbesondere durch die Unterstützung der örtlichen Boulderhalle „Boulderhalle Zugzwang".</p>
+      <p>Der Satzungszweck wird insbesondere durch die Betreuung der Boulderhalle und deren Geschäftsbetriebs verwirklicht.</p>
+      <p>Primäre Aufgaben sind demnach die Aufrechterhaltung regelmäßiger, vom Verein festzusetzender Öffnungszeiten, die Pflege des Routenangebots, die Durchführung vielfältiger Kurse und Gruppenbetreuung, sowie grundsätzliche Maßnahmen zur Bereicherung des lokalen Boulder- und Kletterangebots.</p>
+
+      <h3>§ 3 Gemeinnützigkeit</h3>
+      <p>Der Verein verfolgt ausschließlich und unmittelbar gemeinnützige Zwecke im Sinne des Abschnitts „Steuerbegünstigte Zwecke" der Abgabenordnung.</p>
+      <p>Der Verein ist selbstlos tätig; er verfolgt nicht in erster Linie eigenwirtschaftliche Zwecke.</p>
+      <p>Mittel des Vereins dürfen nur für die satzungsmäßigen Zwecke verwendet werden. Die Mitglieder erhalten keine Zuwendungen aus Mitteln des Vereins.</p>
+      <p>Es darf keine Person durch Ausgaben, die dem Zweck der Körperschaft fremd sind, oder durch unverhältnismäßig hohe Vergütungen begünstigt werden.</p>
+
+      <h3>§ 4 Mitglieder</h3>
+      <p>Mitglied kann jede natürliche und juristische Person werden.</p>
+      <p>Der Antrag auf Aufnahme in den Verein ist schriftlich beim Vorsitzenden einzureichen. Über die Aufnahme entscheidet die Vorstandschaft.</p>
+      <p>Die Mitgliedschaft endet mit dem Tod, durch Austritt oder durch Ausschluss aus dem Verein.</p>
+      <p>Der Austritt ist schriftlich gegenüber dem Vorsitzenden zu erklären. Über den Ausschluss entscheidet die Vorstandschaft.</p>
+      <p>Gegen die Ablehnung der Aufnahme und gegen den Ausschluss kann Berufung zur nächsten Mitgliederversammlung eingelegt werden.</p>
+      <p>Der Austritt wird zum Ende des Geschäftsjahres wirksam.</p>
+
+      <h3>§ 5 Mitgliedsbeiträge und Gebühren</h3>
+      <p>Von den Mitgliedern wird ein Jahresbeitrag erhoben. Näheres regelt eine Finanz- und Gebührenordnung, die von der Mitgliederversammlung festgesetzt wird.</p>
+      <p>Für die Nutzung der, vom Verein zu betreuenden Boulderhalle, können Eintrittsgebühren erhoben werden, deren Höhe die Finanz- und Gebührenordnung regelt.</p>
+      <p>Sämtliche Einnahmen des Vereins sind ausschließlich satzungskonform zu verwenden.</p>
+
+      <h3>§ 6 Organe des Vereins</h3>
+      <p>Organe des Vereins sind die Vorstandschaft und die Mitgliederversammlung.</p>
+
+      <h3>§ 7 Vorstandschaft</h3>
+      <p>Die Vorstandschaft besteht aus dem Vorsitzenden, dem stellvertretenden Vorsitzenden, dem Schriftführer, dem Kassenwart und bis zu fünf weiteren Verwaltungsmitgliedern, aus deren Reihe Stellvertreter von Schriftführer und Kassenwart bestellt werden können.</p>
+      <p>Die Vorstandschaft wird von der Mitgliederversammlung auf drei Jahre gewählt. Die Vorstandsmitglieder bleiben auch nach dem Ablauf ihrer Amtszeit bis zur Neuwahl im Amt.</p>
+      <p>Scheidet ein Vorstandsmitglied vor dem Ende seiner Amtsperiode aus dem Vorstand aus, können die übrigen Vorstandsmitglieder bis zur Durchführung von Neuwahlen kommissarisch ein Ersatzmitglied berufen.</p>
+
+      <h3>§ 8 Zuständigkeit des Vorstands</h3>
+      <p>Vorstand des Vereins im Sinne des § 26 BGB sind der erste und zweite Vorsitzende. Beide sind für sich allein vertretungsberechtigt. Im Innenverhältnis wird der 2. Vorsitzende nur bei Verhinderung des 1. Vorsitzenden tätig. Im Innenverhältnis gilt, dass Rechtsgeschäfte mit einem Betrag von über 1.000 € nur vorgenommen werden dürfen, wenn die Vorstandschaft zugestimmt hat.</p>
+      <p>Die Vorstandschaft ist für alle Angelegenheiten des Vereins zuständig, die nicht durch diese Satzung anderen Vereinsorganen vorbehalten sind. Sie hat vor allem folgende Aufgaben:</p>
+      <ul>
+        <li>Vorbereitung der Mitgliederversammlungen und Aufstellung der Tagesordnung</li>
+        <li>Einberufung der Mitgliederversammlung</li>
+        <li>Vollzug der Beschlüsse der Mitgliederversammlung</li>
+        <li>Verwaltung des Vereinsvermögens</li>
+        <li>Erstellung des Jahres- und Kassenberichts</li>
+        <li>Beschlussfassung über die Aufnahme und den Ausschluss von Vereinsmitgliedern</li>
+        <li>Organisation der Unterstützung der Kletterhalle</li>
+      </ul>
+      <p>Der Verein kann an die Mitglieder des Vorstandes und an sonstige gewählte Funktionsträger pauschale Aufwandsentschädigungen und/oder sonstige Vergütungen für ihre Tätigkeit zahlen. Über die Höhe der pauschalen Aufwandsvergütung und/oder sonstigen Vergütungen beschließt der Vorstand unter der Berücksichtigung der Angemessenheit und Verhältnismäßigkeit.</p>
+
+      <h3>§ 9 Sitzung der Vorstandschaft</h3>
+      <p>Für die Sitzungen der Vorstandschaft sind die Mitglieder vom Vorsitzenden, bei seiner Verhinderung vom stellvertretenden Vorsitzenden rechtzeitig, jedoch mindestens eine Woche vorher einzuladen. Bei turnusmäßig stattfindenden Vorstandssitzungen entfällt dies.</p>
+      <p>Die Vorstandschaft ist beschlussfähig, wenn mindestens vier Mitglieder anwesend sind. Die Vorstandschaft entscheidet mit einfacher Mehrheit der abgegebenen gültigen Stimmen. Bei Stimmengleichheit entscheidet die Stimme des Vorsitzenden beziehungsweise des die Sitzung leitenden Vorstandsmitglieds.</p>
+      <p>Über die Sitzung der Vorstandschaft ist vom Schriftführer ein Protokoll aufzunehmen. Diese Niederschrift soll Ort und Zeit der Sitzung, die Namen der Teilnehmer, die Beschlüsse und das jeweilige Abstimmungsergebnis enthalten.</p>
+
+      <h3>§ 10 Kassenführung</h3>
+      <p>Die zur Erreichung des Vereinszwecks notwendigen Mittel werden in erster Linie aus Beiträgen und Gebühren, deren Höhe die Beitrags- und Gebührenordnung regelt, und Spenden aufgebracht.</p>
+      <p>Der Kassenwart hat über die Kassengeschäfte Buch zu führen und eine Jahresrechnung zu erstellen. Zahlungen über 100 € dürfen nur aufgrund von Auszahlungsanordnungen des Vorsitzenden oder – bei dessen Verhinderung – des stellvertretenden Vorsitzenden geleistet werden.</p>
+      <p>Bei regelmäßig wiederkehrenden Auszahlungen genügt eine einmalige Anordnung.</p>
+      <p>Die Jahresrechnung ist von zwei Kassenprüfern, die jeweils auf drei Jahre gewählt werden und nicht der Vorstandschaft angehören, zu prüfen. Sie ist der Mitgliederversammlung zur Genehmigung vorzulegen.</p>
+
+      <h3>§ 11 Mitgliederversammlung</h3>
+      <p>Die Mitgliederversammlung ist für folgende Angelegenheiten zuständig:</p>
+      <ul>
+        <li>Entgegennahme der Berichte der Vorstandschaft</li>
+        <li>Festsetzung der Höhe des Jahresbeitrags</li>
+        <li>Wahl und Abberufung der Vorstandsmitglieder und der Kassenprüfer</li>
+        <li>Beschlussfassung über eine eventuelle Geschäftsordnung</li>
+        <li>Beschlussfassung über Änderungen der Satzung und über die Auflösung des Vereins</li>
+        <li>Beschlussfassung über die Berufung gegen einen Beschluss des Vorstands, über einen abgelehnten Aufnahmeantrag und über einen Ausschluss</li>
+      </ul>
+      <p>Die ordentliche Mitgliederversammlung findet jährlich mindestens einmal statt. Außerdem muss die Mitgliederversammlung einberufen werden, wenn das Interesse des Vereins es erfordert oder wenn die Einberufung von einem Fünftel der Mitglieder unter Angabe des Zwecks und der Gründe schriftlich verlangt wird.</p>
+      <p>Jede Mitgliederversammlung wird vom Vorsitzenden, bei seiner Verhinderung vom stellvertretenden Vorsitzenden, unter Einhaltung einer Frist von zwei Wochen mittels einfachen Brief einberufen. Dabei ist die vorgesehene Tagesordnung mitzuteilen.</p>
+      <p>Jedes Mitglied kann bis spätestens eine Woche vor dem Tag der Mitgliederversammlung beim Vorsitzenden schriftlich beantragen, dass weitere Angelegenheiten nachträglich auf die Tagesordnung gesetzt werden. Über Anträge auf Ergänzung der Tagesordnung, die erst in der Versammlung gestellt werden, beschließt die Mitgliederversammlung.</p>
+
+      <h3>§ 12 Beschlussfassung der Mitgliederversammlung</h3>
+      <p>Die Mitgliederversammlung wird vom Vorsitzenden, bei seiner Verhinderung vom stellvertretenden Vorsitzenden oder einem anderen Vorstandsmitglied geleitet.</p>
+      <p>In der Mitgliederversammlung ist jedes anwesende Mitglied stimmberechtigt. Mitgliederversammlungen sind ohne Rücksicht auf die Zahl der erschienenen Mitglieder beschlussfähig, es sei denn, diese Satzung bestimmt etwas anderes.</p>
+      <p>Soweit die Satzung nichts anderes bestimmt, entscheidet bei der Beschlussfassung die einfache Mehrheit der abgegebenen Stimmen; Stimmenthaltungen bleiben außer Betracht. Zur Änderung der Satzung ist eine Mehrheit von drei Viertel der abgegebenen Stimmen erforderlich.</p>
+      <p>Die Art der Abstimmung wird grundsätzlich vom Vorsitzenden als Versammlungsleiter festgesetzt. Die Abstimmung muss jedoch geheim durchgeführt werden, wenn ein Fünftel der erschienenen Mitglieder dies beantragt.</p>
+      <p>Über den Verlauf der Mitgliederversammlung ist ein Protokoll aufzunehmen, das vom Vorsitzenden zu unterzeichnen ist. Die Niederschrift soll Ort und Zeit der Versammlung, die Zahl der erschienenen Mitglieder, die Person des Versammlungsleiters, die Tagesordnung, die Beschlüsse, die Abstimmungsergebnisse und die Art der Abstimmung enthalten.</p>
+
+      <h3>§ 13 Wahl der Vorstandschaft</h3>
+      <p>Aus der Mitte der Mitgliederversammlung ist ein Wahlausschuss aus drei Stimmberechtigten zu bilden; diese bestimmen unter sich den Wahlleiter.</p>
+      <p>Die Wahl der Vorstandschaft erfolgt schriftlich, sie kann aber, wenn jeweils nur ein Wahlvorschlag vorliegt und die Versammlung damit einverstanden ist, auch per Akklamation durchgeführt werden.</p>
+      <p>Gewählt ist, wer die einfache Mehrheit der abgegebenen gültigen Stimmen erhalten hat. Bei Stimmengleichheit entscheidet eine Stichwahl; gibt es auch dabei keine Mehrheit, entscheidet das Los.</p>
+      <p>Die Verwaltungsmitglieder können im Block gewählt werden, ebenso die beiden Kassenprüfer.</p>
+      <p>Über das Wahlergebnis fertigt der Wahlausschuss eine Niederschrift an, die von seinen drei Mitgliedern zu unterzeichnen ist.</p>
+
+      <h3>§ 14 Auflösung</h3>
+      <p>Die Auflösung des Vereins kann nur in einer zu diesem Zweck einberufenen Mitgliederversammlung beschlossen werden, bei der mindestens 1/3 sämtlicher Mitglieder anwesend ist. Ein solcher Beschluss bedarf 4/5 der abgegebenen Stimmen.</p>
+      <p>Bei Beschlussunfähigkeit ist die Vorstandschaft verpflichtet, binnen dreier Wochen eine zweite Versammlung mit derselben Tagesordnung einzuberufen. Diese ist dann ohne Rücksicht auf die Zahl der Erschienenen mit der einfachen Mehrheit beschlussfähig. In der Einladung zu einer solchen zweiten Versammlung ist auf die unbedingte Beschlussfähigkeit hinzuweisen.</p>
+      <p>Bei Auflösung des Vereins oder bei Wegfall steuerbegünstigter Zwecke fällt das Vermögen des Vereins an die Stadt Auerbach i. d. OPf., die es unmittelbar und ausschließlich für gemeinnützige Zwecke zu verwenden hat, insbesondere zur Förderung des Klettersports.</p>
+
+      <h3>§ 15 Inkrafttreten dieser Satzung</h3>
+      <p>Die vorliegende Satzung wurde in der Gründungsversammlung am 20.12.2013 beschlossen, in der Sitzung vom 20.12.2013 geändert und in der Sitzung vom 31.03.2019 ein weiteres Mal geändert. Sie tritt mit der Eintragung in das Vereinsregister in Kraft.</p>
+    </div>
+  </div>
+
+  <!-- ==================== DATENSCHUTZ ==================== -->
+  <div class="tab-panel" id="tab-datenschutz">
+    <div class="text-content">
+      <h2>Merkblatt zum Datengeheimnis</h2>
+
+      <div class="info-highlight">
+        <strong>Hinweis zur Datenverarbeitung:</strong> Der Boulderverein Zugzwang e.V. nutzt Google Workspace (Google Drive, Google Sheets, Google Forms) zur Verwaltung von Mitgliederdaten, Formularen und Vereinskommunikation. Die Daten werden auf Servern von Google LLC verarbeitet und gespeichert. Weitere Informationen zum Datenschutz bei Google finden sich unter <a href="https://policies.google.com/privacy" style="color:var(--yellow)" target="_blank">policies.google.com/privacy</a>.
+      </div>
+
+      <p>Alle Mitglieder im Boulderverein Zugzwang e.V., die Daten über Einzelpersonen verarbeiten oder von diesen Daten Kenntnis erlangen, sind nach § 5 Bundesdatenschutzgesetz, beziehungsweise ab dem 25.05.2018 nach Art 32 (4) Datenschutzgrundverordnung zur Einhaltung des Datengeheimnisses verpflichtet.</p>
+
+      <p>Die Verpflichtung der Mitglieder auf das Datengeheimnis erfolgt bei Aufnahme in den Verein. Diese Verpflichtung besteht auch nach Beendigung der Mitgliedschaft fort.</p>
+
+      <p>Diese Verpflichtung auf das Datengeheimnis beinhaltet keinerlei Kundgabe eines Misstrauens gegenüber einzelnen Mitgliedern, sondern entspricht alleine den gesetzlichen Vorgaben des Bundesdatenschutzgesetzes beziehungsweise der DSGVO.</p>
+
+      <p>Personenbezogene Daten sind alle Daten, in denen Einzelangaben über persönliche oder sachliche Verhältnisse einer bestimmten oder aus den Dateninhalten bestimmbaren Person abgespeichert sind. Dazu gehören beispielsweise Adressen, Bankverbindungen, das Geburtsdatum, sowie die Teilnahme an Vereinsaktivitäten.</p>
+
+      <p>Das Datengeheimnis erfasst jede Form der Datenverarbeitung, wie:</p>
+      <ul>
+        <li>Die Erhebung und Erfassung von personenbezogenen Daten</li>
+        <li>die Auswertung von personenbezogenen Daten</li>
+        <li>die Weitergabe von Datenträgern</li>
+        <li>die Einsichtnahme in Bildschirm-Inhalte oder</li>
+        <li>die Weitergabe von Computer-Ausdrucken oder Dateien</li>
+      </ul>
+
+      <p>Geschützt sind alle in Dateien gespeicherten Angaben, die sich auf eine bestimmte einzelne Person oder durch zusätzliches Wissen bestimmbare Einzelperson beziehen.</p>
+
+      <p>Kein Mitglied des Bouldervereins Zugzwang e.V. darf geschützte personenbezogene Daten unbefugt zu einem anderen, als dem zur jeweiligen rechtmäßigen vertraglichen Aufgabenerfüllung gehörenden Zweck erheben, verarbeiten, anderen bekannt beziehungsweise zugänglich machen oder in sonstiger Weise nutzen.</p>
+
+      <p>Personenbezogene Daten dürfen auch nicht für private Zwecke genutzt werden. Deshalb ist es grundsätzlich verboten, personenbezogene Daten des Vereins auf Datenträger, USB-Sticks oder mobile DV-Systeme (Notebooks) zu kopieren und diese Datenträger aus dem Verein herauszubringen. Auch die Anfertigung von Screenshots ist nicht zulässig.</p>
+
+      <p>Das Verbot der Bekanntgabe von personenbezogenen Daten gilt gleichermaßen für die Weitergabe dieser Daten an externe Stellen, wie auch an andere Mitglieder des Bouldervereins Zugzwang e.V., die für die Erledigung ihrer Aufgaben diese Daten <strong>nicht</strong> benötigen.</p>
+
+      <p><strong>Verstöße gegen das Datengeheimnis können mit Geld- oder Freiheitsstrafe geahndet werden.</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== TAB NAVIGATION =====
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ===== HAFTUNGSAUSSCHLUSS FORM =====
+const SCRIPT_URL = 'SCRIPT_URL_PLACEHOLDER';
+
+const form = document.getElementById('haftungForm');
+const adultFields = document.getElementById('adultFields');
+const minorSection = document.getElementById('minorSection');
+const confirmSection = document.getElementById('confirmSection');
+const confirmParentGroup = document.getElementById('confirmParentGroup');
+const submitBtn = document.getElementById('submitBtn');
+const formFooter = document.getElementById('formFooter');
+
+// Waiver type selection
+document.querySelectorAll('input[name="waiverType"]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    const isMinor = e.target.value === 'minor';
+    adultFields.style.display = isMinor ? 'none' : 'block';
+    minorSection.style.display = isMinor ? 'block' : 'none';
+    confirmParentGroup.style.display = isMinor ? 'flex' : 'none';
+    confirmSection.style.display = 'block';
+    submitBtn.style.display = 'block';
+    formFooter.style.display = 'block';
+    checkForm();
+  });
+});
+
+// Add child
+let childCount = 1;
+document.getElementById('addChildBtn').addEventListener('click', () => {
+  childCount++;
+  const entry = document.createElement('div');
+  entry.className = 'child-entry';
+  entry.dataset.index = childCount - 1;
+  entry.innerHTML = `
+    <div class="child-label">Kind ${childCount}</div>
+    <button type="button" class="remove-child" title="Entfernen">&times;</button>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vorname <span class="req">*</span></label>
+        <input type="text" class="cVorname">
+      </div>
+      <div class="form-group">
+        <label>Nachname <span class="req">*</span></label>
+        <input type="text" class="cNachname">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Geburtsdatum <span class="req">*</span></label>
+        <input type="date" class="cGeburt">
+      </div>
+      <div class="form-group"></div>
+    </div>`;
+  document.getElementById('childrenList').appendChild(entry);
+  entry.querySelector('.remove-child').addEventListener('click', () => {
+    entry.remove();
+    renumberChildren();
+    checkForm();
+  });
+  entry.querySelectorAll('input').forEach(inp => inp.addEventListener('input', checkForm));
+});
+
+function renumberChildren() {
+  document.querySelectorAll('.child-entry').forEach((el, i) => {
+    el.querySelector('.child-label').textContent = 'Kind ' + (i + 1);
+  });
+  childCount = document.querySelectorAll('.child-entry').length;
+}
+
+// Email validation
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateEmail(input, errEl) {
+  if (input.value && !emailRegex.test(input.value)) {
+    input.classList.add('invalid');
+    if (errEl) errEl.classList.add('show');
+    return false;
+  }
+  input.classList.remove('invalid');
+  if (errEl) errEl.classList.remove('show');
+  return true;
+}
+
+// Age check
+function getAge(dateStr) {
+  const bd = new Date(dateStr);
+  const today = new Date();
+  let age = today.getFullYear() - bd.getFullYear();
+  const m = today.getMonth() - bd.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+  return age;
+}
+
+// Validate adult DOB
+const aGeburt = document.getElementById('aGeburt');
+const aGeburtErr = document.getElementById('aGeburtErr');
+aGeburt.addEventListener('change', () => {
+  if (aGeburt.value && getAge(aGeburt.value) < 18) {
+    aGeburt.classList.add('invalid');
+    aGeburtErr.classList.add('show');
+  } else {
+    aGeburt.classList.remove('invalid');
+    aGeburtErr.classList.remove('show');
+  }
+  checkForm();
+});
+
+// Form validation
+function checkForm() {
+  const type = document.querySelector('input[name="waiverType"]:checked')?.value;
+  if (!type) { submitBtn.disabled = true; return; }
+
+  let ok = true;
+
+  if (type === 'adult') {
+    if (!document.getElementById('aVorname').value.trim()) ok = false;
+    if (!document.getElementById('aNachname').value.trim()) ok = false;
+    if (!document.getElementById('aGeburt').value) ok = false;
+    if (aGeburt.value && getAge(aGeburt.value) < 18) ok = false;
+    const aEmail = document.getElementById('aEmail');
+    if (!aEmail.value.trim()) ok = false;
+    if (aEmail.value && !emailRegex.test(aEmail.value)) ok = false;
+    if (!document.getElementById('confirmWaiver').checked) ok = false;
+  }
+
+  if (type === 'minor') {
+    if (!document.getElementById('eVorname').value.trim()) ok = false;
+    if (!document.getElementById('eNachname').value.trim()) ok = false;
+    const eEmail = document.getElementById('eEmail');
+    if (!eEmail.value.trim()) ok = false;
+    if (eEmail.value && !emailRegex.test(eEmail.value)) ok = false;
+    // Check all children
+    document.querySelectorAll('.child-entry').forEach(entry => {
+      if (!entry.querySelector('.cVorname').value.trim()) ok = false;
+      if (!entry.querySelector('.cNachname').value.trim()) ok = false;
+      if (!entry.querySelector('.cGeburt').value) ok = false;
+    });
+    if (!document.getElementById('confirmWaiver').checked) ok = false;
+    if (!document.getElementById('confirmParent').checked) ok = false;
+  }
+
+  submitBtn.disabled = !ok;
+}
+
+// Attach listeners
+form.addEventListener('input', checkForm);
+form.addEventListener('change', checkForm);
+
+['aEmail', 'eEmail'].forEach(id => {
+  const el = document.getElementById(id);
+  const errId = id.charAt(0) + 'EmailErr';
+  const errEl = document.getElementById(errId);
+  el.addEventListener('blur', () => validateEmail(el, errEl));
+});
+
+// Submit
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const type = document.querySelector('input[name="waiverType"]:checked').value;
+  const now = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  let data;
+  if (type === 'adult') {
+    data = {
+      typ: 'erwachsen',
+      vorname: document.getElementById('aVorname').value.trim(),
+      nachname: document.getElementById('aNachname').value.trim(),
+      geburtsdatum: document.getElementById('aGeburt').value,
+      email: document.getElementById('aEmail').value.trim(),
+      datum: now
+    };
+  } else {
+    const kinder = [];
+    document.querySelectorAll('.child-entry').forEach(entry => {
+      kinder.push({
+        vorname: entry.querySelector('.cVorname').value.trim(),
+        nachname: entry.querySelector('.cNachname').value.trim(),
+        geburtsdatum: entry.querySelector('.cGeburt').value
+      });
+    });
+    data = {
+      typ: 'erziehungsberechtigter',
+      eVorname: document.getElementById('eVorname').value.trim(),
+      eNachname: document.getElementById('eNachname').value.trim(),
+      email: document.getElementById('eEmail').value.trim(),
+      kinder: kinder,
+      datum: now
+    };
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.classList.add('loading');
+
+  try {
+    const resp = await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    form.style.display = 'none';
+    document.getElementById('okMsg').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err) {
+    console.error(err);
+    document.getElementById('errMsg').style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('loading');
+  }
+});
+</script>
+</body>
+</html>
