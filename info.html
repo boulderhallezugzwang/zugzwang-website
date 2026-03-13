@@ -303,6 +303,18 @@
       </div>
 
       <div class="form-section">
+        <h2>Datenschutzerklärung — bitte lesen</h2>
+        <div class="waiver-text">
+          <p><strong>Hinweis zur Datenverarbeitung:</strong> Der Boulderverein Zugzwang e.V. nutzt Google Workspace (Google Drive, Google Sheets, Google Forms) zur Verwaltung von Mitgliederdaten, Formularen und Vereinskommunikation. Die Daten werden auf Servern von Google LLC verarbeitet und gespeichert.</p>
+          <p>Alle Mitglieder im Boulderverein Zugzwang e.V., die Daten über Einzelpersonen verarbeiten oder von diesen Daten Kenntnis erlangen, sind nach § 5 Bundesdatenschutzgesetz, beziehungsweise nach Art 32 (4) Datenschutzgrundverordnung zur Einhaltung des Datengeheimnisses verpflichtet.</p>
+          <p>Die Verpflichtung der Mitglieder auf das Datengeheimnis erfolgt bei Aufnahme in den Verein. Diese Verpflichtung besteht auch nach Beendigung der Mitgliedschaft fort.</p>
+          <p>Personenbezogene Daten sind alle Daten, in denen Einzelangaben über persönliche oder sachliche Verhältnisse einer bestimmten oder bestimmbaren Person abgespeichert sind. Dazu gehören beispielsweise Adressen, Bankverbindungen, das Geburtsdatum, sowie die Teilnahme an Vereinsaktivitäten.</p>
+          <p>Kein Mitglied des Bouldervereins Zugzwang e.V. darf geschützte personenbezogene Daten unbefugt zu einem anderen als dem zur rechtmäßigen Aufgabenerfüllung gehörenden Zweck erheben, verarbeiten, zugänglich machen oder nutzen. Personenbezogene Daten dürfen auch nicht für private Zwecke genutzt werden.</p>
+          <p><strong>Verstöße gegen das Datengeheimnis können mit Geld- oder Freiheitsstrafe geahndet werden.</strong></p>
+        </div>
+      </div>
+
+      <div class="form-section">
         <h2>Für wen füllst du aus?</h2>
         <div class="radio-group">
           <div class="radio-option">
@@ -403,6 +415,12 @@
           <input type="checkbox" id="confirmWaiver">
           <label for="confirmWaiver">
             Ich habe den Haftungsausschluss gelesen und erkenne ihn an. <span class="req">*</span>
+          </label>
+        </div>
+        <div class="cb-group">
+          <input type="checkbox" id="confirmDsgvo">
+          <label for="confirmDsgvo">
+            Ich habe die Datenschutzerklärung gelesen und stimme der Verarbeitung meiner Daten zu. <span class="req">*</span>
           </label>
         </div>
         <div class="cb-group" id="confirmParentGroup" style="display:none">
@@ -698,6 +716,7 @@ function checkForm() {
     if (!aEmail.value.trim()) ok = false;
     if (aEmail.value && !emailRegex.test(aEmail.value)) ok = false;
     if (!document.getElementById('confirmWaiver').checked) ok = false;
+    if (!document.getElementById('confirmDsgvo').checked) ok = false;
   }
 
   if (type === 'minor') {
@@ -713,6 +732,7 @@ function checkForm() {
       if (!entry.querySelector('.cGeburt').value) ok = false;
     });
     if (!document.getElementById('confirmWaiver').checked) ok = false;
+    if (!document.getElementById('confirmDsgvo').checked) ok = false;
     if (!document.getElementById('confirmParent').checked) ok = false;
   }
 
