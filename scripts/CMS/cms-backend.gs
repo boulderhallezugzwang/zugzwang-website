@@ -83,6 +83,7 @@ function doGet(e) {
     switch (action) {
       case 'images':
         result = { success: true, images: getImages() };
+        try { result.logo = getLogo(); } catch(e) { result.logo = null; }
         break;
       case 'news':
         result = { success: true, news: getNews() };

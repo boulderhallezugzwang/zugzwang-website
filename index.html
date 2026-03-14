@@ -162,12 +162,7 @@
     scrollbar-width: none;
   }
   .strip-track-outer::-webkit-scrollbar { display: none; }
-  .strip-fade-left, .strip-fade-right {
-    position: absolute; top: 0; bottom: 0; width: 60px;
-    z-index: 3; pointer-events: none;
-  }
-  .strip-fade-left { left: 0; background: linear-gradient(to right, var(--dark-card), transparent); }
-  .strip-fade-right { right: 0; background: linear-gradient(to left, var(--dark-card), transparent); }
+  .strip-fade-left, .strip-fade-right { display: none; }
   .strip-arrow {
     position: absolute; top: 50%; transform: translateY(-50%);
     z-index: 5; width: 44px; height: 44px; border-radius: 50%;
@@ -179,14 +174,14 @@
   .strip-arrow:hover { background: rgba(212,160,32,0.25); border-color: var(--yellow); color: var(--yellow); }
   .strip-arrow-left { left: 12px; }
   .strip-arrow-right { right: 12px; }
-  .strip-track { display: flex; gap: 6px; width: max-content; padding: 0 4px; }
+  .strip-track { display: flex; gap: 6px; width: max-content; padding: 0 48px; }
   .strip-item {
-    height: 280px; flex-shrink: 0; border-radius: 8px;
+    height: 280px; min-width: 200px; flex-shrink: 0; border-radius: 8px;
     overflow: hidden; position: relative; cursor: pointer;
   }
   .strip-item img {
-    height: 100%; width: auto; display: block; object-fit: contain;
-    transition: transform 0.4s;
+    height: 100%; width: 100%; display: block; object-fit: cover;
+    object-position: center; transition: transform 0.4s;
   }
   .strip-item:hover img { transform: scale(1.03); }
   .strip-caption {
@@ -677,33 +672,40 @@ const GRADIENTS = [
 const EMOJIS = ['🧗', '🪨', '💪', '🏆'];
 
 // ===================== INIT =====================
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    const res = await fetch(API_URL + '?action=all', { redirect: 'follow' });
-    const data = await res.json();
-    if (data.success) {
-      if (data.logo) {
-        // Neues Format: {logo: {...}, background: {...}}
-        if (data.logo.logo) {
-          renderLogo(data.logo.logo);
-          if (data.logo.background) renderHeroBg(data.logo.background);
-        }
-        // Altes Format: {url, urlAlt, urlExport} direkt
-        else if (data.logo.url) {
-          renderLogo(data.logo);
-        }
-      }
-      if (data.images) renderImageStrip(data.images);
-      if (data.events) renderCalendar(data.events);
-      if (data.news) renderNews(data.news);
+// Drei parallele API-Calls statt einem großen — schnellerer Seitenaufbau
+document.addEventListener('DOMContentLoaded', () => {
+  // Alle drei parallel starten — jeder rendert sobald er fertig ist
+  fetchAction('images').then(data => {
+    if (data && data.images) renderImageStrip(data.images);
+    else document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Keine Bilder vorhanden</div>';
+    // Logo kommt nur über "all", daher hier separat
+    if (data && data.logo) {
+      if (data.logo.logo) { renderLogo(data.logo.logo); if (data.logo.background) renderHeroBg(data.logo.background); }
+      else if (data.logo.url) renderLogo(data.logo);
     }
-  } catch (err) {
-    console.error('Backend-Fehler:', err);
-    document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Bilder konnten nicht geladen werden</div>';
-    document.getElementById('calFeed').innerHTML = '<div class="cal-empty">Termine konnten nicht geladen werden</div>';
-    document.getElementById('newsList').innerHTML = '<div class="news-empty">News konnten nicht geladen werden</div>';
-  }
+  });
+
+  fetchAction('calendar').then(data => {
+    if (data && data.events) renderCalendar(data.events);
+    else document.getElementById('calFeed').innerHTML = '<div class="cal-empty">Keine Termine verfügbar</div>';
+  });
+
+  fetchAction('news').then(data => {
+    if (data && data.news) renderNews(data.news);
+    else document.getElementById('newsList').innerHTML = '<div class="news-empty">Keine News vorhanden</div>';
+  });
 });
+
+async function fetchAction(action) {
+  try {
+    const res = await fetch(API_URL + '?action=' + action, { redirect: 'follow' });
+    const data = await res.json();
+    return data.success ? data : null;
+  } catch (err) {
+    console.error(action + '-Fehler:', err);
+    return null;
+  }
+}
 
 // ===================== LOGO =====================
 function renderLogo(logo) {
