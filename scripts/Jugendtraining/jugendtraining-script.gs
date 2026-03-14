@@ -1,0 +1,147 @@
+// ═══════════════════════════════════════════════════════════════
+// Google Apps Script – Jugendtraining Backend
+// Boulderverein Zugzwang e.V.
+//
+// Speichert Anmeldungen im Tab "Jugendtraining"
+// Sendet Bestätigungsmail
+//
+// ⚠️ Als EIGENES Projekt anlegen (script.google.com → Neues Projekt)
+// ═══════════════════════════════════════════════════════════════
+
+const SPREADSHEET_ID = '1HGhz-q7zWtYYFvLr8hnUZ2Yzz8p_p_e5NPYmwokluN8';
+const SHEET_NAME = 'Jugendtraining';
+
+const HEADERS = [
+  'Nachname', 'Vorname', 'Geburtsdatum', 'Adresse', 'PLZ', 'Ort',
+  'E-Mail', 'Telefon Mobil', 'Bemerkungen',
+  'Kontoinhaber', 'IBAN', 'BIC',
+  'SEPA-Lastschrift erlauben', 'Mandat Unterschriftsdatum', 'Lastschriftart', 'Mandatsreferenz',
+  'Eintritt'
+];
+
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+    // ── Sheet anlegen oder finden ──
+    var sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEET_NAME);
+      sheet.appendRow(HEADERS);
+      sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+
+    var heute = todayDe();
+    var mandatsref = generateMandatsreferenz(sheet);
+
+    // Geburtsdatum DD.MM.YYYY
+    var geb = '';
+    if (data.geburtsdatum) {
+      var d = new Date(data.geburtsdatum);
+      geb = ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+    }
+
+    // ── Zeile eintragen ──
+    sheet.appendRow([
+      data.nachname,
+      data.vorname,
+      geb,
+      data.strasse,
+      data.plz,
+      data.ort,
+      data.email,
+      data.telefon,
+      data.kommentar || '',
+      data.kontoinhaber,
+      data.iban,
+      data.bic || '',
+      'Ja',
+      heute,
+      'Erst-Lastschrift',
+      mandatsref,
+      heute
+    ]);
+
+    // ── Mail ──
+    sendBestaetigungsMail(data, heute, mandatsref, geb);
+
+    return ContentService.createTextOutput(
+      JSON.stringify({ status: 'ok' })
+    ).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    Logger.log('Fehler: ' + error.toString());
+    return ContentService.createTextOutput(
+      JSON.stringify({ status: 'error', message: error.toString() })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// MANDATSREFERENZ: JT-YYYY-NNNN
+// ═══════════════════════════════════════════════════
+
+function generateMandatsreferenz(sheet) {
+  var year = new Date().getFullYear();
+  var prefix = 'JT-' + year + '-';
+  var lastRow = sheet.getLastRow();
+  var maxNum = 0;
+
+  if (lastRow > 1) {
+    var mandatCol = HEADERS.indexOf('Mandatsreferenz') + 1;
+    var values = sheet.getRange(2, mandatCol, lastRow - 1, 1).getValues();
+    for (var i = 0; i < values.length; i++) {
+      var val = values[i][0].toString();
+      if (val.indexOf(prefix) === 0) {
+        var num = parseInt(val.substring(prefix.length), 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  }
+
+  return prefix + ('000' + (maxNum + 1)).slice(-4);
+}
+
+// ═══════════════════════════════════════════════════
+// HILFSFUNKTIONEN
+// ═══════════════════════════════════════════════════
+
+function todayDe() {
+  var d = new Date();
+  return ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+}
+
+// ═══════════════════════════════════════════════════
+// E-MAILS
+// ═══════════════════════════════════════════════════
+
+function sendBestaetigungsMail(data, heute, mandatsref, geb) {
+  var body = 'Hallo,\n\n' +
+    'vielen Dank für die Anmeldung zum Jugendtraining beim Boulderverein Zugzwang e.V.\n\n' +
+    'Folgende Daten wurden übermittelt:\n\n' +
+    '  Name:              ' + data.vorname + ' ' + data.nachname + '\n' +
+    '  Geburtsdatum:      ' + geb + '\n' +
+    '  Adresse:           ' + data.strasse + ', ' + data.plz + ' ' + data.ort + '\n' +
+    '  E-Mail:            ' + data.email + '\n' +
+    '  Mobilnummer:       ' + data.telefon + '\n' +
+    '  Anmeldedatum:      ' + heute + '\n\n' +
+    '  Kontoinhaber:      ' + data.kontoinhaber + '\n' +
+    '  IBAN:              ' + data.iban + '\n' +
+    '  Mandatsreferenz:   ' + mandatsref + '\n\n' +
+    'Falls du Fragen hast, erreichst du uns unter boulderhallezugzwang@gmail.com.\n\n' +
+    'Sportliche Grüße,\n' +
+    'Boulderverein Zugzwang e.V.\n' +
+    'Neuhauser Straße 1\n' +
+    '91275 Auerbach i.d.OPf.\n\n' +
+    'https://boulderhallezugzwang.github.io/zugzwang-website';
+
+  MailApp.sendEmail({
+    to: data.email,
+    subject: 'Bestätigung Anmeldung Jugendtraining – Boulderverein Zugzwang e.V.',
+    body: body,
+    name: 'Boulderverein Zugzwang e.V.'
+  });
+}
+
