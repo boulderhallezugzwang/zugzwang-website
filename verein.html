@@ -707,19 +707,24 @@ hdForm.addEventListener('submit', async (e) => {
   hdSubmit.classList.add('loading');
 
   try {
-    await fetch(HD_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+    const resp = await fetch(HD_URL, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(data)
     });
+    const result = await resp.json();
 
     // Modal schließen
     document.getElementById('hdOverlay').classList.remove('show');
 
-    // Erfolg anzeigen
     const msg = document.getElementById('hdMsg');
-    msg.className = 'hd-msg ok';
-    msg.textContent = 'Du bist eingetragen! Bestätigung kommt per E-Mail.';
+    if (result.status === 'ok') {
+      msg.className = 'hd-msg ok';
+      msg.textContent = 'Du bist eingetragen! Bestätigung kommt per E-Mail.';
+    } else {
+      msg.className = 'hd-msg err';
+      msg.textContent = result.message || 'Fehler beim Eintragen.';
+    }
     msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     // Termine neu laden nach kurzer Verzögerung
