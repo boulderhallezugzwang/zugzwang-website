@@ -479,9 +479,9 @@
 
   /* ===== INSTAGRAM ===== */
   .insta-link {
-    display: flex; align-items: center; gap: 20px;
-    padding: 24px 32px; text-decoration: none; color: var(--text);
-    transition: background 0.2s;
+    display: flex; align-items: center; gap: 16px;
+    padding: 24px 16px; text-decoration: none; color: var(--text);
+    transition: background 0.2s; overflow: hidden;
   }
   .insta-link:hover { background: rgba(255,255,255,0.03); }
   .insta-icon {
@@ -494,7 +494,7 @@
   .insta-text { display: flex; flex-direction: column; gap: 2px; }
   .insta-text strong { color: var(--cream); font-size: 18px; }
   .insta-text span { font-size: 14px; color: var(--text-dim); }
-  .insta-arrow { font-size: 24px; color: var(--text-dim); margin-left: auto; }
+  .insta-arrow { font-size: 24px; color: var(--text-dim); margin-left: auto; flex-shrink: 0; }
 
   /* ===== FOOTER ===== */
   footer {
