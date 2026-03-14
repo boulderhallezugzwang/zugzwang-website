@@ -764,6 +764,20 @@ function switchTab(tabId) {
   if (btn) btn.classList.add('active');
   const panel = document.getElementById('tab-' + tabId);
   if (panel) panel.classList.add('active');
+
+  // Reset forms when switching back to them
+  if (tabId === 'haftung') {
+    document.getElementById('okMsg').style.display = 'none';
+    document.getElementById('errMsg').style.display = 'none';
+    document.getElementById('haftungForm').style.display = '';
+    submitBtn.classList.remove('loading');
+  }
+  if (tabId === 'jugend') {
+    document.getElementById('jugendOkMsg').style.display = 'none';
+    document.getElementById('jugendErrMsg').style.display = 'none';
+    document.getElementById('jugendForm').style.display = '';
+    jugendSubmitBtn.classList.remove('loading');
+  }
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
