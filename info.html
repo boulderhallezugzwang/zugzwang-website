@@ -765,17 +765,33 @@ function switchTab(tabId) {
   const panel = document.getElementById('tab-' + tabId);
   if (panel) panel.classList.add('active');
 
-  // Reset forms when switching back to them
+  // Reset forms when switching to them
   if (tabId === 'haftung') {
     document.getElementById('okMsg').style.display = 'none';
     document.getElementById('errMsg').style.display = 'none';
-    document.getElementById('haftungForm').style.display = '';
+    const f = document.getElementById('haftungForm');
+    f.style.display = '';
+    f.reset();
+    document.getElementById('adultFields').style.display = 'none';
+    document.getElementById('minorSection').style.display = 'none';
+    document.getElementById('confirmSection').style.display = 'none';
+    document.getElementById('confirmParentGroup').style.display = 'none';
+    document.getElementById('submitBtn').style.display = 'none';
+    document.getElementById('formFooter').style.display = 'none';
+    submitBtn.disabled = true;
     submitBtn.classList.remove('loading');
+    // Reset children to 1
+    const cl = document.getElementById('childrenList');
+    while (cl.children.length > 1) cl.removeChild(cl.lastChild);
+    childCount = 1;
   }
   if (tabId === 'jugend') {
     document.getElementById('jugendOkMsg').style.display = 'none';
     document.getElementById('jugendErrMsg').style.display = 'none';
-    document.getElementById('jugendForm').style.display = '';
+    const f = document.getElementById('jugendForm');
+    f.style.display = '';
+    f.reset();
+    jugendSubmitBtn.disabled = true;
     jugendSubmitBtn.classList.remove('loading');
   }
 }
