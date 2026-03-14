@@ -59,8 +59,8 @@ function doGet(e) {
       var rawDatum = row[0];
       var datumStr, datum;
 
-      // Sheets speichert Daten oft als Date-Objekt statt Text
-      if (rawDatum instanceof Date) {
+      // Sheets speichert Daten als Date-Objekt — instanceof kann fehlschlagen
+      if (rawDatum && typeof rawDatum.getDate === 'function') {
         datum = rawDatum;
         datumStr = ('0' + rawDatum.getDate()).slice(-2) + '.' + ('0' + (rawDatum.getMonth() + 1)).slice(-2) + '.' + rawDatum.getFullYear();
       } else {
@@ -229,8 +229,8 @@ function createCalendarEvent(datumStr, vorname, nachname) {
 function parseDatumDE(str) {
   // DD.MM.YYYY → Date
   if (!str) return null;
-  // Handle Date objects from Sheets
-  if (str instanceof Date) {
+  // Handle Date objects from Sheets (instanceof kann fehlschlagen)
+  if (str && typeof str.getDate === 'function') {
     return str;
   }
   var parts = str.toString().split('.');
