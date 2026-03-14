@@ -293,6 +293,7 @@
   <!-- TAB NAVIGATION -->
   <div class="tab-nav">
     <button class="tab-btn active" data-tab="haftung">Haftungsausschluss</button>
+    <button class="tab-btn" data-tab="jugend">Einverständnis Jugendliche</button>
     <button class="tab-btn" data-tab="satzung">Satzung</button>
     <button class="tab-btn" data-tab="datenschutz">Datenschutz</button>
   </div>
@@ -491,6 +492,126 @@
     </form>
   </div>
 
+  <!-- ==================== EINVERSTÄNDNIS JUGENDLICHE ==================== -->
+  <div class="tab-panel" id="tab-jugend">
+
+    <div class="msg ok" id="jugendOkMsg">
+      <h3>Einverständniserklärung eingegangen</h3>
+      Die Einverständniserklärung wurde erfolgreich übermittelt und als PDF gespeichert. Du erhältst eine Bestätigung per E-Mail.
+    </div>
+    <div class="msg err" id="jugendErrMsg">
+      <h3>Fehler beim Senden</h3>
+      Bitte versuche es erneut oder kontaktiere uns unter
+      <a href="mailto:boulderhallezugzwang@gmail.com" style="color:var(--error)">boulderhallezugzwang@gmail.com</a>
+    </div>
+
+    <form id="jugendForm" novalidate>
+      <div class="form-section">
+        <h2>Einverständniserklärung — bitte lesen</h2>
+        <div class="waiver-text">
+          <p><strong>Einverständniserklärung für Jugendliche ab 14 Jahren zum selbstständigen Bouldern</strong></p>
+          <p>Hiermit erkläre ich als Erziehungsberechtigte/r, dass mein Kind die Boulderhalle Zugzwang selbstständig und ohne Begleitung eines Erziehungsberechtigten nutzen darf.</p>
+          <p>Mir ist bewusst, dass Bouldern eine Risikosportart ist, bei der Stürze und Verletzungen nicht ausgeschlossen werden können. Mein Kind wurde von mir über die Risiken aufgeklärt und verfügt über die nötige Reife und Disziplin, um den Sport eigenverantwortlich auszuüben.</p>
+          <p>Mein Kind hat die Hallenregeln und die Benutzerordnung gelesen und verstanden. Es wird sich an die Anweisungen des Hallenpersonals halten.</p>
+          <p>Ich erkläre ausdrücklich, dass mein Kind die Boulderhalle auf eigenes Risiko nutzt. Für selbstverschuldete Personen- und Sachschäden hafte ich als Erziehungsberechtigte/r bzw. haftet mein Kind persönlich, nicht der Betreiber der Boulderhalle Zugzwang.</p>
+          <p>Die Haftung des Betreibers ist generell ausgeschlossen, sofern nicht Vorsatz, Pflichtverletzung oder Fahrlässigkeit vorliegen.</p>
+          <p><strong>Diese Einverständniserklärung gilt bis auf Widerruf bzw. bis zur Vollendung des 18. Lebensjahres.</strong></p>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2>Erziehungsberechtigte/r</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="jEVorname">Vorname <span class="req">*</span></label>
+            <input type="text" id="jEVorname" autocomplete="given-name">
+          </div>
+          <div class="form-group">
+            <label for="jENachname">Nachname <span class="req">*</span></label>
+            <input type="text" id="jENachname" autocomplete="family-name">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="jEEmail">E-Mail <span class="req">*</span></label>
+            <input type="email" id="jEEmail" autocomplete="email">
+            <div class="ferr" id="jEEmailErr">Bitte gib eine gültige E-Mail-Adresse ein.</div>
+          </div>
+          <div class="form-group">
+            <label for="jETelefon">Telefon / Mobil <span class="req">*</span></label>
+            <input type="text" id="jETelefon" autocomplete="tel">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="jEStrasse">Straße, Nr. <span class="req">*</span></label>
+            <input type="text" id="jEStrasse" autocomplete="street-address">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:0.4">
+            <label for="jEPlz">PLZ <span class="req">*</span></label>
+            <input type="text" id="jEPlz" autocomplete="postal-code">
+          </div>
+          <div class="form-group">
+            <label for="jEOrt">Ort <span class="req">*</span></label>
+            <input type="text" id="jEOrt" autocomplete="address-level2">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2>Jugendliche/r</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="jKVorname">Vorname <span class="req">*</span></label>
+            <input type="text" id="jKVorname">
+          </div>
+          <div class="form-group">
+            <label for="jKNachname">Nachname <span class="req">*</span></label>
+            <input type="text" id="jKNachname">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="jKGeburt">Geburtsdatum <span class="req">*</span></label>
+            <input type="date" id="jKGeburt">
+            <div class="ferr" id="jKGeburtErr">Der/die Jugendliche muss zwischen 14 und 17 Jahre alt sein.</div>
+          </div>
+          <div class="form-group"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2>Bestätigung</h2>
+        <div class="cb-group">
+          <input type="checkbox" id="jConfirmEinverstaendnis">
+          <label for="jConfirmEinverstaendnis">
+            Ich habe die Einverständniserklärung gelesen und stimme zu, dass mein Kind die Boulderhalle selbstständig nutzen darf. <span class="req">*</span>
+          </label>
+        </div>
+        <div class="cb-group">
+          <input type="checkbox" id="jConfirmDsgvo">
+          <label for="jConfirmDsgvo">
+            Ich habe die Datenschutzerklärung gelesen und stimme der Verarbeitung meiner Daten zu. <span class="req">*</span>
+          </label>
+        </div>
+        <div class="cb-group">
+          <input type="checkbox" id="jConfirmHaftung">
+          <label for="jConfirmHaftung">
+            Mir ist bewusst, dass zusätzlich ein Haftungsausschluss für mein Kind vorliegen muss. <span class="req">*</span>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="jugendSubmitBtn" disabled>Einverständniserklärung absenden</button>
+      <div class="form-footer" id="jugendFormFooter">
+        Die Einverständniserklärung wird als PDF gespeichert.<br>
+        Du erhältst eine Kopie per E-Mail.
+      </div>
+    </form>
+  </div>
+
   <!-- ==================== SATZUNG ==================== -->
   <div class="tab-panel" id="tab-satzung">
     <div class="text-content">
@@ -637,7 +758,7 @@
 
 <script>
 // ===== TAB NAVIGATION =====
-const HASH_TO_TAB = { haftungsausschluss: 'haftung', satzung: 'satzung', datenschutz: 'datenschutz' };
+const HASH_TO_TAB = { haftungsausschluss: 'haftung', jugendliche: 'jugend', satzung: 'satzung', datenschutz: 'datenschutz' };
 
 function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -867,18 +988,123 @@ form.addEventListener('submit', async (e) => {
 
   try {
     const resp = await fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(data)
     });
-    form.style.display = 'none';
-    document.getElementById('okMsg').style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const result = await resp.json();
+    if (result.status === 'ok') {
+      form.style.display = 'none';
+      document.getElementById('okMsg').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      document.getElementById('errMsg').style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('loading');
+    }
   } catch (err) {
     console.error(err);
     document.getElementById('errMsg').style.display = 'block';
     submitBtn.disabled = false;
     submitBtn.classList.remove('loading');
+  }
+});
+
+// ===== EINVERSTÄNDNIS JUGENDLICHE FORM =====
+const jugendForm = document.getElementById('jugendForm');
+const jugendSubmitBtn = document.getElementById('jugendSubmitBtn');
+const jKGeburt = document.getElementById('jKGeburt');
+const jKGeburtErr = document.getElementById('jKGeburtErr');
+
+// Age validation: must be 14–17
+jKGeburt.addEventListener('change', () => {
+  if (jKGeburt.value) {
+    const age = getAge(jKGeburt.value);
+    if (age < 14 || age > 17) {
+      jKGeburt.classList.add('invalid');
+      jKGeburtErr.classList.add('show');
+    } else {
+      jKGeburt.classList.remove('invalid');
+      jKGeburtErr.classList.remove('show');
+    }
+  }
+  checkJugendForm();
+});
+
+// Email validation
+const jEEmail = document.getElementById('jEEmail');
+const jEEmailErr = document.getElementById('jEEmailErr');
+jEEmail.addEventListener('blur', () => validateEmail(jEEmail, jEEmailErr));
+
+function checkJugendForm() {
+  let ok = true;
+  if (!document.getElementById('jEVorname').value.trim()) ok = false;
+  if (!document.getElementById('jENachname').value.trim()) ok = false;
+  if (!jEEmail.value.trim()) ok = false;
+  if (jEEmail.value && !emailRegex.test(jEEmail.value)) ok = false;
+  if (!document.getElementById('jETelefon').value.trim()) ok = false;
+  if (!document.getElementById('jEStrasse').value.trim()) ok = false;
+  if (!document.getElementById('jEPlz').value.trim()) ok = false;
+  if (!document.getElementById('jEOrt').value.trim()) ok = false;
+  if (!document.getElementById('jKVorname').value.trim()) ok = false;
+  if (!document.getElementById('jKNachname').value.trim()) ok = false;
+  if (!jKGeburt.value) ok = false;
+  if (jKGeburt.value) {
+    const age = getAge(jKGeburt.value);
+    if (age < 14 || age > 17) ok = false;
+  }
+  if (!document.getElementById('jConfirmEinverstaendnis').checked) ok = false;
+  if (!document.getElementById('jConfirmDsgvo').checked) ok = false;
+  if (!document.getElementById('jConfirmHaftung').checked) ok = false;
+  jugendSubmitBtn.disabled = !ok;
+}
+
+jugendForm.addEventListener('input', checkJugendForm);
+jugendForm.addEventListener('change', checkJugendForm);
+
+jugendForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const now = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  const data = {
+    typ: 'jugendlicher',
+    eVorname: document.getElementById('jEVorname').value.trim(),
+    eNachname: document.getElementById('jENachname').value.trim(),
+    email: document.getElementById('jEEmail').value.trim(),
+    telefon: document.getElementById('jETelefon').value.trim(),
+    strasse: document.getElementById('jEStrasse').value.trim(),
+    plz: document.getElementById('jEPlz').value.trim(),
+    ort: document.getElementById('jEOrt').value.trim(),
+    kVorname: document.getElementById('jKVorname').value.trim(),
+    kNachname: document.getElementById('jKNachname').value.trim(),
+    kGeburtsdatum: document.getElementById('jKGeburt').value,
+    datum: now
+  };
+
+  jugendSubmitBtn.disabled = true;
+  jugendSubmitBtn.classList.add('loading');
+
+  try {
+    const resp = await fetch(SCRIPT_URL, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(data)
+    });
+    const result = await resp.json();
+    if (result.status === 'ok') {
+      jugendForm.style.display = 'none';
+      document.getElementById('jugendOkMsg').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      document.getElementById('jugendErrMsg').style.display = 'block';
+      jugendSubmitBtn.disabled = false;
+      jugendSubmitBtn.classList.remove('loading');
+    }
+  } catch (err) {
+    console.error(err);
+    document.getElementById('jugendErrMsg').style.display = 'block';
+    jugendSubmitBtn.disabled = false;
+    jugendSubmitBtn.classList.remove('loading');
   }
 });
 </script>
