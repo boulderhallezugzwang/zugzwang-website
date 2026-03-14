@@ -772,6 +772,8 @@ function switchTab(tabId) {
     const f = document.getElementById('haftungForm');
     f.style.display = '';
     f.reset();
+    f.querySelectorAll('input').forEach(inp => { inp.value = ''; inp.checked = false; inp.classList.remove('invalid'); });
+    f.querySelectorAll('.ferr').forEach(el => el.classList.remove('show'));
     document.getElementById('adultFields').style.display = 'none';
     document.getElementById('minorSection').style.display = 'none';
     document.getElementById('confirmSection').style.display = 'none';
@@ -780,9 +782,9 @@ function switchTab(tabId) {
     document.getElementById('formFooter').style.display = 'none';
     submitBtn.disabled = true;
     submitBtn.classList.remove('loading');
-    // Reset children to 1
     const cl = document.getElementById('childrenList');
     while (cl.children.length > 1) cl.removeChild(cl.lastChild);
+    if (cl.children[0]) cl.children[0].querySelectorAll('input').forEach(inp => inp.value = '');
     childCount = 1;
   }
   if (tabId === 'jugend') {
@@ -791,6 +793,8 @@ function switchTab(tabId) {
     const f = document.getElementById('jugendForm');
     f.style.display = '';
     f.reset();
+    f.querySelectorAll('input').forEach(inp => { inp.value = ''; inp.checked = false; inp.classList.remove('invalid'); });
+    f.querySelectorAll('.ferr').forEach(el => el.classList.remove('show'));
     jugendSubmitBtn.disabled = true;
     jugendSubmitBtn.classList.remove('loading');
   }
