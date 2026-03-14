@@ -6,6 +6,7 @@
 <title>Boulderhalle Zugzwang — Bouldern in Auerbach i.d.OPf.</title>
 <meta name="description" content="Boulderhalle Zugzwang in Auerbach i.d.OPf. — Bouldern für Anfänger und Fortgeschrittene mit Kilter Board. Seit 2014.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -681,8 +682,18 @@
 </section>
 <script>
   (() => {
-    const d=document,s=d.createElement("script");s.type="module";
-    s.src="https://w.behold.so/widget.js";d.head.append(s);
+    const widget = document.querySelector('behold-widget');
+    if (!widget) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        const s = document.createElement('script');
+        s.type = 'module';
+        s.src = 'https://w.behold.so/widget.js';
+        document.head.append(s);
+        observer.disconnect();
+      }
+    }, { rootMargin: '200px' });
+    observer.observe(widget);
   })();
 </script>
 
