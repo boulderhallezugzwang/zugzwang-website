@@ -567,17 +567,12 @@
 </section>
 
 
-<!-- ÖFFNUNGSZEITEN -->
-<section id="termine">
-  <span class="section-label">Zeiten</span>
-  <h2 class="section-title">Nächste Öffnungszeiten</h2>
-  <div id="oeffnungszeiten" class="oez-grid" style="display:none;"></div>
-</section>
-
 <!-- TERMINE -->
-<section class="section-divider" id="termine-liste">
+<section id="termine">
   <span class="section-label">Termine</span>
-  <h2 class="section-title">Termine</h2>
+  <h2 class="section-title">Öffnungszeiten & Termine</h2>
+  <div id="oeffnungszeiten" class="oez-grid" style="display:none;"></div>
+  <div id="termineLabel" class="oez-label" style="display:none; margin-top:24px;">Termine</div>
   <div id="calFilters" class="cal-filters" style="display:none;"></div>
   <div class="cal-scroll-container">
     <div id="calFeed" class="cal-feed">
@@ -837,6 +832,11 @@ function renderCalendar(events) {
           </div>`;
       }).join('')}
     `;
+  }
+
+  // "Termine"-Label einblenden wenn es Öffnungszeiten gibt
+  if (oezEvents.length > 0) {
+    document.getElementById('termineLabel').style.display = '';
   }
 
   // Restliche Termine (ohne Öffnungszeiten) + Filter
