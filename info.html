@@ -537,10 +537,6 @@
             <input type="email" id="jEEmail" autocomplete="email">
             <div class="ferr" id="jEEmailErr">Bitte gib eine gültige E-Mail-Adresse ein.</div>
           </div>
-          <div class="form-group">
-            <label for="jETelefon">Telefon / Mobil <span class="req">*</span></label>
-            <input type="text" id="jETelefon" autocomplete="tel">
-          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -1042,7 +1038,6 @@ function checkJugendForm() {
   if (!document.getElementById('jENachname').value.trim()) ok = false;
   if (!jEEmail.value.trim()) ok = false;
   if (jEEmail.value && !emailRegex.test(jEEmail.value)) ok = false;
-  if (!document.getElementById('jETelefon').value.trim()) ok = false;
   if (!document.getElementById('jEStrasse').value.trim()) ok = false;
   if (!document.getElementById('jEPlz').value.trim()) ok = false;
   if (!document.getElementById('jEOrt').value.trim()) ok = false;
@@ -1071,7 +1066,6 @@ jugendForm.addEventListener('submit', async (e) => {
     eVorname: document.getElementById('jEVorname').value.trim(),
     eNachname: document.getElementById('jENachname').value.trim(),
     email: document.getElementById('jEEmail').value.trim(),
-    telefon: document.getElementById('jETelefon').value.trim(),
     strasse: document.getElementById('jEStrasse').value.trim(),
     plz: document.getElementById('jEPlz').value.trim(),
     ort: document.getElementById('jEOrt').value.trim(),
