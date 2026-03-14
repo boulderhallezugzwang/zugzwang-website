@@ -168,6 +168,17 @@
   }
   .strip-fade-left { left: 0; background: linear-gradient(to right, var(--dark-card), transparent); }
   .strip-fade-right { right: 0; background: linear-gradient(to left, var(--dark-card), transparent); }
+  .strip-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    z-index: 5; width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(20,20,20,0.85); border: 1px solid var(--dark-border);
+    color: var(--cream); font-size: 22px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; backdrop-filter: blur(8px);
+  }
+  .strip-arrow:hover { background: rgba(212,160,32,0.25); border-color: var(--yellow); color: var(--yellow); }
+  .strip-arrow-left { left: 12px; }
+  .strip-arrow-right { right: 12px; }
   .strip-track { display: flex; gap: 6px; width: max-content; padding: 0 4px; }
   .strip-item {
     height: 280px; flex-shrink: 0; border-radius: 8px;
@@ -733,47 +744,31 @@ function renderImageStrip(images) {
     return `<div class="strip-item">${tag}<div class="strip-caption">${img.name}</div></div>`;
   }
 
-  // 3x dupliziert für nahtlose Endlosschleife
-  const repeated = [...images, ...images, ...images];
   el.innerHTML = `
     <div class="strip-fade-left"></div>
     <div class="strip-fade-right"></div>
+    <button class="strip-arrow strip-arrow-left" id="stripLeft">&#8249;</button>
+    <button class="strip-arrow strip-arrow-right" id="stripRight">&#8250;</button>
     <div class="strip-track-outer" id="stripScroller">
-      <div class="strip-track" id="stripTrack">${repeated.map((img,i) => makeItem(img,i)).join('')}</div>
+      <div class="strip-track" id="stripTrack">${images.map((img,i) => makeItem(img,i)).join('')}</div>
     </div>
   `;
 
   const scroller = document.getElementById('stripScroller');
+  const scrollAmount = 320;
 
-  // Start in der Mitte
-  requestAnimationFrame(() => {
-    const oneSet = document.getElementById('stripTrack').scrollWidth / 3;
-    scroller.style.scrollBehavior = 'auto';
-    scroller.scrollLeft = oneSet;
-    scroller.style.scrollBehavior = '';
+  document.getElementById('stripLeft').addEventListener('click', () => {
+    scroller.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
   });
-
-  // Endlos-Loop: unsichtbar zurücksetzen bei Set-Grenze
-  scroller.addEventListener('scroll', () => {
-    const oneSet = document.getElementById('stripTrack').scrollWidth / 3;
-    if (scroller.scrollLeft >= oneSet * 2) {
-      scroller.style.scrollBehavior = 'auto';
-      scroller.scrollLeft -= oneSet;
-      scroller.style.scrollBehavior = '';
-    } else if (scroller.scrollLeft < 10) {
-      scroller.style.scrollBehavior = 'auto';
-      scroller.scrollLeft += oneSet;
-      scroller.style.scrollBehavior = '';
-    }
+  document.getElementById('stripRight').addEventListener('click', () => {
+    scroller.scrollBy({ left: scrollAmount, behavior: 'smooth' });
   });
 
   // Drag to scroll
-  let isDown = false, startX, scrollLeft, paused = false;
-  const pause = (ms) => { paused = true; setTimeout(() => paused = false, ms); };
-  scroller.addEventListener('mouseenter', () => pause(2000));
+  let isDown = false, startX, scrollLeft;
   scroller.addEventListener('mousedown', (e) => {
     isDown = true; scroller.style.cursor = 'grabbing';
-    startX = e.pageX - scroller.offsetLeft; scrollLeft = scroller.scrollLeft; pause(3000);
+    startX = e.pageX - scroller.offsetLeft; scrollLeft = scroller.scrollLeft;
   });
   scroller.addEventListener('mouseleave', () => { isDown = false; scroller.style.cursor = ''; });
   scroller.addEventListener('mouseup', () => { isDown = false; scroller.style.cursor = ''; });
@@ -781,10 +776,6 @@ function renderImageStrip(images) {
     if (!isDown) return; e.preventDefault();
     scroller.scrollLeft = scrollLeft - (e.pageX - scroller.offsetLeft - startX);
   });
-  scroller.addEventListener('touchstart', () => pause(4000), { passive: true });
-
-  // Auto-scroll
-  setInterval(() => { if (!paused) scroller.scrollLeft += 1; }, 30);
 }
 
 // ===================== KALENDER-KONFIGURATION =====================
