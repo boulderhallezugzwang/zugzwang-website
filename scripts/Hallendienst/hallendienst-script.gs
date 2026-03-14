@@ -148,7 +148,7 @@ function doPost(e) {
     for (var i = 0; i < rows.length; i++) {
       var rawDatum = rows[i][0];
       var datumStr;
-      if (rawDatum instanceof Date) {
+      if (rawDatum && typeof rawDatum.getDate === 'function') {
         datumStr = ('0' + rawDatum.getDate()).slice(-2) + '.' + ('0' + (rawDatum.getMonth() + 1)).slice(-2) + '.' + rawDatum.getFullYear();
       } else {
         datumStr = rawDatum.toString();
