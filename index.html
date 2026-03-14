@@ -559,9 +559,9 @@
 
 <!-- HERO -->
 <section class="hero" style="margin-top:118px;">
-  <div class="hero-bg"></div>
+  <div class="hero-bg"><img src="img/hero.jpg" alt="Boulderhalle Zugzwang"></div>
   <div class="hero-content">
-    <img id="heroLogo" src="" alt="Zugzwang Boulderhalle" style="max-width:210px; width:40%; margin-bottom:2px; display:none;">
+    <img id="heroLogo" src="img/logo.png" alt="Zugzwang Boulderhalle" style="max-width:210px; width:40%; margin-bottom:2px;">
     <p class="hero-sub"><strong>Bouldern in Auerbach seit 2014.</strong></p>
   </div>
 </section>
@@ -712,11 +712,6 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchAction('images').then(data => {
     if (data && data.images) renderImageStrip(data.images);
     else document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Keine Bilder vorhanden</div>';
-    // Logo kommt nur über "all", daher hier separat
-    if (data && data.logo) {
-      if (data.logo.logo) { renderLogo(data.logo.logo); if (data.logo.background) renderHeroBg(data.logo.background); }
-      else if (data.logo.url) renderLogo(data.logo);
-    }
   });
 
   fetchAction('calendar').then(data => {
@@ -739,30 +734,6 @@ async function fetchAction(action) {
     console.error(action + '-Fehler:', err);
     return null;
   }
-}
-
-// ===================== LOGO =====================
-function renderLogo(logo) {
-  const el = document.getElementById('heroLogo');
-  el.src = logo.url;
-  el.onerror = function() {
-    this.onerror = function() { this.src = logo.urlExport; };
-    this.src = logo.urlAlt;
-  };
-  el.style.display = '';
-}
-
-// ===================== HERO HINTERGRUND =====================
-function renderHeroBg(bg) {
-  const el = document.querySelector('.hero-bg');
-  const img = new Image();
-  img.referrerPolicy = 'no-referrer';
-  img.src = bg.url;
-  img.onerror = function() {
-    this.onerror = function() { this.src = bg.urlExport; };
-    this.src = bg.urlAlt;
-  };
-  el.prepend(img);
 }
 
 // ===================== IMAGE STRIP (Endlosschleife) =====================
