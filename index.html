@@ -197,6 +197,33 @@
   }
   @media (max-width: 768px) { .strip-item { height: 200px; } }
 
+  /* ===== LIGHTBOX ===== */
+  .lightbox {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.92); backdrop-filter: blur(12px);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px; cursor: zoom-out;
+  }
+  .lightbox.show { display: flex; }
+  .lightbox img {
+    max-width: 95%; max-height: 90vh; object-fit: contain;
+    border-radius: 8px; box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+    cursor: default;
+  }
+  .lightbox-close {
+    position: absolute; top: 16px; right: 20px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--cream); font-size: 28px; width: 44px; height: 44px;
+    border-radius: 50%; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: all 0.2s;
+  }
+  .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+  .lightbox-caption {
+    position: absolute; bottom: 20px; left: 0; right: 0;
+    text-align: center; color: var(--cream); font-size: 15px;
+    font-weight: 500; text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  }
+
   /* ===== CALENDAR FEED ===== */
   .cal-scroll-container {
     max-height: 400px; overflow-y: auto; border-radius: 12px;
@@ -648,6 +675,13 @@
   </a>
 </section>
 
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">&times;</button>
+  <img id="lightboxImg" src="" alt="">
+  <div class="lightbox-caption" id="lightboxCaption"></div>
+</div>
+
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo"><span class="zug">Zug</span><span class="zwang">zwang</span> Boulderhalle</div>
@@ -766,17 +800,28 @@ function renderImageStrip(images) {
     scroller.scrollBy({ left: scrollAmount, behavior: 'smooth' });
   });
 
-  // Drag to scroll
-  let isDown = false, startX, scrollLeft;
+  // Klick auf Bild → Lightbox (nur wenn nicht gedraggt)
+  let isDown = false, startX, scrollLeft, dragged = false;
   scroller.addEventListener('mousedown', (e) => {
-    isDown = true; scroller.style.cursor = 'grabbing';
+    isDown = true; dragged = false; scroller.style.cursor = 'grabbing';
     startX = e.pageX - scroller.offsetLeft; scrollLeft = scroller.scrollLeft;
   });
   scroller.addEventListener('mouseleave', () => { isDown = false; scroller.style.cursor = ''; });
   scroller.addEventListener('mouseup', () => { isDown = false; scroller.style.cursor = ''; });
   scroller.addEventListener('mousemove', (e) => {
     if (!isDown) return; e.preventDefault();
+    dragged = true;
     scroller.scrollLeft = scrollLeft - (e.pageX - scroller.offsetLeft - startX);
+  });
+
+  el.addEventListener('click', (e) => {
+    if (dragged) return;
+    const item = e.target.closest('.strip-item');
+    if (!item) return;
+    const img = item.querySelector('img');
+    if (!img) return;
+    const caption = item.querySelector('.strip-caption');
+    openLightbox(img.src, caption ? caption.textContent : '');
   });
 }
 
@@ -925,6 +970,26 @@ function updateSubNav() {
 }
 window.addEventListener('scroll', updateSubNav, { passive: true });
 updateSubNav();
+
+// ===================== LIGHTBOX =====================
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+const lightboxCaption = document.getElementById('lightboxCaption');
+
+function openLightbox(src, caption) {
+  lightboxImg.src = src;
+  lightboxCaption.textContent = caption || '';
+  lightbox.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  lightbox.classList.remove('show');
+  document.body.style.overflow = '';
+  lightboxImg.src = '';
+}
+lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
 
 </script>
 </body>
