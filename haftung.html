@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Haftungsausschluss — Boulderhalle Zugzwang</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #141414;
+    --dark: #1c1c1c;
+    --dark-card: #232323;
+    --dark-border: #333;
+    --yellow: #D4A020;
+    --yellow-light: #E8B930;
+    --cream: #E8DCC8;
+    --cream-dim: #c4b9a6;
+    --white: #f0ece4;
+    --text: #d4d0c8;
+    --text-dim: #8a8680;
+    --error: #e74c3c;
+    --error-bg: rgba(231,76,60,0.1);
+    --success: #2ecc71;
+    --success-bg: rgba(46,204,113,0.1);
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; line-height: 1.55;
+    color: var(--text); background: var(--black);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== KIOSK HEADER ===== */
+  .kiosk-header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--black);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 2px solid var(--yellow);
+    margin-bottom: 24px;
+  }
+  .kiosk-logo-img {
+    height: 50px; width: auto;
+  }
+  .kiosk-refresh {
+    background: none; border: 2px solid var(--yellow);
+    color: var(--yellow); border-radius: var(--radius);
+    padding: 8px 16px; font-size: 15px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer; display: flex; align-items: center;
+    gap: 6px; transition: background 0.2s; flex-shrink: 0;
+  }
+  .kiosk-refresh:hover, .kiosk-refresh:active {
+    background: var(--yellow); color: var(--black);
+  }
+  .kiosk-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 28px;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--cream);
+  }
+  .kiosk-subtitle {
+    font-size: 14px; color: var(--text-dim); margin-top: 4px;
+  }
+
+  /* ===== PAGE ===== */
+  .page-container {
+    max-width: 800px; margin: 0 auto;
+    padding: 0 24px 40px;
+  }
+
+  /* ===== FORM STYLES ===== */
+  .form-section {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+  }
+  .form-section h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--yellow);
+    margin-bottom: 16px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--dark-border);
+  }
+  .form-row { display: flex; gap: 12px; margin-bottom: 14px; }
+  .form-group { flex: 1; display: flex; flex-direction: column; }
+  label { font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--cream-dim); }
+  label .req { color: var(--error); margin-left: 2px; }
+
+  input[type="text"], input[type="email"], input[type="date"] {
+    width: 100%; padding: 10px 12px; font-size: 16px;
+    font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--dark-border); border-radius: var(--radius);
+    background: var(--dark); color: var(--cream);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none; -webkit-appearance: none; appearance: none;
+  }
+  input:focus {
+    border-color: var(--yellow);
+    box-shadow: 0 0 0 3px rgba(212,160,32,0.15);
+  }
+  input.invalid { border-color: var(--error); background: var(--error-bg); }
+  input::placeholder { color: var(--text-dim); }
+  .ferr { color: var(--error); font-size: 12px; margin-top: 4px; display: none; }
+  .ferr.show { display: block; }
+
+  .waiver-text {
+    background: var(--dark); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
+    font-size: 14px; line-height: 1.6;
+  }
+  .waiver-text p { margin-bottom: 10px; }
+
+  .cb-group { margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px; }
+  .cb-group input[type="checkbox"] {
+    width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0;
+    accent-color: var(--yellow);
+  }
+  .cb-group label { font-size: 14px; font-weight: 400; cursor: pointer; line-height: 1.45; color: var(--text); }
+
+  .radio-group { margin-bottom: 16px; }
+  .radio-group .radio-option {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .radio-group input[type="radio"] {
+    width: 18px; height: 18px; flex-shrink: 0;
+    accent-color: var(--yellow);
+  }
+  .radio-group label { font-size: 14px; color: var(--text); cursor: pointer; }
+
+  .child-entry {
+    background: var(--dark); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 14px; margin-bottom: 10px;
+    position: relative;
+  }
+  .child-entry .child-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--yellow); margin-bottom: 10px;
+  }
+  .remove-child {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none; color: var(--error);
+    font-size: 18px; cursor: pointer; padding: 4px 8px;
+    border-radius: 4px; transition: background 0.2s;
+  }
+  .remove-child:hover { background: var(--error-bg); }
+
+  .add-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; font-size: 14px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--yellow); background: rgba(212,160,32,0.1);
+    border: 1px dashed var(--yellow); border-radius: var(--radius);
+    cursor: pointer; transition: all 0.2s; margin-top: 4px;
+  }
+  .add-btn:hover { background: rgba(212,160,32,0.18); }
+
+  .submit-btn {
+    display: block; width: 100%; padding: 14px 24px;
+    font-size: 16px; font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--black); background: var(--yellow); border: none;
+    border-radius: var(--radius); cursor: pointer; transition: background 0.2s;
+  }
+  .submit-btn:hover:not(:disabled) { background: var(--yellow-light); }
+  .submit-btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+  .submit-btn.loading { position: relative; color: transparent; }
+  .submit-btn.loading::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 20px; height: 20px; margin: -10px 0 0 -10px;
+    border: 2px solid rgba(0,0,0,0.3); border-top-color: var(--black);
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .form-footer { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 14px; line-height: 1.5; }
+
+  .msg { padding: 20px; border-radius: var(--radius); text-align: center; margin-bottom: 20px; display: none; }
+  .msg h3 { margin-bottom: 6px; }
+  .msg.ok { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
+  .msg.err { background: var(--error-bg); color: var(--error); border: 1px solid var(--error); }
+
+  /* ===== SUCCESS SCREEN ===== */
+  .success-screen {
+    display: none; text-align: center; padding: 60px 24px;
+  }
+  .success-screen .checkmark {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: var(--success-bg); border: 2px solid var(--success);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px; font-size: 40px;
+  }
+  .success-screen h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 28px; font-weight: 800; color: var(--cream);
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .success-screen p { font-size: 16px; color: var(--text-dim); margin-bottom: 32px; }
+  .success-screen .countdown {
+    font-size: 14px; color: var(--text-dim);
+  }
+  .success-screen .countdown strong { color: var(--yellow); font-size: 18px; }
+
+  #minorSection { display: none; }
+  #adultFields { display: none; }
+
+  @media (max-width: 500px) {
+    .form-row { flex-direction: column; }
+    .page-container { padding: 0 14px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- KIOSK HEADER -->
+<div class="kiosk-header">
+  <img src="img/logo.png" alt="Zugzwang Logo" class="kiosk-logo-img">
+  <div class="kiosk-title">Haftungsausschluss</div>
+  <button class="kiosk-refresh" onclick="resetForm()" title="Formular zurücksetzen"><span>&#x21bb;</span> Refresh</button>
+</div>
+
+<div class="page-container">
+
+  <!-- SUCCESS SCREEN -->
+  <div class="success-screen" id="successScreen">
+    <div class="checkmark">&#10003;</div>
+    <h2>Haftungsausschluss eingegangen</h2>
+    <p>Der Haftungsausschluss wurde erfolgreich gespeichert.<br>Eine Bestätigung wurde per E-Mail verschickt.</p>
+    <div class="countdown">Neues Formular in <strong id="countdownNum">10</strong> Sekunden...</div>
+  </div>
+
+  <!-- ERROR MSG -->
+  <div class="msg err" id="errMsg">
+    <h3>Fehler beim Senden</h3>
+    Bitte versuche es erneut oder kontaktiere uns unter
+    <a href="mailto:boulderhallezugzwang@gmail.com" style="color:var(--error)">boulderhallezugzwang@gmail.com</a>
+  </div>
+
+  <!-- FORM -->
+  <form id="haftungForm" novalidate>
+    <div class="form-section">
+      <h2>Haftungsausschluss — bitte lesen</h2>
+      <div class="waiver-text">
+        <p>Mir ist bewusst, dass Klettern und Bouldern Risikosportarten sind, bei denen Fehler und mögliche Stürze schwerwiegende Folgen haben können. Ich verfüge über die nötige Disziplin, gesunde Selbsteinschätzung und Risikowahrnehmung um diesen Sport verantwortungsvoll auszuüben.</p>
+        <p>Ich versichere hiermit, die Benutzerordnung und die Hallenregeln, die u.a. am Eingang oder in der Boulderhalle einzusehen sind, in ihrer neuesten Fassung gelesen und verstanden zu haben. Diese erkenne ich an und werde mich an sie halten.</p>
+        <p>Ich werde mich an die Anweisungen des Hallenpersonals halten. Bei Unsicherheiten, Fragen oder beim Erkennen von Mängeln an der Anlage werde ich mich an das Personal wenden.</p>
+        <p>Ich bekräftige hiermit ausdrücklich, dass ich die Boulderhalle Zugzwang eigenverantwortlich und auf eigenes Risiko nutze. Für selbstverschuldete Personen- und Sachschäden hafte ich persönlich, nicht der Betreiber der Boulderhalle Zugzwang.</p>
+        <p>Die Haftung des Betreibers ist generell ausgeschlossen, sofern nicht Vorsatz, Pflichtverletzung oder Fahrlässigkeit vorliegen. Auch für Garderobe, Wertsachen oder Verlust und Verschleiß von Kletterausrüstung wird keine Haftung übernommen.</p>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Datenschutzerklärung — bitte lesen</h2>
+      <div class="waiver-text">
+        <p><strong>Hinweis zur Datenverarbeitung:</strong> Der Boulderverein Zugzwang e.V. nutzt Google Workspace (Google Drive, Google Sheets, Google Forms) zur Verwaltung von Mitgliederdaten, Formularen und Vereinskommunikation. Die Daten werden auf Servern von Google LLC verarbeitet und gespeichert.</p>
+        <p>Alle Mitglieder im Boulderverein Zugzwang e.V., die Daten über Einzelpersonen verarbeiten oder von diesen Daten Kenntnis erlangen, sind nach § 5 Bundesdatenschutzgesetz, beziehungsweise nach Art 32 (4) Datenschutzgrundverordnung zur Einhaltung des Datengeheimnisses verpflichtet.</p>
+        <p>Die Verpflichtung der Mitglieder auf das Datengeheimnis erfolgt bei Aufnahme in den Verein. Diese Verpflichtung besteht auch nach Beendigung der Mitgliedschaft fort.</p>
+        <p>Personenbezogene Daten sind alle Daten, in denen Einzelangaben über persönliche oder sachliche Verhältnisse einer bestimmten oder bestimmbaren Person abgespeichert sind. Dazu gehören beispielsweise Adressen, Bankverbindungen, das Geburtsdatum, sowie die Teilnahme an Vereinsaktivitäten.</p>
+        <p>Kein Mitglied des Bouldervereins Zugzwang e.V. darf geschützte personenbezogene Daten unbefugt zu einem anderen als dem zur rechtmäßigen Aufgabenerfüllung gehörenden Zweck erheben, verarbeiten, zugänglich machen oder nutzen. Personenbezogene Daten dürfen auch nicht für private Zwecke genutzt werden.</p>
+        <p><strong>Verstöße gegen das Datengeheimnis können mit Geld- oder Freiheitsstrafe geahndet werden.</strong></p>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Für wen füllst du aus?</h2>
+      <div class="radio-group">
+        <div class="radio-option">
+          <input type="radio" id="typeAdult" name="waiverType" value="adult">
+          <label for="typeAdult">Für mich selbst (ab 18 Jahren)</label>
+        </div>
+        <div class="radio-option">
+          <input type="radio" id="typeMinor" name="waiverType" value="minor">
+          <label for="typeMinor">Als Erziehungsberechtigte/r für mein(e) Kind(er) (unter 18)</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADULT: eigene Daten -->
+    <div id="adultFields">
+      <div class="form-section">
+        <h2>Persönliche Daten</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aVorname">Vorname <span class="req">*</span></label>
+            <input type="text" id="aVorname" autocomplete="given-name">
+          </div>
+          <div class="form-group">
+            <label for="aNachname">Nachname <span class="req">*</span></label>
+            <input type="text" id="aNachname" autocomplete="family-name">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aGeburt">Geburtsdatum <span class="req">*</span></label>
+            <input type="date" id="aGeburt">
+            <div class="ferr" id="aGeburtErr">Du musst mindestens 18 Jahre alt sein. Wähle sonst die Option für Erziehungsberechtigte.</div>
+          </div>
+          <div class="form-group">
+            <label for="aEmail">E-Mail <span class="req">*</span></label>
+            <input type="email" id="aEmail" autocomplete="email">
+            <div class="ferr" id="aEmailErr">Bitte gib eine gültige E-Mail-Adresse ein.</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aStrasse">Straße, Nr. <span class="req">*</span></label>
+            <input type="text" id="aStrasse" autocomplete="street-address">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:0.4">
+            <label for="aPlz">PLZ <span class="req">*</span></label>
+            <input type="text" id="aPlz" autocomplete="postal-code">
+          </div>
+          <div class="form-group">
+            <label for="aOrt">Ort <span class="req">*</span></label>
+            <input type="text" id="aOrt" autocomplete="address-level2">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MINOR: Erziehungsberechtigter + Kinder -->
+    <div id="minorSection">
+      <div class="form-section">
+        <h2>Erziehungsberechtigte/r</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eVorname">Vorname <span class="req">*</span></label>
+            <input type="text" id="eVorname" autocomplete="given-name">
+          </div>
+          <div class="form-group">
+            <label for="eNachname">Nachname <span class="req">*</span></label>
+            <input type="text" id="eNachname" autocomplete="family-name">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eEmail">E-Mail <span class="req">*</span></label>
+            <input type="email" id="eEmail" autocomplete="email">
+            <div class="ferr" id="eEmailErr">Bitte gib eine gültige E-Mail-Adresse ein.</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eStrasse">Straße, Nr. <span class="req">*</span></label>
+            <input type="text" id="eStrasse" autocomplete="street-address">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:0.4">
+            <label for="ePlz">PLZ <span class="req">*</span></label>
+            <input type="text" id="ePlz" autocomplete="postal-code">
+          </div>
+          <div class="form-group">
+            <label for="eOrt">Ort <span class="req">*</span></label>
+            <input type="text" id="eOrt" autocomplete="address-level2">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2>Kind(er)</h2>
+        <div id="childrenList">
+          <div class="child-entry" data-index="0">
+            <div class="child-label">Kind 1</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Vorname <span class="req">*</span></label>
+                <input type="text" class="cVorname">
+              </div>
+              <div class="form-group">
+                <label>Nachname <span class="req">*</span></label>
+                <input type="text" class="cNachname">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Geburtsdatum <span class="req">*</span></label>
+                <input type="date" class="cGeburt">
+              </div>
+              <div class="form-group"></div>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="add-btn" id="addChildBtn">+ Weiteres Kind hinzufügen</button>
+      </div>
+    </div>
+
+    <!-- BESTÄTIGUNG -->
+    <div class="form-section" id="confirmSection" style="display:none">
+      <h2>Bestätigung</h2>
+      <div class="cb-group">
+        <input type="checkbox" id="confirmWaiver">
+        <label for="confirmWaiver">
+          Ich habe den Haftungsausschluss gelesen und erkenne ihn an. <span class="req">*</span>
+        </label>
+      </div>
+      <div class="cb-group">
+        <input type="checkbox" id="confirmDsgvo">
+        <label for="confirmDsgvo">
+          Ich habe die Datenschutzerklärung gelesen und stimme der Verarbeitung meiner Daten zu. <span class="req">*</span>
+        </label>
+      </div>
+      <div class="cb-group" id="confirmParentGroup" style="display:none">
+        <input type="checkbox" id="confirmParent">
+        <label for="confirmParent">
+          Ich bestätige als Erziehungsberechtigte/r, dass der Haftungsausschluss für alle oben genannten Kinder gilt. <span class="req">*</span>
+        </label>
+      </div>
+    </div>
+
+    <button type="submit" class="submit-btn" id="submitBtn" style="display:none" disabled>Haftungsausschluss absenden</button>
+    <div class="form-footer" id="formFooter" style="display:none">
+      Der Haftungsausschluss wird als PDF gespeichert.<br>
+      Du erhältst eine Kopie per E-Mail.
+    </div>
+  </form>
+</div>
+
+<script>
+// ===== HAFTUNGSAUSSCHLUSS FORM (KIOSK) =====
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtSfw_W_oZAMkONYaXxnrvQOUzO4fTIRreUyZExissE3UEgpu8RfTkPAawsZht6zEJXw/exec';
+
+const form = document.getElementById('haftungForm');
+const adultFields = document.getElementById('adultFields');
+const minorSection = document.getElementById('minorSection');
+const confirmSection = document.getElementById('confirmSection');
+const confirmParentGroup = document.getElementById('confirmParentGroup');
+const submitBtn = document.getElementById('submitBtn');
+const formFooter = document.getElementById('formFooter');
+
+// Waiver type selection
+document.querySelectorAll('input[name="waiverType"]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    const isMinor = e.target.value === 'minor';
+    adultFields.style.display = isMinor ? 'none' : 'block';
+    minorSection.style.display = isMinor ? 'block' : 'none';
+    confirmParentGroup.style.display = isMinor ? 'flex' : 'none';
+    confirmSection.style.display = 'block';
+    submitBtn.style.display = 'block';
+    formFooter.style.display = 'block';
+    checkForm();
+  });
+});
+
+// Add child
+let childCount = 1;
+document.getElementById('addChildBtn').addEventListener('click', () => {
+  childCount++;
+  const entry = document.createElement('div');
+  entry.className = 'child-entry';
+  entry.dataset.index = childCount - 1;
+  entry.innerHTML = `
+    <div class="child-label">Kind ${childCount}</div>
+    <button type="button" class="remove-child" title="Entfernen">&times;</button>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vorname <span class="req">*</span></label>
+        <input type="text" class="cVorname">
+      </div>
+      <div class="form-group">
+        <label>Nachname <span class="req">*</span></label>
+        <input type="text" class="cNachname">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Geburtsdatum <span class="req">*</span></label>
+        <input type="date" class="cGeburt">
+      </div>
+      <div class="form-group"></div>
+    </div>`;
+  document.getElementById('childrenList').appendChild(entry);
+  entry.querySelector('.remove-child').addEventListener('click', () => {
+    entry.remove();
+    renumberChildren();
+    checkForm();
+  });
+  entry.querySelectorAll('input').forEach(inp => inp.addEventListener('input', checkForm));
+});
+
+function renumberChildren() {
+  document.querySelectorAll('.child-entry').forEach((el, i) => {
+    el.querySelector('.child-label').textContent = 'Kind ' + (i + 1);
+  });
+  childCount = document.querySelectorAll('.child-entry').length;
+}
+
+// Email validation
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateEmail(input, errEl) {
+  if (input.value && !emailRegex.test(input.value)) {
+    input.classList.add('invalid');
+    if (errEl) errEl.classList.add('show');
+    return false;
+  }
+  input.classList.remove('invalid');
+  if (errEl) errEl.classList.remove('show');
+  return true;
+}
+
+// Age check
+function getAge(dateStr) {
+  const bd = new Date(dateStr);
+  const today = new Date();
+  let age = today.getFullYear() - bd.getFullYear();
+  const m = today.getMonth() - bd.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+  return age;
+}
+
+// Validate adult DOB
+const aGeburt = document.getElementById('aGeburt');
+const aGeburtErr = document.getElementById('aGeburtErr');
+aGeburt.addEventListener('change', () => {
+  if (aGeburt.value && getAge(aGeburt.value) < 18) {
+    aGeburt.classList.add('invalid');
+    aGeburtErr.classList.add('show');
+  } else {
+    aGeburt.classList.remove('invalid');
+    aGeburtErr.classList.remove('show');
+  }
+  checkForm();
+});
+
+// Form validation
+function checkForm() {
+  const type = document.querySelector('input[name="waiverType"]:checked')?.value;
+  if (!type) { submitBtn.disabled = true; return; }
+
+  let ok = true;
+
+  if (type === 'adult') {
+    if (!document.getElementById('aVorname').value.trim()) ok = false;
+    if (!document.getElementById('aNachname').value.trim()) ok = false;
+    if (!document.getElementById('aGeburt').value) ok = false;
+    if (aGeburt.value && getAge(aGeburt.value) < 18) ok = false;
+    const aEmail = document.getElementById('aEmail');
+    if (!aEmail.value.trim()) ok = false;
+    if (aEmail.value && !emailRegex.test(aEmail.value)) ok = false;
+    if (!document.getElementById('aStrasse').value.trim()) ok = false;
+    if (!document.getElementById('aPlz').value.trim()) ok = false;
+    if (!document.getElementById('aOrt').value.trim()) ok = false;
+    if (!document.getElementById('confirmWaiver').checked) ok = false;
+    if (!document.getElementById('confirmDsgvo').checked) ok = false;
+  }
+
+  if (type === 'minor') {
+    if (!document.getElementById('eVorname').value.trim()) ok = false;
+    if (!document.getElementById('eNachname').value.trim()) ok = false;
+    const eEmail = document.getElementById('eEmail');
+    if (!eEmail.value.trim()) ok = false;
+    if (eEmail.value && !emailRegex.test(eEmail.value)) ok = false;
+    if (!document.getElementById('eStrasse').value.trim()) ok = false;
+    if (!document.getElementById('ePlz').value.trim()) ok = false;
+    if (!document.getElementById('eOrt').value.trim()) ok = false;
+    document.querySelectorAll('.child-entry').forEach(entry => {
+      if (!entry.querySelector('.cVorname').value.trim()) ok = false;
+      if (!entry.querySelector('.cNachname').value.trim()) ok = false;
+      if (!entry.querySelector('.cGeburt').value) ok = false;
+    });
+    if (!document.getElementById('confirmWaiver').checked) ok = false;
+    if (!document.getElementById('confirmDsgvo').checked) ok = false;
+    if (!document.getElementById('confirmParent').checked) ok = false;
+  }
+
+  submitBtn.disabled = !ok;
+}
+
+// Attach listeners
+form.addEventListener('input', checkForm);
+form.addEventListener('change', checkForm);
+
+['aEmail', 'eEmail'].forEach(id => {
+  const el = document.getElementById(id);
+  const errId = id.charAt(0) + 'EmailErr';
+  const errEl = document.getElementById(errId);
+  el.addEventListener('blur', () => validateEmail(el, errEl));
+});
+
+// Submit
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const type = document.querySelector('input[name="waiverType"]:checked').value;
+  const now = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  let data;
+  if (type === 'adult') {
+    data = {
+      typ: 'erwachsen',
+      vorname: document.getElementById('aVorname').value.trim(),
+      nachname: document.getElementById('aNachname').value.trim(),
+      geburtsdatum: document.getElementById('aGeburt').value,
+      email: document.getElementById('aEmail').value.trim(),
+      strasse: document.getElementById('aStrasse').value.trim(),
+      plz: document.getElementById('aPlz').value.trim(),
+      ort: document.getElementById('aOrt').value.trim(),
+      datum: now
+    };
+  } else {
+    const kinder = [];
+    document.querySelectorAll('.child-entry').forEach(entry => {
+      kinder.push({
+        vorname: entry.querySelector('.cVorname').value.trim(),
+        nachname: entry.querySelector('.cNachname').value.trim(),
+        geburtsdatum: entry.querySelector('.cGeburt').value
+      });
+    });
+    data = {
+      typ: 'erziehungsberechtigter',
+      eVorname: document.getElementById('eVorname').value.trim(),
+      eNachname: document.getElementById('eNachname').value.trim(),
+      email: document.getElementById('eEmail').value.trim(),
+      strasse: document.getElementById('eStrasse').value.trim(),
+      plz: document.getElementById('ePlz').value.trim(),
+      ort: document.getElementById('eOrt').value.trim(),
+      kinder: kinder,
+      datum: now
+    };
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.classList.add('loading');
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(data)
+    });
+    // Erfolg: Formular ausblenden, Erfolgsscreen zeigen
+    form.style.display = 'none';
+    document.getElementById('successScreen').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Countdown + Auto-Reset nach 10 Sekunden
+    let seconds = 10;
+    const countdownEl = document.getElementById('countdownNum');
+    const timer = setInterval(() => {
+      seconds--;
+      countdownEl.textContent = seconds;
+      if (seconds <= 0) {
+        clearInterval(timer);
+        resetForm();
+      }
+    }, 1000);
+  } catch (err) {
+    console.error(err);
+    document.getElementById('errMsg').style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('loading');
+  }
+});
+
+// ===== KIOSK: Formular zurücksetzen =====
+function resetForm() {
+  document.getElementById('successScreen').style.display = 'none';
+  document.getElementById('errMsg').style.display = 'none';
+  form.style.display = 'block';
+  form.reset();
+  adultFields.style.display = 'none';
+  minorSection.style.display = 'none';
+  confirmSection.style.display = 'none';
+  confirmParentGroup.style.display = 'none';
+  submitBtn.style.display = 'none';
+  submitBtn.disabled = true;
+  submitBtn.classList.remove('loading');
+  formFooter.style.display = 'none';
+
+  // Zusätzliche Kinder entfernen (nur Kind 1 behalten)
+  const childrenList = document.getElementById('childrenList');
+  const entries = childrenList.querySelectorAll('.child-entry');
+  entries.forEach((entry, i) => { if (i > 0) entry.remove(); });
+  childCount = 1;
+  const firstChild = childrenList.querySelector('.child-entry');
+  if (firstChild) {
+    firstChild.querySelector('.child-label').textContent = 'Kind 1';
+    firstChild.querySelectorAll('input').forEach(inp => inp.value = '');
+  }
+
+  // Validierungsfehler zurücksetzen
+  form.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+  form.querySelectorAll('.ferr.show').forEach(el => el.classList.remove('show'));
+
+  window.scrollTo({ top: 0 });
+}
+</script>
+
+</body>
+</html>
