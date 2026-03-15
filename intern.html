@@ -299,6 +299,54 @@
   }
   .hd-status.aktiv { background: rgba(46,204,113,0.15); color: #58d68d; }
   .hd-status.inaktiv { background: rgba(231,76,60,0.15); color: #e74c3c; }
+
+  /* ===== TERMINE ===== */
+  .event-form {
+    max-width: 720px; margin: 16px auto; padding: 0 24px;
+  }
+  .event-form .form-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 20px;
+  }
+  .event-form .form-row {
+    display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .event-form .form-group {
+    display: flex; flex-direction: column; flex: 1; min-width: 140px;
+  }
+  .event-form .form-group.full { min-width: 100%; }
+  .event-form label {
+    font-size: 12px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+  }
+  .event-form input, .event-form select, .event-form textarea {
+    padding: 10px 12px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--dark-border); border-radius: 6px;
+    background: var(--dark); color: var(--cream); outline: none;
+    transition: border-color 0.2s;
+  }
+  .event-form input:focus, .event-form select:focus, .event-form textarea:focus {
+    border-color: var(--yellow);
+  }
+  .event-form textarea { resize: vertical; min-height: 80px; }
+  .event-form .form-actions {
+    display: flex; gap: 12px; align-items: center; margin-top: 4px;
+  }
+  .event-form .submit-btn {
+    padding: 10px 24px; font-size: 14px; font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--black); background: var(--yellow);
+    border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;
+  }
+  .event-form .submit-btn:hover { background: var(--yellow-light); }
+  .event-form .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .event-result {
+    font-size: 13px; margin-top: 12px; padding: 10px 14px;
+    border-radius: 6px; display: none;
+  }
+  .event-result.success { background: rgba(46,204,113,0.12); color: #58d68d; display: block; }
+  .event-result.error { background: rgba(231,76,60,0.12); color: #e74c3c; display: block; }
   .spinner {
     width: 32px; height: 32px;
     border: 3px solid var(--dark-border); border-top-color: var(--yellow);
@@ -385,6 +433,7 @@
       <div class="app-tabs">
         <button class="app-tab active" data-section="members">Mitgliederliste</button>
         <button class="app-tab" data-section="hallendienst">Hallendienst</button>
+        <button class="app-tab" data-section="termine">Termine</button>
       </div>
       <div class="app-user-info">
         <span class="app-user-name" id="appUserName"></span>
@@ -405,6 +454,57 @@
       <div class="loading" id="loadingMsg">
         <div class="spinner"></div>
         Mitglieder werden geladen...
+      </div>
+    </div>
+  </div>
+
+  <!-- Sektion: Termine -->
+  <div class="section" id="sectionTermine">
+    <div class="section-header">
+      <span class="app-count">Neuer Termin</span>
+    </div>
+    <div class="event-form">
+      <div class="form-card">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Kalender</label>
+            <select id="evKalender">
+              <option value="events">Events</option>
+              <option value="training">Trainingstermine</option>
+              <option value="arbeitsdienst">Arbeitsdienste</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Titel</label>
+            <input type="text" id="evTitel" placeholder="z.B. Mitgliederversammlung">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Datum</label>
+            <input type="date" id="evDatum">
+          </div>
+          <div class="form-group">
+            <label>Von</label>
+            <input type="time" id="evVon" value="18:00">
+          </div>
+          <div class="form-group">
+            <label>Bis</label>
+            <input type="time" id="evBis" value="21:00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Beschreibung</label>
+            <textarea id="evBeschreibung" placeholder="Optionaler Beschreibungstext..."></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="submit-btn" id="evSubmitBtn" onclick="evCreate()">Termin erstellen &amp; Mail senden</button>
+        </div>
+        <div class="event-result" id="evResult"></div>
       </div>
     </div>
   </div>
@@ -707,6 +807,71 @@ function saveChip(idx) {
   const q=document.getElementById('searchInput').value.trim().toLowerCase();
   if(q){const terms=q.split(/\s+/);const filtered=allMembers.filter(m2=>{const h=(m2.nachname+' '+m2.vorname+' '+m2.email+' '+m2.telefon+' '+m2.ort+' '+m2.chipnr).toLowerCase();return terms.every(t=>h.includes(t));});renderList(filtered,q);}
   else renderList(allMembers);
+}
+
+// ═══════════════════════════════════════════════════
+// TERMINE ERSTELLEN
+// ═══════════════════════════════════════════════════
+
+function evCreate() {
+  var kalender = document.getElementById('evKalender').value;
+  var titel = document.getElementById('evTitel').value.trim();
+  var datum = document.getElementById('evDatum').value;
+  var zeitVon = document.getElementById('evVon').value;
+  var zeitBis = document.getElementById('evBis').value;
+  var beschreibung = document.getElementById('evBeschreibung').value.trim();
+
+  if (!titel) { evShowResult('Bitte Titel eingeben', true); return; }
+  if (!datum) { evShowResult('Bitte Datum angeben', true); return; }
+  if (!zeitVon || !zeitBis) { evShowResult('Bitte Uhrzeiten angeben', true); return; }
+
+  var btn = document.getElementById('evSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Wird erstellt & Mails werden gesendet...';
+  document.getElementById('evResult').style.display = 'none';
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'createEvent',
+      username: sessionCredentials.username,
+      password: sessionCredentials.password,
+      kalender: kalender,
+      titel: titel,
+      datum: datum,
+      zeitVon: zeitVon,
+      zeitBis: zeitBis,
+      beschreibung: beschreibung
+    }),
+    redirect: 'follow'
+  })
+    .then(r => r.text())
+    .then(text => {
+      btn.disabled = false;
+      btn.textContent = 'Termin erstellen & Mail senden';
+      var data;
+      try { data = JSON.parse(text); } catch(e) {
+        evShowResult('Serverfehler', true);
+        return;
+      }
+      if (data.error) { evShowResult(data.error, true); return; }
+      evShowResult(data.message, false);
+      // Formular leeren
+      document.getElementById('evTitel').value = '';
+      document.getElementById('evBeschreibung').value = '';
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = 'Termin erstellen & Mail senden';
+      evShowResult('Verbindungsfehler: ' + err.message, true);
+    });
+}
+
+function evShowResult(msg, isError) {
+  var el = document.getElementById('evResult');
+  el.textContent = msg;
+  el.className = 'event-result ' + (isError ? 'error' : 'success');
 }
 
 // ═══════════════════════════════════════════════════
