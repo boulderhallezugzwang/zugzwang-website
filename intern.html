@@ -299,14 +299,15 @@
     <h1>Interner Bereich</h1>
     <div class="subtitle">Boulderverein Zugzwang e.V.</div>
 
-    <!-- Schritt 1: Benutzername -->
-    <div class="login-step active" id="stepUsername">
+    <!-- Hauptlogin: Benutzername + Passwort -->
+    <div class="login-step active" id="stepLogin">
       <input type="text" id="usernameInput" placeholder="Benutzername" autocomplete="username">
-      <button onclick="checkUsername()">Weiter</button>
-      <div class="login-err" id="usernameErr"></div>
+      <input type="password" id="loginPw" placeholder="Passwort" autocomplete="current-password">
+      <button onclick="doLogin()">Anmelden</button>
+      <div class="login-err" id="loginErr"></div>
     </div>
 
-    <!-- Schritt 2a: Passwort festlegen (Erstanmeldung) -->
+    <!-- Passwort festlegen (Erstanmeldung) -->
     <div class="login-step" id="stepSetPassword">
       <div class="welcome-msg" id="welcomeMsg"></div>
       <input type="password" id="newPw1" placeholder="Neues Passwort" autocomplete="new-password">
@@ -314,16 +315,7 @@
       <button onclick="setPassword()">Passwort festlegen</button>
       <div class="login-hint">Mindestens 6 Zeichen</div>
       <div class="login-err" id="setPwErr"></div>
-      <button class="login-back" onclick="backToUsername()">Anderer Benutzername</button>
-    </div>
-
-    <!-- Schritt 2b: Anmelden -->
-    <div class="login-step" id="stepLogin">
-      <div class="welcome-msg" id="loginGreeting"></div>
-      <input type="password" id="loginPw" placeholder="Passwort" autocomplete="current-password">
-      <button onclick="doLogin()">Anmelden</button>
-      <div class="login-err" id="loginErr"></div>
-      <button class="login-back" onclick="backToUsername()">Anderer Benutzername</button>
+      <button class="login-back" onclick="backToLogin()">Zurück</button>
     </div>
   </div>
 </div>
@@ -371,7 +363,6 @@ let currentUsername = '';
 function showStep(stepId) {
   document.querySelectorAll('.login-step').forEach(s => s.classList.remove('active'));
   document.getElementById(stepId).classList.add('active');
-  // Fehler zurücksetzen
   document.querySelectorAll('.login-err').forEach(e => { e.style.display = 'none'; e.textContent = ''; });
   document.querySelectorAll('.login-box input').forEach(i => i.classList.remove('error'));
 }
@@ -382,41 +373,43 @@ function showError(id, msg) {
   el.style.display = 'block';
 }
 
-function backToUsername() {
-  showStep('stepUsername');
+function backToLogin() {
+  showStep('stepLogin');
   document.getElementById('usernameInput').focus();
 }
 
-function checkUsername() {
+function doLogin() {
   const username = document.getElementById('usernameInput').value.trim();
-  if (!username) return;
-  const btn = document.querySelector('#stepUsername button');
+  const pw = document.getElementById('loginPw').value;
+  if (!username || !pw) return;
+  const btn = document.querySelector('#stepLogin button');
   btn.disabled = true;
 
-  fetch(API_URL + '?action=checkUser&username=' + encodeURIComponent(username))
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'login', username: username, password: pw })
+  })
     .then(r => r.json())
     .then(data => {
       btn.disabled = false;
-      if (data.error) { showError('usernameErr', data.error); return; }
-      if (!data.exists) {
-        showError('usernameErr', 'Benutzername nicht gefunden');
-        document.getElementById('usernameInput').classList.add('error');
-        return;
-      }
-      currentUsername = username;
       if (data.needsPassword) {
+        currentUsername = username;
         document.getElementById('welcomeMsg').textContent = 'Willkommen, ' + data.displayName + '! Bitte lege dein Passwort fest.';
         showStep('stepSetPassword');
         document.getElementById('newPw1').focus();
-      } else {
-        document.getElementById('loginGreeting').textContent = 'Hallo, ' + data.displayName;
-        showStep('stepLogin');
-        document.getElementById('loginPw').focus();
+        return;
       }
+      if (data.error) {
+        showError('loginErr', data.error);
+        document.getElementById('loginPw').classList.add('error');
+        return;
+      }
+      loginSuccess(data);
     })
     .catch(() => {
       btn.disabled = false;
-      showError('usernameErr', 'Verbindungsfehler');
+      showError('loginErr', 'Verbindungsfehler');
     });
 }
 
@@ -430,7 +423,7 @@ function setPassword() {
     return;
   }
   if (pw1 !== pw2) {
-    showError('setPwErr', 'Passwörter stimmen nicht überein');
+    showError('setPwErr', 'Passw\u00f6rter stimmen nicht \u00fcberein');
     document.getElementById('newPw2').classList.add('error');
     return;
   }
@@ -451,33 +444,6 @@ function setPassword() {
     .catch(() => {
       btn.disabled = false;
       showError('setPwErr', 'Verbindungsfehler');
-    });
-}
-
-function doLogin() {
-  const pw = document.getElementById('loginPw').value;
-  if (!pw) return;
-  const btn = document.querySelector('#stepLogin button:first-of-type');
-  btn.disabled = true;
-
-  fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'login', username: currentUsername, password: pw })
-  })
-    .then(r => r.json())
-    .then(data => {
-      btn.disabled = false;
-      if (data.error) {
-        showError('loginErr', data.error);
-        document.getElementById('loginPw').classList.add('error');
-        return;
-      }
-      loginSuccess(data);
-    })
-    .catch(() => {
-      btn.disabled = false;
-      showError('loginErr', 'Verbindungsfehler');
     });
 }
 
@@ -535,17 +501,19 @@ function doLogout() {
   allMembers = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
-  showStep('stepUsername');
+  showStep('stepLogin');
   document.getElementById('usernameInput').value = '';
+  document.getElementById('loginPw').value = '';
   document.getElementById('usernameInput').focus();
 }
 
 // Kein Auto-Login — Benutzer muss sich immer anmelden
 
 // ── Enter-Keys ──
-document.getElementById('usernameInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkUsername(); });
-document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key === 'Enter') setPassword(); });
+document.getElementById('usernameInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPw').focus(); });
 document.getElementById('loginPw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('newPw1').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('newPw2').focus(); });
+document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key === 'Enter') setPassword(); });
 
 // ── Tab-Navigation ──
 document.querySelectorAll('.app-tab').forEach(tab => {
