@@ -788,7 +788,6 @@ function hdAdd() {
 }
 
 function hdDelete(datumStr) {
-  if (!confirm('Termin ' + datumStr + ' wirklich l\u00f6schen?')) return;
   hdPost('deleteTermin', { datum: datumStr }).then(data => {
     if (data.error) { hdShowMsg(data.error, true); return; }
     if (data.message) hdShowMsg(data.message);
