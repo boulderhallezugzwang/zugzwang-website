@@ -112,6 +112,10 @@
   .login-box button:hover { background: var(--yellow-light); }
   .login-box button:disabled { opacity: 0.5; cursor: not-allowed; }
   .login-err { color: var(--error); font-size: 13px; margin-top: 10px; display: none; }
+  .login-hint { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  .login-box .welcome-msg { font-size: 15px; color: var(--cream); margin-bottom: 20px; }
+  .login-step { display: none; }
+  .login-step.active { display: block; }
 
   /* ===== APP ===== */
   .app { display: none; padding-top: 85px; }
@@ -289,10 +293,23 @@
     <h1>Interner Bereich</h1>
     <div class="subtitle">Boulderverein Zugzwang e.V.</div>
 
-    <input type="text" id="usernameInput" placeholder="Benutzername" autocomplete="username">
-    <input type="password" id="loginPw" placeholder="Passwort" autocomplete="current-password">
-    <button onclick="doLogin()">Anmelden</button>
-    <div class="login-err" id="loginErr"></div>
+    <!-- Login -->
+    <div class="login-step active" id="stepLogin">
+      <input type="text" id="usernameInput" placeholder="Benutzername" autocomplete="username">
+      <input type="password" id="loginPw" placeholder="Passwort" autocomplete="current-password">
+      <button onclick="doLogin()">Anmelden</button>
+      <div class="login-err" id="loginErr"></div>
+    </div>
+
+    <!-- Eigenes Passwort setzen (Erstanmeldung) -->
+    <div class="login-step" id="stepSetPassword">
+      <div class="welcome-msg" id="welcomeMsg"></div>
+      <input type="password" id="newPw1" placeholder="Neues Passwort" autocomplete="new-password">
+      <input type="password" id="newPw2" placeholder="Passwort wiederholen" autocomplete="new-password">
+      <button onclick="setNewPassword()">Passwort festlegen</button>
+      <div class="login-hint">Mindestens 6 Zeichen</div>
+      <div class="login-err" id="setPwErr"></div>
+    </div>
   </div>
 </div>
 
@@ -334,8 +351,13 @@ let allMembers = [];
 let currentUser = null;
 let sessionCredentials = null;
 
-function showError(msg) {
-  const el = document.getElementById('loginErr');
+function showStep(stepId) {
+  document.querySelectorAll('.login-step').forEach(s => s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
   el.textContent = msg;
   el.style.display = 'block';
 }
@@ -345,10 +367,9 @@ function doLogin() {
   const pw = document.getElementById('loginPw').value;
   if (!username || !pw) return;
 
-  const btn = document.querySelector('.login-box button');
-  const err = document.getElementById('loginErr');
+  const btn = document.querySelector('#stepLogin button');
   btn.disabled = true;
-  err.style.display = 'none';
+  document.getElementById('loginErr').style.display = 'none';
   document.getElementById('loginPw').classList.remove('error');
 
   fetch(API_URL, {
@@ -359,25 +380,75 @@ function doLogin() {
     .then(r => r.json())
     .then(data => {
       btn.disabled = false;
+      if (data.needsPassword) {
+        sessionCredentials = { username: username, password: pw };
+        document.getElementById('welcomeMsg').textContent = 'Willkommen, ' + data.displayName + '! Bitte lege dein eigenes Passwort fest.';
+        showStep('stepSetPassword');
+        document.getElementById('newPw1').focus();
+        return;
+      }
       if (data.error) {
-        showError(data.error);
+        showError('loginErr', data.error);
         document.getElementById('loginPw').classList.add('error');
         return;
       }
       sessionCredentials = { username: username, password: pw };
-      currentUser = data.user;
-      allMembers = (data.members || []).reverse();
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      document.getElementById('appUserName').textContent = currentUser ? currentUser.displayName : '';
-      document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
-      document.getElementById('searchInput').focus();
-      renderList(allMembers);
+      enterApp(data);
     })
     .catch(() => {
       btn.disabled = false;
-      showError('Verbindungsfehler');
+      showError('loginErr', 'Verbindungsfehler');
     });
+}
+
+function setNewPassword() {
+  const pw1 = document.getElementById('newPw1').value;
+  const pw2 = document.getElementById('newPw2').value;
+  if (!pw1) return;
+  if (pw1.length < 6) {
+    showError('setPwErr', 'Passwort muss mindestens 6 Zeichen lang sein');
+    return;
+  }
+  if (pw1 !== pw2) {
+    showError('setPwErr', 'Passw\u00f6rter stimmen nicht \u00fcberein');
+    return;
+  }
+  const btn = document.querySelector('#stepSetPassword button');
+  btn.disabled = true;
+  document.getElementById('setPwErr').style.display = 'none';
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'setPassword',
+      username: sessionCredentials.username,
+      oldPassword: sessionCredentials.password,
+      newPassword: pw1
+    })
+  })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      if (data.error) { showError('setPwErr', data.error); return; }
+      sessionCredentials.password = pw1;
+      enterApp(data);
+    })
+    .catch(() => {
+      btn.disabled = false;
+      showError('setPwErr', 'Verbindungsfehler');
+    });
+}
+
+function enterApp(data) {
+  currentUser = data.user;
+  allMembers = (data.members || []).reverse();
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('appUserName').textContent = currentUser ? currentUser.displayName : '';
+  document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
+  document.getElementById('searchInput').focus();
+  renderList(allMembers);
 }
 
 function doLogout() {
@@ -386,6 +457,7 @@ function doLogout() {
   allMembers = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
+  showStep('stepLogin');
   document.getElementById('usernameInput').value = '';
   document.getElementById('loginPw').value = '';
   document.getElementById('loginErr').style.display = 'none';
@@ -395,6 +467,8 @@ function doLogout() {
 // ── Enter-Keys ──
 document.getElementById('usernameInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPw').focus(); });
 document.getElementById('loginPw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('newPw1').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('newPw2').focus(); });
+document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key === 'Enter') setNewPassword(); });
 
 // ── Tab-Navigation ──
 document.querySelectorAll('.app-tab').forEach(tab => {
