@@ -347,6 +347,56 @@
   }
   .event-result.success { background: rgba(46,204,113,0.12); color: #58d68d; display: block; }
   .event-result.error { background: rgba(231,76,60,0.12); color: #e74c3c; display: block; }
+  .event-list { max-width: 720px; margin: 20px auto; padding: 0 24px 40px; }
+  .event-list h3 {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700;
+    color: var(--yellow); text-transform: uppercase; margin-bottom: 12px;
+  }
+  .ev-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px;
+    transition: border-color 0.15s;
+  }
+  .ev-card:hover { border-color: rgba(255,255,255,0.12); }
+  .ev-card .ev-top { display: flex; align-items: center; gap: 12px; }
+  .ev-card .ev-cal {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 12px;
+    white-space: nowrap;
+  }
+  .ev-cal.events { background: rgba(52,152,219,0.15); color: #3498db; }
+  .ev-cal.training { background: rgba(46,204,113,0.15); color: #2ecc71; }
+  .ev-cal.arbeitsdienst { background: rgba(230,126,34,0.15); color: #e67e22; }
+  .ev-card .ev-title { font-weight: 600; font-size: 15px; color: var(--cream); flex: 1; }
+  .ev-card .ev-meta {
+    font-size: 13px; color: var(--text-dim); margin-top: 4px;
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .ev-card .ev-desc { font-size: 13px; color: var(--text-dim); margin-top: 6px; font-style: italic; }
+  .ev-card .ev-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .ev-card .ev-actions button {
+    padding: 4px 12px; font-size: 12px; font-family: 'DM Sans', sans-serif;
+    border: none; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+  }
+  .ev-edit-btn { background: rgba(212,160,32,0.15); color: var(--yellow); }
+  .ev-edit-btn:hover { background: rgba(212,160,32,0.25); }
+  .ev-del-btn { background: rgba(231,76,60,0.15); color: #e74c3c; }
+  .ev-del-btn:hover { background: rgba(231,76,60,0.25); }
+  .progress-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(20,20,20,0.85); z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .progress-box {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 16px; padding: 40px; text-align: center; max-width: 340px;
+  }
+  .progress-box .spinner { margin-bottom: 16px; }
+  .progress-box .progress-text {
+    font-size: 15px; color: var(--cream); font-weight: 600;
+  }
+  .progress-box .progress-sub {
+    font-size: 13px; color: var(--text-dim); margin-top: 6px;
+  }
   .spinner {
     width: 32px; height: 32px;
     border: 3px solid var(--dark-border); border-top-color: var(--yellow);
@@ -502,10 +552,29 @@
           </div>
         </div>
         <div class="form-actions">
-          <button class="submit-btn" id="evSubmitBtn" onclick="evCreate()">Termin erstellen &amp; Mail senden</button>
+          <button class="submit-btn" id="evSubmitBtn" onclick="evSubmit()">Termin erstellen &amp; Mail senden</button>
+          <button class="submit-btn" id="evCancelBtn" style="display:none; background:#999;" onclick="evCancelEdit()">Abbrechen</button>
         </div>
         <div class="event-result" id="evResult"></div>
       </div>
+    </div>
+    <div class="event-list" id="evList">
+      <h3>Kommende Termine</h3>
+      <div id="evListContent">
+        <div class="loading" id="evLoading" style="display:none">
+          <div class="spinner"></div>
+          Termine werden geladen...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress-Overlay -->
+  <div class="progress-overlay" id="progressOverlay" style="display:none">
+    <div class="progress-box">
+      <div class="spinner"></div>
+      <div class="progress-text" id="progressText">Bitte warten...</div>
+      <div class="progress-sub" id="progressSub"></div>
     </div>
   </div>
 
@@ -703,6 +772,7 @@ document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key =
 
 // ── Tab-Navigation ──
 var hdLoaded = false;
+var evLoaded = false;
 document.querySelectorAll('.app-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
@@ -714,6 +784,10 @@ document.querySelectorAll('.app-tab').forEach(tab => {
     if (section === 'hallendienst' && !hdLoaded) {
       hdLoaded = true;
       hdLoadTermine();
+    }
+    if (section === 'termine' && !evLoaded) {
+      evLoaded = true;
+      evLoadEvents();
     }
   });
 });
@@ -810,8 +884,53 @@ function saveChip(idx) {
 }
 
 // ═══════════════════════════════════════════════════
-// TERMINE ERSTELLEN
+// TERMINE
 // ═══════════════════════════════════════════════════
+
+var allEvents = [];
+var evEditingId = null;
+
+function showProgress(text, sub) {
+  document.getElementById('progressText').textContent = text;
+  document.getElementById('progressSub').textContent = sub || '';
+  document.getElementById('progressOverlay').style.display = 'flex';
+}
+
+function hideProgress() {
+  document.getElementById('progressOverlay').style.display = 'none';
+}
+
+function evPost(action, extra) {
+  var body = Object.assign({
+    action: action,
+    username: sessionCredentials.username,
+    password: sessionCredentials.password
+  }, extra || {});
+  return fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body),
+    redirect: 'follow'
+  }).then(r => r.text()).then(text => {
+    try { return JSON.parse(text); } catch(e) {
+      console.error('EV Response:', text);
+      return { error: 'Serverfehler' };
+    }
+  });
+}
+
+function evLoadEvents() {
+  document.getElementById('evLoading').style.display = 'block';
+  evPost('getEvents').then(data => {
+    document.getElementById('evLoading').style.display = 'none';
+    if (data.error) { evShowResult(data.error, true); return; }
+    allEvents = data.events || [];
+    evRenderList();
+  }).catch(() => {
+    document.getElementById('evLoading').style.display = 'none';
+    evShowResult('Verbindungsfehler', true);
+  });
+}
 
 function evCreate() {
   var kalender = document.getElementById('evKalender').value;
@@ -825,53 +944,129 @@ function evCreate() {
   if (!datum) { evShowResult('Bitte Datum angeben', true); return; }
   if (!zeitVon || !zeitBis) { evShowResult('Bitte Uhrzeiten angeben', true); return; }
 
-  var btn = document.getElementById('evSubmitBtn');
-  btn.disabled = true;
-  btn.textContent = 'Wird erstellt & Mails werden gesendet...';
-  document.getElementById('evResult').style.display = 'none';
+  showProgress('Termin wird erstellt...', 'Mails werden an alle Mitglieder gesendet');
 
-  fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      action: 'createEvent',
-      username: sessionCredentials.username,
-      password: sessionCredentials.password,
-      kalender: kalender,
-      titel: titel,
-      datum: datum,
-      zeitVon: zeitVon,
-      zeitBis: zeitBis,
-      beschreibung: beschreibung
-    }),
-    redirect: 'follow'
-  })
-    .then(r => r.text())
-    .then(text => {
-      btn.disabled = false;
-      btn.textContent = 'Termin erstellen & Mail senden';
-      var data;
-      try { data = JSON.parse(text); } catch(e) {
-        evShowResult('Serverfehler', true);
-        return;
-      }
+  evPost('createEvent', {
+    kalender: kalender, titel: titel, datum: datum,
+    zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung
+  }).then(data => {
+    hideProgress();
+    if (data.error) { evShowResult(data.error, true); return; }
+    evShowResult(data.message, false);
+    document.getElementById('evTitel').value = '';
+    document.getElementById('evBeschreibung').value = '';
+    evLoaded = false;
+    evLoadEvents();
+  }).catch(err => {
+    hideProgress();
+    evShowResult('Verbindungsfehler: ' + err.message, true);
+  });
+}
+
+function evDelete(kalender, eventId) {
+  showProgress('Termin wird gelöscht...', 'Absagemails werden gesendet');
+
+  evPost('deleteEvent', { kalender: kalender, eventId: eventId }).then(data => {
+    hideProgress();
+    if (data.error) { evShowResult(data.error, true); return; }
+    evShowResult(data.message, false);
+    evLoaded = false;
+    evLoadEvents();
+  }).catch(err => {
+    hideProgress();
+    evShowResult('Verbindungsfehler: ' + err.message, true);
+  });
+}
+
+function evStartEdit(idx) {
+  var ev = allEvents[idx];
+  evEditingId = { kalender: ev.kalender, id: ev.id, idx: idx };
+  document.getElementById('evKalender').value = ev.kalender;
+  document.getElementById('evTitel').value = ev.titel;
+  document.getElementById('evDatum').value = ev.datum;
+  document.getElementById('evVon').value = ev.zeitVon;
+  document.getElementById('evBis').value = ev.zeitBis;
+  document.getElementById('evBeschreibung').value = ev.beschreibung;
+  document.getElementById('evSubmitBtn').textContent = '\u00c4ndern & Mail senden';
+  document.getElementById('evCancelBtn').style.display = 'inline-block';
+  document.getElementById('evResult').style.display = 'none';
+  // Zum Formular scrollen
+  document.getElementById('evTitel').focus();
+}
+
+function evCancelEdit() {
+  evEditingId = null;
+  document.getElementById('evTitel').value = '';
+  document.getElementById('evBeschreibung').value = '';
+  document.getElementById('evSubmitBtn').textContent = 'Termin erstellen & Mail senden';
+  document.getElementById('evCancelBtn').style.display = 'none';
+  document.getElementById('evResult').style.display = 'none';
+}
+
+function evSubmit() {
+  if (evEditingId) {
+    var kalender = document.getElementById('evKalender').value;
+    var titel = document.getElementById('evTitel').value.trim();
+    var datum = document.getElementById('evDatum').value;
+    var zeitVon = document.getElementById('evVon').value;
+    var zeitBis = document.getElementById('evBis').value;
+    var beschreibung = document.getElementById('evBeschreibung').value.trim();
+
+    if (!titel || !datum || !zeitVon || !zeitBis) { evShowResult('Alle Felder ausf\u00fcllen', true); return; }
+
+    showProgress('Termin wird ge\u00e4ndert...', '\u00c4nderungsmails werden gesendet');
+
+    evPost('updateEvent', {
+      kalender: evEditingId.kalender, eventId: evEditingId.id,
+      titel: titel, datum: datum, zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung
+    }).then(data => {
+      hideProgress();
       if (data.error) { evShowResult(data.error, true); return; }
       evShowResult(data.message, false);
-      // Formular leeren
-      document.getElementById('evTitel').value = '';
-      document.getElementById('evBeschreibung').value = '';
-    })
-    .catch(err => {
-      btn.disabled = false;
-      btn.textContent = 'Termin erstellen & Mail senden';
+      evCancelEdit();
+      evLoaded = false;
+      evLoadEvents();
+    }).catch(err => {
+      hideProgress();
       evShowResult('Verbindungsfehler: ' + err.message, true);
     });
+  } else {
+    evCreate();
+  }
 }
 
 function evShowResult(msg, isError) {
   var el = document.getElementById('evResult');
   el.textContent = msg;
   el.className = 'event-result ' + (isError ? 'error' : 'success');
+}
+
+function evRenderList() {
+  var container = document.getElementById('evListContent');
+  if (allEvents.length === 0) {
+    container.innerHTML = '<div class="no-results">Keine kommenden Termine</div>';
+    return;
+  }
+  var html = '';
+  allEvents.forEach(function(ev, idx) {
+    html += '<div class="ev-card">'
+      + '<div class="ev-top">'
+      + '<span class="ev-cal ' + escHtml(ev.kalender) + '">' + escHtml(ev.kalenderName) + '</span>'
+      + '<span class="ev-title">' + escHtml(ev.titel) + '</span>'
+      + '</div>'
+      + '<div class="ev-meta">'
+      + '<span>' + escHtml(ev.wochentag) + ', ' + escHtml(ev.datumFormatiert) + '</span>'
+      + '<span>' + escHtml(ev.zeitVon) + ' \u2013 ' + escHtml(ev.zeitBis) + ' Uhr</span>'
+      + '</div>';
+    if (ev.beschreibung) {
+      html += '<div class="ev-desc">' + escHtml(ev.beschreibung) + '</div>';
+    }
+    html += '<div class="ev-actions">'
+      + '<button class="ev-edit-btn" onclick="evStartEdit(' + idx + ')">Bearbeiten</button>'
+      + '<button class="ev-del-btn" onclick="evDelete(\'' + escAttr(ev.kalender) + '\',\'' + escAttr(ev.id) + '\')">L\u00f6schen</button>'
+      + '</div></div>';
+  });
+  container.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════
