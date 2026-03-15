@@ -173,6 +173,8 @@ function sendConfirmationEmail(data, eintrittDe, mandatsRef) {
 
   var body = 'Hallo ' + data.vorname + ',\n\n' +
     'Vielen Dank für Deinen Antrag. Du bist jetzt Mitglied beim Boulderverein Zugzwang e.V.!\n\n' +
+    'Zur Übergabe deines Zutrittschips melde dich bitte bei:\n' +
+    '  Detlef Müller, Tel. +49 160 884 3412\n\n' +
     'Wir haben folgende Daten erhalten:\n\n' +
     '  Name:           ' + data.vorname + ' ' + data.nachname + '\n' +
     '  Geburtsdatum:   ' + geburtsDe + '\n' +
@@ -189,8 +191,8 @@ function sendConfirmationEmail(data, eintrittDe, mandatsRef) {
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +
-    '91275 Auerbach\n\n' +
-    'https://zugzwang.clubdesk.com';
+    '91275 Auerbach i.d.OPf.\n\n' +
+    'https://boulderhallezugzwang.github.io/zugzwang-website';
 
   MailApp.sendEmail({
     to: data.email,

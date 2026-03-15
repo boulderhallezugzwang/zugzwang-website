@@ -9,235 +9,260 @@ Website und Backend-Scripts für den **Boulderverein Zugzwang e.V.** — Boulder
 ## Projektstruktur
 
 ```
-├── index.html              ← Startseite (Öffnungszeiten, News, Preise, Bilder)
-├── verein.html             ← Vereinsseite (Vorstand, Beiträge, Hallendienst)
-├── jugendtraining.html     ← Anmeldeformular Jugendtraining
-├── info.html               ← Satzung, Datenschutz, Haftungsausschluss, Downloads
-├── intern.html             ← Interner Bereich (Mitgliederliste, Chipverwaltung)
-├── antrag.html             ← Mitgliedsantrag
-├── kuendigung.html         ← Kündigungsformular
-├── impressum.html          ← Impressum
-├── img/                    ← Lokale Bilder (Vorstand etc.)
-└── scripts/                ← Google Apps Scripts (Backend)
-    ├── CMS/                ← Website-API (Bilder, News, Kalender)
-    ├── Hallendienst/       ← Hallendienst Web-App + Spreadsheet-Menü
-    ├── Haftungsausschluss/ ← Haftungsausschluss mit PDF-Generierung
-    ├── Jugendtraining/     ← Jugendtraining-Anmeldung
-    ├── Kündigung/          ← Kündigungs-Backend
-    ├── Mitgliederliste/    ← Mitglieder-API (passwortgeschützt)
-    └── Mitgliedsantrag/    ← Mitgliedsantrag + ClubDesk-Integration
+├── index.html                  ← Startseite (Öffnungszeiten, News, Preise, Bilder)
+├── verein.html                 ← Vereinsseite (Vorstand, Beiträge, Hallendienst)
+├── jugendtraining.html         ← Anmeldeformular Jugendtraining
+├── info.html                   ← Satzung, Datenschutz, Haftungsausschluss, Downloads
+├── intern.html                 ← Internes Dashboard (Login, Mitglieder, Termine, News, Newsletter)
+├── antrag.html                 ← Mitgliedsantrag-Formular
+├── haftung.html                ← Haftungsausschluss-Formular
+├── kuendigung.html             ← Kündigungsformular
+├── impressum.html              ← Impressum
+├── img/                        ← Lokale Bilder (Hero, Logo, Vorstand)
+└── scripts/                    ← Google Apps Scripts (Backend-Referenzkopien)
+    ├── manifest/
+    │   └── appsscript.json     ← OAuth-Scopes + Manifest für gebundenes Projekt
+    ├── CMS/
+    │   └── cms-backend.gs      ← Öffentliche Website-API (Bilder, News, Kalender)
+    ├── Mitgliederliste/
+    │   ├── mitgliederliste-script.gs   ← HAUPT-BACKEND (Auth, Mitglieder, Kalender, News, Newsletter, Antrag)
+    │   └── EINRICHTUNG.md
+    ├── Hallendienst/
+    │   ├── hallendienst-script.gs      ← Hallendienst Web-App (standalone)
+    │   ├── hallendienst-menu.gs        ← Hallendienst Menü (standalone)
+    │   ├── gebunden_Menue.gs           ← Spreadsheet-Menü (gebunden)
+    │   ├── gebunden_Mitgliedsantrag.gs ← ClubDesk Export/Import (gebunden)
+    │   ├── gebunden_Kuendigungen.gs    ← Kündigungs-Verarbeitung (gebunden)
+    │   └── menue-script.gs            ← Menü-Erstellung (gebunden)
+    ├── Haftungsausschluss/
+    │   └── haftung-script.gs           ← Haftungsausschluss mit PDF-Generierung
+    ├── Jugendtraining/
+    │   └── jugendtraining-script.gs    ← Jugendtraining-Anmeldung
+    ├── Kündigung/
+    │   └── kuendigung-script-2.gs      ← Kündigungs-Backend
+    └── Mitgliedsantrag/
+        ├── google-apps-script-5.gs     ← Standalone-Referenz (NICHT im gebundenen Projekt)
+        └── EINRICHTUNG.md
 ```
 
 ---
 
-## Voraussetzungen
+## Architektur-Übersicht
 
-- Google-Konto mit Zugriff auf das Vereins-Spreadsheet
-- Google Drive Ordner für Bilder, News und Haftungsausschluss-PDFs
-- GitHub-Konto für die Website (GitHub Pages)
+### Gebundenes Projekt (ans Spreadsheet gebunden)
+
+Das zentrale Backend läuft als **gebundenes Apps Script** im Vereins-Spreadsheet. Es enthält mehrere `.gs`-Dateien, die zusammen als ein Projekt deployed werden:
+
+| Datei im Apps Script Editor | Referenz im Repo | Funktion |
+|---|---|---|
+| `mitgliederliste-script.gs` | `scripts/Mitgliederliste/` | **Haupt-Backend**: Auth, Mitgliederliste, Kalender-CRUD, News-CRUD, Newsletter, Mitgliedsantrag |
+| `gebunden_Mitgliedsantrag.gs` | `scripts/Hallendienst/` | ClubDesk CSV-Export/Import |
+| `gebunden_Menue.gs` | `scripts/Hallendienst/` | Spreadsheet-Menüs (Hallendienst, ClubDesk) |
+| `gebunden_Kuendigungen.gs` | `scripts/Hallendienst/` | Kündigungen im Sheet verarbeiten |
+| `menue-script.gs` | `scripts/Hallendienst/` | onOpen-Menü-Erstellung |
+| `appsscript.json` | `scripts/manifest/` | OAuth-Scopes (Drive, Docs, Calendar, Mail) |
+
+**Ein Deployment** → eine Web-App-URL für alles.
+
+### Standalone Web-Apps (separate Projekte)
+
+| Script | Datei | Zweck |
+|---|---|---|
+| CMS Backend | `scripts/CMS/cms-backend.gs` | Öffentliche API für Website (Bilder, News, Kalender) |
+| Hallendienst | `scripts/Hallendienst/hallendienst-script.gs` | Hallendienst-Eintragung |
+| Haftungsausschluss | `scripts/Haftungsausschluss/haftung-script.gs` | PDF-Generierung |
+| Jugendtraining | `scripts/Jugendtraining/jugendtraining-script.gs` | Anmeldeformular |
+| Kündigung | `scripts/Kündigung/kuendigung-script-2.gs` | Kündigungsformular |
+
+Jedes Standalone-Script hat sein eigenes Deployment mit eigener URL.
 
 ---
 
 ## Google Spreadsheet
 
-Alle Scripts verwenden dasselbe Spreadsheet mit folgenden Tabs:
+**ID:** `1HGhz-q7zWtYYFvLr8hnUZ2Yzz8p_p_e5NPYmwokluN8`
 
 | Tab | Beschreibung |
 |-----|-------------|
-| *Erstes Sheet* | Mitgliederliste (Nachname, Vorname, Status, Chip, etc.) |
-| Hallendienst | Hallendiensttermine (Datum, Status, Vorname, Nachname, E-Mail, Mobilnr) |
+| Mitglieder | Mitgliederliste (Nachname, Vorname, Status, Chip, E-Mail, IBAN etc.) |
+| Benutzer | Login-Daten für intern.html (Benutzername, Anzeigename, Rolle, Passwort) |
+| Hallendienst | Hallendiensttermine (Datum, Status, Name, E-Mail) |
 | Haftungsausschlüsse | Eingegangene Haftungsausschlüsse mit PDF-Links |
-| Jugendtraining | Anmeldungen zum Jugendtraining mit SEPA-Daten |
+| Jugendtraining | Anmeldungen zum Jugendtraining |
 | Kündigungen | Eingegangene Kündigungen |
 
-Die Tabs werden automatisch erstellt, falls sie nicht existieren.
+### Benutzer-Tab (für intern.html)
+
+| Spalte | Inhalt |
+|--------|--------|
+| A | Benutzername (Login) |
+| B | Anzeigename |
+| C | Rolle (`admin` oder `mitglied`) |
+| D | Passwort |
+| E | Erstanmeldung (`Ja`/`Nein`) |
+
+Admin legt neue User an: Benutzername + Anzeigename + Rolle + initiales Passwort + Erstanmeldung=Ja. Beim ersten Login wird der User aufgefordert, sein Passwort zu ändern.
 
 ---
 
-## Scripts einrichten
+## Google Drive Ordner
 
-### Übersicht
+| Ordner | ID | Inhalt |
+|--------|----|--------|
+| Zugzwang_Bilder | `1zXWq7cgjcRQXM8bWXXEt1Ads4JzdjTSf` | Bilder fürs Karussell (JPG/PNG/WebP) |
+| Zugzwang_News | `1gql-ifQ24MvQNuKuwemyFtzJxOd7nN14` | News als Google Docs |
+| Zugzwang_Logo | `1bFCAwmz1LPouI7rKtOazFNJdgMu_OpyP` | Logo + Hintergrundbild |
 
-| Script | Typ | Datei | Deployment |
-|--------|-----|-------|------------|
-| CMS Backend | Standalone Web-App | `scripts/CMS/cms-backend.gs` | Eigenes Projekt |
-| Hallendienst | Standalone Web-App | `scripts/Hallendienst/hallendienst-script.gs` | Eigenes Projekt |
-| Hallendienst Menü | Gebunden | `scripts/Hallendienst/gebunden_Menue.gs` | Im Spreadsheet |
-| Haftungsausschluss | Standalone Web-App | `scripts/Haftungsausschluss/haftung-script.gs` | Eigenes Projekt |
-| Jugendtraining | Standalone Web-App | `scripts/Jugendtraining/jugendtraining-script.gs` | Eigenes Projekt |
-| Kündigung | Standalone Web-App | `scripts/Kündigung/kuendigung-script-2.gs` | Eigenes Projekt |
-| Mitgliederliste | Standalone Web-App | `scripts/Mitgliederliste/mitgliederliste-script.gs` | Eigenes Projekt |
-| Mitgliedsantrag | Gebunden | `scripts/Mitgliedsantrag/google-apps-script-5.gs` | Im Spreadsheet |
+**Ordner müssen öffentlich geteilt sein** ("Jeder mit dem Link"), damit Bilder auf der Website angezeigt werden.
 
 ---
 
-### 1. CMS Backend (Bilder, News, Kalender)
+## Google Kalender
 
-Liefert Bilder, News und Kalender-Termine als JSON an die Website.
+| Kalender | Schlüssel | Beschreibung |
+|----------|-----------|-------------|
+| Öffnungszeiten | `oeffnungszeiten` | Reguläre Öffnungszeiten |
+| Events | `events` | Vereinsveranstaltungen |
+| Trainingstermine | `trainingstermine` / `training` | Jugendtraining etc. |
+| Arbeitsdienste | `arbeitsdienste` / `arbeitsdienst` | Arbeitsdienste |
 
-**Einrichten:**
-1. https://script.google.com → **Neues Projekt** erstellen
-2. Code aus `scripts/CMS/cms-backend.gs` einfügen
-3. Google Drive Ordner anlegen und IDs anpassen:
-   - `IMAGES_FOLDER_ID` — Ordner für Bildkarussell (JPG/PNG/WebP)
-   - `NEWS_FOLDER_ID` — Ordner für News (Google Docs)
-   - `LOGO_FOLDER_ID` — Ordner für Logo + Hintergrundbild
-4. Kalender-IDs in `CONFIG.CALENDARS` prüfen/anpassen
-5. **Deploy → Web-App** (Ausführen als: Ich, Zugriff: Jeder)
-6. Web-App-URL in `index.html` eintragen (Variable `API_URL`)
-
-**API-Endpunkte:**
-- `?action=images` — Bilder aus Drive
-- `?action=news` — News aus Google Docs
-- `?action=calendar` — Kalender-Termine (90 Tage)
-- `?action=all` — Alles zusammen
-
-**News-Dokumente:** Google Docs im News-Ordner mit folgendem Aufbau:
-- Zeile 1: Titel
-- Zeile 2: Datum (TT.MM.JJJJ)
-- Zeile 3: Autor
-- Ab Zeile 4: Inhalt
-
-**Drive-Ordner müssen öffentlich geteilt sein** ("Jeder mit dem Link"), damit Bilder auf der Website angezeigt werden.
+Die Kalender-IDs sind in `cms-backend.gs` (öffentlich) und `mitgliederliste-script.gs` (intern) konfiguriert.
 
 ---
+
+## Interner Bereich (intern.html)
+
+Das interne Dashboard bietet 5 Tabs:
+
+### 1. Mitgliederliste
+- Suche, Sortierung, Chip-Bearbeitung (nur Admin)
+- Zeigt: Name, Telefon, E-Mail, Status, Ort, Chip/ChipNr.
 
 ### 2. Hallendienst
+- Zeigt kommende Hallendienste aus dem Hallendienst-Script
 
-Mitglieder können sich online für Hallendienste eintragen. Erstellt automatisch Kalendereinträge.
+### 3. Termine
+- Kalender-Events erstellen, bearbeiten, löschen
+- E-Mail-Versand bei jeder Aktion wählbar: keine / alle Mitglieder / custom Adressen
+- Mail-Status wird im Kalender-Event gespeichert (ZZ-MAIL Tag in Beschreibung)
+- ICS-Kalenderdatei als Anhang
 
-**Standalone Web-App (`hallendienst-script.gs`):**
-1. https://script.google.com → **Neues Projekt**
-2. Code einfügen
-3. `CALENDAR_ID` prüfen (Öffnungszeiten-Kalender)
-4. **Deploy → Web-App** (Ausführen als: Ich, Zugriff: Jeder)
-5. Web-App-URL in `verein.html` eintragen (Variable `HD_URL`)
+### 4. News
+- Google Docs im News-Ordner erstellen, bearbeiten, löschen
+- Bild-Upload (Base64) für Vorschaubild
+- Docs werden vom CMS-Backend auf der öffentlichen Website angezeigt
 
-**Gebundenes Script (`gebunden_Menue.gs`):**
+### 5. Newsletter
+- Rich-Text-Editor (Quill.js) mit Formatierung und Bild-Einbettung
+- HTML-E-Mails mit Plaintext-Fallback
+- Bilder werden als CID-Inline-Images gesendet (kompatibel mit Gmail, Outlook etc.)
+- Versand an alle Mitglieder oder custom Adressen
+
+### API-Endpunkte (Haupt-Backend)
+
+**POST-Requests** (JSON via `Content-Type: text/plain` um CORS-Preflight zu vermeiden):
+
+| Action | Beschreibung | Auth |
+|--------|-------------|------|
+| `login` | Anmeldung → Mitgliederdaten | username + password |
+| `setPassword` | Passwort ändern (Erstanmeldung) | username + oldPassword + newPassword |
+| `getEvents` | Kalender-Termine laden | username + password |
+| `createEvent` | Termin erstellen + optional Mail | username + password |
+| `updateEvent` | Termin bearbeiten + optional Mail | username + password |
+| `deleteEvent` | Termin löschen + optional Mail | username + password |
+| `getNews` | News-Liste laden | username + password |
+| `createNews` | News erstellen (Google Doc) | username + password |
+| `updateNews` | News bearbeiten | username + password |
+| `deleteNews` | News löschen | username + password |
+| `sendNewsletter` | Newsletter versenden (HTML+Text) | username + password |
+| *(kein action)* | Mitgliedsantrag verarbeiten | — (öffentlich) |
+
+**GET-Requests:**
+
+| Action | Beschreibung |
+|--------|-------------|
+| `updateChip` | Chip-Daten aktualisieren (nur Admin) |
+
+### Web-App-URLs
+
+| Zweck | Variable in intern.html |
+|-------|------------------------|
+| Haupt-Backend (Mitgliederliste) | `API_URL` |
+| Hallendienst | `HD_API_URL` |
+
+---
+
+## Deployment-Anleitung
+
+### Gebundenes Projekt (Haupt-Backend)
+
 1. Spreadsheet öffnen → **Erweiterungen → Apps Script**
-2. Code einfügen (ggf. in bestehende Datei)
-3. Spreadsheet neu laden → Menü "Hallendienst" erscheint
+2. Folgende Dateien im Editor pflegen:
+   - `mitgliederliste-script.gs` — Hauptlogik
+   - `gebunden_Mitgliedsantrag.gs` — ClubDesk Export/Import
+   - `gebunden_Menue.gs` — Spreadsheet-Menüs
+   - `gebunden_Kuendigungen.gs` — Kündigungen
+   - `menue-script.gs` — onOpen
+3. **appsscript.json** im Editor aktivieren: Projekteinstellungen → "appsscript.json-Manifestdatei im Editor anzeigen" → Inhalt aus `scripts/manifest/appsscript.json` einfügen
+4. **Deploy → Neue Bereitstellung → Web-App**
+   - Ausführen als: Ich (dein Google-Konto)
+   - Zugriff: Jeder (auch anonym)
+5. Beim ersten Mal: Autorisierungsdialog bestätigen (Drive, Docs, Calendar, Mail)
 
-**Spreadsheet-Menü:**
-- **Termine generieren** — Erstellt Hallendiensttermine für Zeitraum (Mi/Fr/So wählbar)
-- **Termine absagen** — Belegte Termine stornieren (setzt inaktiv, sendet Absage-Mail, löscht Kalendereinträge)
-- **Vergangene ausblenden** — Setzt vergangene Termine auf "inaktiv"
+**Wichtig:** Bei jeder Code-Änderung eine **neue Bereitstellung** erstellen! Das alte Deployment zeigt den alten Code.
 
-**Öffnungszeiten:**
-- Mittwoch: 18:00 – 21:00
-- Freitag: 18:00 – 21:00
-- Sonntag: 14:00 – 17:00
+### Standalone Web-Apps
 
----
-
-### 3. Haftungsausschluss
-
-Generiert PDF-Haftungsausschlüsse mit Datenschutzerklärung. Unterstützt Erwachsene und Minderjährige (mit Erziehungsberechtigtem).
-
-**Einrichten:**
-1. https://script.google.com → **Neues Projekt**
-2. Code aus `scripts/Haftungsausschluss/haftung-script.gs` einfügen
-3. Google Drive Ordner "Haftungsausschlüsse" anlegen
-4. `PDF_FOLDER_ID` mit der Ordner-ID aktualisieren
-5. **Deploy → Web-App** (Ausführen als: Ich, Zugriff: Jeder)
-6. Web-App-URL im Haftungsausschluss-Formular auf der Website eintragen
-
-**Funktionsweise:**
-- Formular wird ausgefüllt → Script erstellt Google Doc → exportiert als PDF
-- PDF wird im Drive-Ordner gespeichert
-- Bestätigungsmail mit PDF-Anhang wird an den Nutzer gesendet
-- Daten werden im Sheet "Haftungsausschlüsse" gespeichert
-
----
-
-### 4. Jugendtraining
-
-Anmeldeformular für das Jugendtraining mit SEPA-Lastschriftmandat.
-
-**Einrichten:**
-1. https://script.google.com → **Neues Projekt**
-2. Code einfügen
+1. https://script.google.com → **Neues Projekt** erstellen
+2. Code aus der jeweiligen `.gs`-Datei einfügen
 3. **Deploy → Web-App** (Ausführen als: Ich, Zugriff: Jeder)
-4. Web-App-URL in `jugendtraining.html` eintragen
+4. Web-App-URL in der jeweiligen HTML-Datei eintragen
 
-**Mandatsreferenz:** Wird automatisch generiert im Format `JT-YYYY-NNNN` (z.B. JT-2026-0001).
+### Website (GitHub Pages)
 
----
-
-### 5. Kündigung
-
-Verarbeitet Mitgliedschaftskündigungen. Setzt den Status im Mitglieder-Sheet automatisch auf "gekündigt".
-
-**Einrichten:**
-1. https://script.google.com → **Neues Projekt**
-2. Code einfügen
-3. **Deploy → Web-App** (Ausführen als: Ich, Zugriff: Jeder)
-4. Web-App-URL in `kuendigung.html` eintragen
-
-**Funktionsweise:**
-- Kündigung wird im Tab "Kündigungen" eingetragen
-- Status im Mitglieder-Sheet wird auf "gekündigt (Datum)" gesetzt
-- Bestätigungsmail mit Chip-Rücksende-Infos wird verschickt
-- Falls Mitglied nicht gefunden: Fehlermeldung per Mail
-
----
-
-### 6. Mitgliederliste (API)
-
-Passwortgeschützte API für den internen Bereich der Website (Mitgliederliste, Chipverwaltung).
-
-**Einrichten:**
-1. https://script.google.com → **Neues Projekt**
-2. Code einfügen
-3. `API_PASSWORD` ggf. ändern
-4. **Deploy → Web-App** (Ausführen als: Ich, Zugriff: Jeder)
-5. Web-App-URL und Passwort in `intern.html` eintragen
-
-**API-Parameter:**
-- `?pw=PASSWORT` — Authentifizierung (erforderlich)
-- `?pw=PASSWORT&action=updateChip&nachname=X&vorname=Y&chip=Z&chipnr=N` — Chip aktualisieren
-
----
-
-### 7. Mitgliedsantrag (Gebunden)
-
-Verarbeitet Mitgliedsanträge inkl. Familienmitglieder und SEPA-Mandat. Enthält ClubDesk CSV-Export/Import.
-
-**Einrichten:**
-1. Spreadsheet öffnen → **Erweiterungen → Apps Script**
-2. Code aus `scripts/Mitgliedsantrag/google-apps-script-5.gs` einfügen
-3. Spreadsheet neu laden → Menü "ClubDesk" erscheint
-
-**Spreadsheet-Menü:**
-- **ClubDesk → Markierte Zeilen exportieren (CSV)** — Export für ClubDesk
-- **ClubDesk → CSV importieren** — Import aus ClubDesk
-
-**Mandatsreferenz:** Format `ZZ-YYYY-NNNN` (z.B. ZZ-2026-0001).
-
----
-
-## Website (GitHub Pages)
-
-Die Website wird über GitHub Pages gehostet.
-
-**Deployment:**
 1. Änderungen committen und auf `main` pushen
-2. GitHub Pages ist automatisch aktiv (Settings → Pages → Branch: main)
-3. Seite ist erreichbar unter: https://boulderhallezugzwang.github.io/zugzwang-website
+2. GitHub Pages ist automatisch aktiv
+3. Live unter: https://boulderhallezugzwang.github.io/zugzwang-website
 
-**Nach Script-Änderungen:**
-1. Code im Google Apps Script Editor aktualisieren
-2. **Neues Deployment erstellen** (nicht das bestehende bearbeiten!)
-3. Falls sich die URL ändert: URL in der jeweiligen HTML-Datei aktualisieren und pushen
+---
+
+## Workflow: Neuen Benutzer anlegen
+
+1. Spreadsheet öffnen → Tab "Benutzer"
+2. Neue Zeile: Benutzername | Anzeigename | `admin` oder `mitglied` | initiales Passwort | `Ja`
+3. Benutzer mitteilen: Benutzername + initiales Passwort
+4. Beim ersten Login wird automatisch zur Passwort-Änderung aufgefordert
+
+**Passwort zurücksetzen:** Passwort im Sheet ändern + Erstanmeldung auf `Ja` setzen.
+
+---
+
+## Workflow: News veröffentlichen
+
+1. Im Intern-Dashboard → Tab "News"
+2. Titel, Datum, Autor, Text eingeben + optional Bild hochladen
+3. "Erstellen" klicken → Google Doc wird im News-Ordner angelegt
+4. News erscheint automatisch auf der öffentlichen Website (via CMS-Backend)
+
+---
+
+## Workflow: Newsletter versenden
+
+1. Im Intern-Dashboard → Tab "Newsletter"
+2. Betreff eingeben
+3. Nachricht im Rich-Text-Editor verfassen (Formatierung, Bilder, Links möglich)
+4. Empfänger wählen: alle Mitglieder oder bestimmte E-Mail-Adressen
+5. "Senden" klicken → HTML-Mail mit Plaintext-Fallback wird verschickt
 
 ---
 
 ## Wichtige Hinweise
 
-- **Erstmalige Autorisierung:** Jedes Script muss beim ersten Ausführen autorisiert werden. Dazu eine beliebige Funktion im Apps Script Editor ausführen und den Autorisierungsdialog bestätigen.
-- **Neue Deployments:** Bei Änderungen am Script immer ein **neues Deployment** erstellen. Das alte Deployment zeigt weiterhin den alten Code!
-- **E-Mail-Adresse:** Alle Scripts verwenden `boulderhallezugzwang@gmail.com` als Absender.
-- **Spreadsheet-ID:** Alle Scripts greifen auf dasselbe Spreadsheet zu: `1HGhz-q7zWtYYFvLr8hnUZ2Yzz8p_p_e5NPYmwokluN8`
+- **E-Mail-Absender:** `boulderhallezugzwang@gmail.com` (Google Apps Script sendet im Namen des deploying Users)
+- **E-Mail-Limit:** Google Apps Script erlaubt ca. 100 Mails/Tag (kostenlos) bzw. 1500/Tag (Workspace)
+- **Autorisierung:** Wenn neue OAuth-Scopes hinzugefügt werden (appsscript.json), muss neu autorisiert werden: Script im Editor einmal manuell ausführen
+- **CORS:** POST-Requests an Apps Script müssen `Content-Type: text/plain` verwenden + `redirect: 'follow'`
+- **Kalender-Mail-Status:** Wird als `[ZZ-MAIL:all:42]`, `[ZZ-MAIL:custom:3]` oder `[ZZ-MAIL:none]` in der Event-Beschreibung gespeichert
 
 ---
 
