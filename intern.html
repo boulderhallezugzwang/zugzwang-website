@@ -521,6 +521,7 @@
         <button class="app-tab" data-section="hallendienst">Hallendienst</button>
         <button class="app-tab" data-section="termine">Termine</button>
         <button class="app-tab" data-section="news">News</button>
+        <button class="app-tab" data-section="newsletter">Newsletter</button>
       </div>
       <div class="app-user-info">
         <span class="app-user-name" id="appUserName"></span>
@@ -662,6 +663,39 @@
         News werden geladen...
       </div>
       <div id="nwListContent"></div>
+    </div>
+  </div>
+
+  <!-- Sektion: Newsletter -->
+  <div class="section" id="sectionNewsletter">
+    <div class="event-form">
+      <h3>Newsletter senden</h3>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Betreff</label>
+          <input type="text" id="nlBetreff" placeholder="z.B. Neuigkeiten aus der Boulderhalle">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Nachricht</label>
+          <textarea id="nlInhalt" placeholder="Hallo zusammen,&#10;&#10;..." style="min-height:200px;"></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Empfänger</label>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:6px;">
+            <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="nlMailMode" value="all" checked> An alle Mitglieder</label>
+            <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="nlMailMode" value="custom"> An bestimmte Adressen</label>
+          </div>
+          <input type="text" id="nlMailTo" placeholder="E-Mail-Adressen (kommagetrennt)" style="display:none;">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="submit-btn" id="nlSendBtn" onclick="nlSend()">Newsletter senden</button>
+      </div>
+      <div class="event-result" id="nlResult"></div>
     </div>
   </div>
 
@@ -1252,6 +1286,68 @@ function evRenderList() {
       + '</div></div>';
   });
   container.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════
+// NEWSLETTER
+// ═══════════════════════════════════════════════════
+
+document.querySelectorAll('input[name="nlMailMode"]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    document.getElementById('nlMailTo').style.display = (this.value === 'custom') ? 'block' : 'none';
+  });
+});
+
+function nlSend() {
+  var betreff = document.getElementById('nlBetreff').value.trim();
+  var inhalt = document.getElementById('nlInhalt').value;
+  var mailMode = document.querySelector('input[name="nlMailMode"]:checked').value;
+  var mailTo = document.getElementById('nlMailTo').value.trim();
+
+  if (!betreff) { nlShowResult('Bitte Betreff eingeben', true); return; }
+  if (!inhalt) { nlShowResult('Bitte Nachricht eingeben', true); return; }
+
+  var empfaenger = mailMode === 'all' ? 'alle Mitglieder' : 'ausgewählte Adressen';
+  if (!confirm('Newsletter an ' + empfaenger + ' senden?')) return;
+
+  showProgress('Newsletter wird gesendet...', 'Mails werden verschickt');
+
+  var body = {
+    action: 'sendNewsletter',
+    username: sessionCredentials.username,
+    password: sessionCredentials.password,
+    betreff: betreff,
+    inhalt: inhalt,
+    mailMode: mailMode,
+    mailTo: mailTo
+  };
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body),
+    redirect: 'follow'
+  }).then(function(r) { return r.text(); }).then(function(text) {
+    hideProgress();
+    try {
+      var data = JSON.parse(text);
+      if (data.error) { nlShowResult(data.error, true); return; }
+      nlShowResult(data.message, false);
+      document.getElementById('nlBetreff').value = '';
+      document.getElementById('nlInhalt').value = '';
+    } catch(e) {
+      nlShowResult('Serverfehler', true);
+    }
+  }).catch(function(err) {
+    hideProgress();
+    nlShowResult('Verbindungsfehler: ' + err.message, true);
+  });
+}
+
+function nlShowResult(msg, isError) {
+  var el = document.getElementById('nlResult');
+  el.textContent = msg;
+  el.className = 'event-result ' + (isError ? 'error' : 'success');
 }
 
 // ═══════════════════════════════════════════════════
