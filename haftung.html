@@ -180,6 +180,39 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ===== PROGRESS INDICATOR ===== */
+  .progress-box {
+    display: none; margin-top: 18px; padding: 20px;
+    background: var(--dark); border: 1px solid var(--dark-border);
+    border-radius: var(--radius);
+  }
+  .progress-box.active { display: block; }
+  .progress-bar-track {
+    width: 100%; height: 6px; background: #333;
+    border-radius: 3px; overflow: hidden; margin-bottom: 16px;
+  }
+  .progress-bar-fill {
+    height: 100%; width: 0%; background: var(--yellow);
+    border-radius: 3px; transition: width 0.4s ease;
+  }
+  .progress-steps { display: flex; flex-direction: column; gap: 8px; }
+  .progress-step {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 16px; color: #666; transition: color 0.3s;
+  }
+  .progress-step.active { color: var(--text); }
+  .progress-step.done { color: var(--success); }
+  .progress-step .step-icon {
+    width: 20px; height: 20px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .progress-step .step-spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--yellow);
+    border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  .progress-step.done .step-icon::after { content: '\2713'; color: var(--success); font-weight: bold; }
+
   /* ===== SIGNATURE PAD ===== */
   .sig-canvas {
     width: 100%; height: 180px;
@@ -448,6 +481,14 @@
     </div>
 
     <button type="submit" class="submit-btn" id="submitBtn" style="display:none" disabled>Haftungsausschluss absenden</button>
+    <div class="progress-box" id="progressBox">
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="progress-steps">
+        <div class="progress-step" id="ps1"><span class="step-icon"></span> Daten werden übermittelt…</div>
+        <div class="progress-step" id="ps2"><span class="step-icon"></span> PDF wird erstellt…</div>
+        <div class="progress-step" id="ps3"><span class="step-icon"></span> Bestätigung wird versendet…</div>
+      </div>
+    </div>
     <div class="form-footer" id="formFooter" style="display:none">
       Der Haftungsausschluss wird als PDF gespeichert.<br>
       Du erhältst eine Kopie per E-Mail.
@@ -456,6 +497,42 @@
 </div>
 
 <script>
+// ===== PROGRESS INDICATOR =====
+function startProgress(fillId, stepIds) {
+  const fill = document.getElementById(fillId);
+  const steps = stepIds.map(id => document.getElementById(id));
+  const box = fill.closest('.progress-box');
+  box.classList.add('active');
+  steps.forEach(s => { s.className = 'progress-step'; s.querySelector('.step-icon').innerHTML = ''; });
+  fill.style.width = '0%';
+
+  const timings = [0, 1200, 3000];
+  const widths = ['33%', '66%', '90%'];
+  const timeouts = [];
+
+  timings.forEach((t, i) => {
+    timeouts.push(setTimeout(() => {
+      if (i > 0) { steps[i - 1].className = 'progress-step done'; steps[i - 1].querySelector('.step-icon').innerHTML = ''; }
+      steps[i].className = 'progress-step active';
+      steps[i].querySelector('.step-icon').innerHTML = '<span class="step-spinner"></span>';
+      fill.style.width = widths[i];
+    }, t));
+  });
+
+  return {
+    finish() {
+      timeouts.forEach(clearTimeout);
+      steps.forEach(s => { s.className = 'progress-step done'; s.querySelector('.step-icon').innerHTML = ''; });
+      fill.style.width = '100%';
+      setTimeout(() => box.classList.remove('active'), 600);
+    },
+    cancel() {
+      timeouts.forEach(clearTimeout);
+      box.classList.remove('active');
+    }
+  };
+}
+
 // ===== HAFTUNGSAUSSCHLUSS FORM (KIOSK) =====
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtSfw_W_oZAMkONYaXxnrvQOUzO4fTIRreUyZExissE3UEgpu8RfTkPAawsZht6zEJXw/exec';
 
@@ -726,6 +803,7 @@ form.addEventListener('submit', async (e) => {
 
   submitBtn.disabled = true;
   submitBtn.classList.add('loading');
+  const progress = startProgress('progressFill', ['ps1', 'ps2', 'ps3']);
 
   try {
     await fetch(SCRIPT_URL, {
@@ -733,24 +811,28 @@ form.addEventListener('submit', async (e) => {
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(data)
     });
+    progress.finish();
     // Erfolg: Formular ausblenden, Erfolgsscreen zeigen
-    form.style.display = 'none';
-    document.getElementById('successScreen').style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      form.style.display = 'none';
+      document.getElementById('successScreen').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Countdown + Auto-Reset nach 10 Sekunden
-    let seconds = 10;
-    const countdownEl = document.getElementById('countdownNum');
-    const timer = setInterval(() => {
-      seconds--;
-      countdownEl.textContent = seconds;
-      if (seconds <= 0) {
-        clearInterval(timer);
-        resetForm();
-      }
-    }, 1000);
+      // Countdown + Auto-Reset nach 10 Sekunden
+      let seconds = 10;
+      const countdownEl = document.getElementById('countdownNum');
+      const timer = setInterval(() => {
+        seconds--;
+        countdownEl.textContent = seconds;
+        if (seconds <= 0) {
+          clearInterval(timer);
+          resetForm();
+        }
+      }, 1000);
+    }, 700);
   } catch (err) {
     console.error(err);
+    progress.cancel();
     document.getElementById('errMsg').style.display = 'block';
     submitBtn.disabled = false;
     submitBtn.classList.remove('loading');
