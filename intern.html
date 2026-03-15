@@ -418,11 +418,22 @@
     <!-- Termine generieren -->
     <div class="hd-tools">
       <div class="hd-tool-group">
-        <label>Termine generieren (Mi/Fr/So)</label>
-        <div style="display:flex;gap:8px;align-items:center">
+        <label>Termine generieren</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="date" id="hdVon">
           <span style="color:var(--text-dim)">bis</span>
           <input type="date" id="hdBis">
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
+          <label style="display:flex;gap:4px;align-items:center;cursor:pointer;margin:0;text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="hdMi" checked style="width:auto;margin:0;accent-color:var(--yellow)"> Mi
+          </label>
+          <label style="display:flex;gap:4px;align-items:center;cursor:pointer;margin:0;text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="hdFr" checked style="width:auto;margin:0;accent-color:var(--yellow)"> Fr
+          </label>
+          <label style="display:flex;gap:4px;align-items:center;cursor:pointer;margin:0;text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="hdSo" checked style="width:auto;margin:0;accent-color:var(--yellow)"> So
+          </label>
           <button class="hd-btn primary" onclick="hdGenerate()">Erzeugen</button>
         </div>
       </div>
@@ -748,7 +759,12 @@ function hdGenerate() {
   var von = document.getElementById('hdVon').value;
   var bis = document.getElementById('hdBis').value;
   if (!von || !bis) { hdShowMsg('Bitte Von- und Bis-Datum angeben', true); return; }
-  hdPost('generateTermine', { von: von, bis: bis }).then(data => {
+  var tage = [];
+  if (document.getElementById('hdMi').checked) tage.push(3);
+  if (document.getElementById('hdFr').checked) tage.push(5);
+  if (document.getElementById('hdSo').checked) tage.push(0);
+  if (tage.length === 0) { hdShowMsg('Bitte mindestens einen Tag ausw\u00e4hlen', true); return; }
+  hdPost('generateTermine', { von: von, bis: bis, tage: tage }).then(data => {
     if (data.error) { hdShowMsg(data.error, true); return; }
     if (data.message) hdShowMsg(data.message);
     hdTermine = data.termine || [];
