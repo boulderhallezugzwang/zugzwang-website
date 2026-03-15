@@ -234,6 +234,71 @@
   .no-results { text-align: center; padding: 48px 20px; color: var(--text-dim); }
   .no-results .nr-icon { font-size: 36px; margin-bottom: 8px; }
   .loading { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+
+  /* ===== HALLENDIENST ===== */
+  .hd-tools {
+    max-width: 720px; margin: 16px auto 0; padding: 0 24px;
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;
+  }
+  .hd-tool-group {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 12px 16px; flex: 1; min-width: 220px;
+  }
+  .hd-tool-group label {
+    display: block; font-size: 12px; font-weight: 600; color: var(--text-dim);
+    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .hd-tool-group input[type="date"] {
+    padding: 8px 10px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--dark-border); border-radius: 6px;
+    background: var(--dark); color: var(--cream); outline: none; width: 100%;
+  }
+  .hd-tool-group input[type="date"]:focus { border-color: var(--yellow); }
+  .hd-btn {
+    padding: 8px 16px; font-size: 13px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    border: none; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .hd-btn.primary { background: var(--yellow); color: var(--black); }
+  .hd-btn.primary:hover { background: var(--yellow-light); }
+  .hd-btn.danger { background: rgba(231,76,60,0.15); color: #e74c3c; }
+  .hd-btn.danger:hover { background: rgba(231,76,60,0.25); }
+  .hd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hd-msg {
+    max-width: 720px; margin: 8px auto; padding: 0 24px;
+    font-size: 13px; color: var(--success);
+  }
+  .hd-msg.error { color: var(--error); }
+  .hd-list { max-width: 720px; margin: 16px auto; padding: 0 24px 40px; }
+  .hd-row {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 12px 16px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 12px; transition: border-color 0.15s;
+  }
+  .hd-row:hover { border-color: rgba(255,255,255,0.12); }
+  .hd-row.past { opacity: 0.4; }
+  .hd-row .hd-date {
+    font-weight: 700; font-size: 14px; color: var(--cream); min-width: 100px;
+  }
+  .hd-row .hd-day {
+    font-size: 13px; color: var(--text-dim); min-width: 30px;
+  }
+  .hd-row .hd-time {
+    font-size: 13px; color: var(--text-dim); min-width: 90px;
+  }
+  .hd-row .hd-person {
+    flex: 1; font-size: 14px; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .hd-row .hd-person.free { color: var(--success); font-weight: 600; }
+  .hd-row .hd-person.booked { color: var(--cream); }
+  .hd-row .hd-status {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 12px; white-space: nowrap;
+  }
+  .hd-status.aktiv { background: rgba(46,204,113,0.15); color: #58d68d; }
+  .hd-status.inaktiv { background: rgba(231,76,60,0.15); color: #e74c3c; }
   .spinner {
     width: 32px; height: 32px;
     border: 3px solid var(--dark-border); border-top-color: var(--yellow);
@@ -319,6 +384,7 @@
     <div class="app-header-inner">
       <div class="app-tabs">
         <button class="app-tab active" data-section="members">Mitgliederliste</button>
+        <button class="app-tab" data-section="hallendienst">Hallendienst</button>
       </div>
       <div class="app-user-info">
         <span class="app-user-name" id="appUserName"></span>
@@ -342,10 +408,51 @@
       </div>
     </div>
   </div>
+
+  <!-- Sektion: Hallendienst -->
+  <div class="section" id="sectionHallendienst">
+    <div class="section-header">
+      <span class="app-count" id="hdCountBadge">-</span>
+    </div>
+
+    <!-- Termine generieren -->
+    <div class="hd-tools">
+      <div class="hd-tool-group">
+        <label>Termine generieren (Mi/Fr/So)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="date" id="hdVon">
+          <span style="color:var(--text-dim)">bis</span>
+          <input type="date" id="hdBis">
+          <button class="hd-btn primary" onclick="hdGenerate()">Erzeugen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Einzeltermin hinzufügen -->
+    <div class="hd-tools" style="margin-top:8px">
+      <div class="hd-tool-group">
+        <label>Einzeltermin hinzufügen (nur Mi/Fr/So)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="date" id="hdAddDate">
+          <button class="hd-btn primary" onclick="hdAdd()">Hinzufügen</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hd-msg" id="hdMsg" style="display:none"></div>
+
+    <div class="hd-list" id="hdList">
+      <div class="loading" id="hdLoading" style="display:none">
+        <div class="spinner"></div>
+        Termine werden geladen...
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec';
+const HD_API_URL = 'https://script.google.com/macros/s/AKfycbw2hUXLDIf0fns1e31UFirjgM0KlQtx0w-l7oE4KjDNquKCOsr6cgOmhOYDXOefA4hK/exec';
 
 let allMembers = [];
 let currentUser = null;
@@ -484,13 +591,19 @@ document.getElementById('newPw1').addEventListener('keydown', e => { if (e.key =
 document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key === 'Enter') setNewPassword(); });
 
 // ── Tab-Navigation ──
+var hdLoaded = false;
 document.querySelectorAll('.app-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     tab.classList.add('active');
-    var sectionId = 'section' + tab.dataset.section.charAt(0).toUpperCase() + tab.dataset.section.slice(1);
+    var section = tab.dataset.section;
+    var sectionId = 'section' + section.charAt(0).toUpperCase() + section.slice(1);
     document.getElementById(sectionId).classList.add('active');
+    if (section === 'hallendienst' && !hdLoaded) {
+      hdLoaded = true;
+      hdLoadTermine();
+    }
   });
 });
 
@@ -584,6 +697,146 @@ function saveChip(idx) {
   if(q){const terms=q.split(/\s+/);const filtered=allMembers.filter(m2=>{const h=(m2.nachname+' '+m2.vorname+' '+m2.email+' '+m2.telefon+' '+m2.ort+' '+m2.chipnr).toLowerCase();return terms.every(t=>h.includes(t));});renderList(filtered,q);}
   else renderList(allMembers);
 }
+
+// ═══════════════════════════════════════════════════
+// HALLENDIENST
+// ═══════════════════════════════════════════════════
+
+let hdTermine = [];
+
+function hdPost(action, extra) {
+  var body = Object.assign({
+    action: action,
+    username: sessionCredentials.username,
+    password: sessionCredentials.password
+  }, extra || {});
+  return fetch(HD_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body),
+    redirect: 'follow'
+  }).then(r => r.text()).then(text => {
+    try { return JSON.parse(text); } catch(e) {
+      console.error('HD Response:', text);
+      return { error: 'Serverfehler' };
+    }
+  });
+}
+
+function hdShowMsg(msg, isError) {
+  var el = document.getElementById('hdMsg');
+  el.textContent = msg;
+  el.className = 'hd-msg' + (isError ? ' error' : '');
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 5000);
+}
+
+function hdLoadTermine() {
+  document.getElementById('hdLoading').style.display = 'block';
+  hdPost('getTermine').then(data => {
+    document.getElementById('hdLoading').style.display = 'none';
+    if (data.error) { hdShowMsg(data.error, true); return; }
+    hdTermine = data.termine || [];
+    hdRender();
+  }).catch(() => {
+    document.getElementById('hdLoading').style.display = 'none';
+    hdShowMsg('Verbindungsfehler', true);
+  });
+}
+
+function hdGenerate() {
+  var von = document.getElementById('hdVon').value;
+  var bis = document.getElementById('hdBis').value;
+  if (!von || !bis) { hdShowMsg('Bitte Von- und Bis-Datum angeben', true); return; }
+  hdPost('generateTermine', { von: von, bis: bis }).then(data => {
+    if (data.error) { hdShowMsg(data.error, true); return; }
+    if (data.message) hdShowMsg(data.message);
+    hdTermine = data.termine || [];
+    hdRender();
+  }).catch(() => hdShowMsg('Verbindungsfehler', true));
+}
+
+function hdAdd() {
+  var dateInput = document.getElementById('hdAddDate').value;
+  if (!dateInput) { hdShowMsg('Bitte Datum angeben', true); return; }
+  // yyyy-mm-dd → dd.mm.yyyy
+  var parts = dateInput.split('-');
+  var datumStr = parts[2] + '.' + parts[1] + '.' + parts[0];
+  hdPost('addTermin', { datum: datumStr }).then(data => {
+    if (data.error) { hdShowMsg(data.error, true); return; }
+    if (data.message) hdShowMsg(data.message);
+    hdTermine = data.termine || [];
+    hdRender();
+    document.getElementById('hdAddDate').value = '';
+  }).catch(() => hdShowMsg('Verbindungsfehler', true));
+}
+
+function hdDelete(datumStr) {
+  if (!confirm('Termin ' + datumStr + ' wirklich l\u00f6schen?')) return;
+  hdPost('deleteTermin', { datum: datumStr }).then(data => {
+    if (data.error) { hdShowMsg(data.error, true); return; }
+    if (data.message) hdShowMsg(data.message);
+    hdTermine = data.termine || [];
+    hdRender();
+  }).catch(() => hdShowMsg('Verbindungsfehler', true));
+}
+
+function hdRender() {
+  var container = document.getElementById('hdList');
+  var heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+
+  // Nur aktive, zukünftige zählen
+  var aktiv = hdTermine.filter(t => {
+    if (t.status.toLowerCase() !== 'aktiv') return false;
+    var p = t.datum.split('.');
+    return new Date(p[2], p[1]-1, p[0]) >= heute;
+  });
+  document.getElementById('hdCountBadge').textContent = aktiv.length + ' aktive Termine';
+
+  if (hdTermine.length === 0) {
+    container.innerHTML = '<div class="no-results">Keine Termine vorhanden</div>';
+    return;
+  }
+
+  var html = '';
+  hdTermine.forEach(t => {
+    var p = t.datum.split('.');
+    var d = new Date(p[2], p[1]-1, p[0]);
+    var isPast = d < heute;
+    var isInaktiv = t.status.toLowerCase() === 'inaktiv';
+    var rowClass = 'hd-row' + (isPast || isInaktiv ? ' past' : '');
+
+    var person = '';
+    if (t.vorname) {
+      person = '<span class="hd-person booked">' + escHtml(t.vorname + ' ' + t.nachname) + '</span>';
+    } else {
+      person = '<span class="hd-person free">Frei</span>';
+    }
+
+    var statusClass = t.status.toLowerCase() === 'aktiv' ? 'aktiv' : 'inaktiv';
+
+    html += '<div class="' + rowClass + '">'
+      + '<span class="hd-date">' + escHtml(t.datum) + '</span>'
+      + '<span class="hd-day">' + escHtml(t.wochentag) + '</span>'
+      + '<span class="hd-time">' + escHtml(t.uhrzeit) + '</span>'
+      + person
+      + '<span class="hd-status ' + statusClass + '">' + escHtml(t.status) + '</span>'
+      + '<button class="hd-btn danger" onclick="hdDelete(\'' + escAttr(t.datum) + '\')" title="L\u00f6schen">&times;</button>'
+      + '</div>';
+  });
+  container.innerHTML = html;
+}
+
+// Datepicker Defaults setzen
+(function() {
+  var today = new Date();
+  var in3m = new Date();
+  in3m.setMonth(in3m.getMonth() + 3);
+  var fmt = d => d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
+  document.getElementById('hdVon').value = fmt(today);
+  document.getElementById('hdBis').value = fmt(in3m);
+})();
 </script>
 
 <!-- FOOTER -->
