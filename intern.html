@@ -393,6 +393,8 @@ function doLogin() {
       if (data.needsPassword) {
         sessionCredentials = { username: username, password: pw };
         document.getElementById('welcomeMsg').textContent = 'Willkommen, ' + data.displayName + '! Bitte lege dein eigenes Passwort fest.';
+        document.getElementById('newPw1').value = '';
+        document.getElementById('newPw2').value = '';
         showStep('stepSetPassword');
         document.getElementById('newPw1').focus();
         return;
