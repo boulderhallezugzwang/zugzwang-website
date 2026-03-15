@@ -787,6 +787,18 @@ function hdAdd() {
   }).catch(() => hdShowMsg('Verbindungsfehler', true));
 }
 
+function hdClearPerson(datumStr, btn) {
+  var row = btn.closest('.hd-row');
+  if (row) row.style.opacity = '0.2';
+  btn.disabled = true;
+  hdPost('clearPerson', { datum: datumStr }).then(data => {
+    if (data.error) { hdShowMsg(data.error, true); if (row) row.style.opacity = '1'; return; }
+    if (data.message) hdShowMsg(data.message);
+    hdTermine = data.termine || [];
+    hdRender();
+  }).catch(() => { hdShowMsg('Verbindungsfehler', true); if (row) row.style.opacity = '1'; });
+}
+
 function hdDelete(datumStr, btn) {
   // Zeile sofort ausblenden
   var row = btn.closest('.hd-row');
@@ -828,7 +840,8 @@ function hdRender() {
 
     var person = '';
     if (t.vorname) {
-      person = '<span class="hd-person booked">' + escHtml(t.vorname + ' ' + t.nachname) + '</span>';
+      person = '<span class="hd-person booked">' + escHtml(t.vorname + ' ' + t.nachname)
+        + ' <button class="hd-btn danger" onclick="hdClearPerson(\'' + escAttr(t.datum) + '\',this)" style="padding:2px 6px;font-size:10px;margin-left:4px" title="Person entfernen">&times;</button></span>';
     } else {
       person = '<span class="hd-person free">Frei</span>';
     }
