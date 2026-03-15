@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <style>
   :root {
     --black: #141414;
@@ -397,6 +399,22 @@
   .nw-card .nw-actions button { padding: 4px 12px; font-size: 12px; font-family: 'DM Sans', sans-serif; border: none; border-radius: 6px; cursor: pointer; }
   .nw-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; margin-right: auto; background: rgba(76,175,80,0.15); color: #4CAF50; }
   .nw-badge.no-img { background: rgba(158,158,158,0.15); color: #9e9e9e; }
+
+  /* Quill Editor Dark Theme Override */
+  .ql-toolbar.ql-snow { border-color: var(--dark-border); background: rgba(255,255,255,0.03); border-radius: 8px 8px 0 0; }
+  .ql-container.ql-snow { border-color: var(--dark-border); border-radius: 0 0 8px 8px; min-height: 200px; }
+  .ql-editor { color: var(--cream); font-family: 'DM Sans', sans-serif; font-size: 14px; min-height: 200px; }
+  .ql-editor.ql-blank::before { color: var(--text-dim); font-style: italic; }
+  .ql-snow .ql-stroke { stroke: var(--text-dim); }
+  .ql-snow .ql-fill { fill: var(--text-dim); }
+  .ql-snow .ql-picker-label { color: var(--text-dim); }
+  .ql-snow .ql-picker-options { background: var(--dark-card); border-color: var(--dark-border); }
+  .ql-snow .ql-picker-item { color: var(--cream); }
+  .ql-snow button:hover .ql-stroke, .ql-snow .ql-picker-label:hover .ql-stroke { stroke: var(--yellow); }
+  .ql-snow button:hover .ql-fill { fill: var(--yellow); }
+  .ql-snow button.ql-active .ql-stroke { stroke: var(--yellow); }
+  .ql-snow button.ql-active .ql-fill { fill: var(--yellow); }
+  .ql-editor img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
   #nwBildPreview img { max-width: 200px; max-height: 120px; border-radius: 8px; }
   .del-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -679,7 +697,7 @@
       <div class="form-row">
         <div class="form-group full">
           <label>Nachricht</label>
-          <textarea id="nlInhalt" placeholder="Hallo zusammen,&#10;&#10;..." style="min-height:200px;"></textarea>
+          <div id="nlEditor"></div>
         </div>
       </div>
       <div class="form-row">
@@ -1292,6 +1310,20 @@ function evRenderList() {
 // NEWSLETTER
 // ═══════════════════════════════════════════════════
 
+var nlQuill = new Quill('#nlEditor', {
+  theme: 'snow',
+  placeholder: 'Hallo zusammen,\n\n...',
+  modules: {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      ['link', 'image'],
+      ['clean']
+    ]
+  }
+});
+
 document.querySelectorAll('input[name="nlMailMode"]').forEach(function(radio) {
   radio.addEventListener('change', function() {
     document.getElementById('nlMailTo').style.display = (this.value === 'custom') ? 'block' : 'none';
@@ -1300,12 +1332,13 @@ document.querySelectorAll('input[name="nlMailMode"]').forEach(function(radio) {
 
 function nlSend() {
   var betreff = document.getElementById('nlBetreff').value.trim();
-  var inhalt = document.getElementById('nlInhalt').value;
+  var htmlInhalt = nlQuill.root.innerHTML;
+  var textInhalt = nlQuill.getText().trim();
   var mailMode = document.querySelector('input[name="nlMailMode"]:checked').value;
   var mailTo = document.getElementById('nlMailTo').value.trim();
 
   if (!betreff) { nlShowResult('Bitte Betreff eingeben', true); return; }
-  if (!inhalt) { nlShowResult('Bitte Nachricht eingeben', true); return; }
+  if (!textInhalt) { nlShowResult('Bitte Nachricht eingeben', true); return; }
 
   var empfaenger = mailMode === 'all' ? 'alle Mitglieder' : 'ausgewählte Adressen';
   if (!confirm('Newsletter an ' + empfaenger + ' senden?')) return;
@@ -1317,7 +1350,8 @@ function nlSend() {
     username: sessionCredentials.username,
     password: sessionCredentials.password,
     betreff: betreff,
-    inhalt: inhalt,
+    inhalt: textInhalt,
+    htmlInhalt: htmlInhalt,
     mailMode: mailMode,
     mailTo: mailTo
   };
@@ -1334,7 +1368,7 @@ function nlSend() {
       if (data.error) { nlShowResult(data.error, true); return; }
       nlShowResult(data.message, false);
       document.getElementById('nlBetreff').value = '';
-      document.getElementById('nlInhalt').value = '';
+      nlQuill.setContents([]);
     } catch(e) {
       nlShowResult('Serverfehler', true);
     }
