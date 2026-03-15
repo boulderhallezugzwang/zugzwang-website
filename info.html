@@ -205,6 +205,25 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ===== SIGNATURE PAD ===== */
+  .sig-canvas {
+    width: 100%; height: 160px;
+    background: #ffffff; border: 1px solid var(--dark-border);
+    border-radius: var(--radius); cursor: crosshair;
+    touch-action: none;
+  }
+  .sig-canvas.invalid { border-color: var(--error); }
+  .sig-actions {
+    display: flex; justify-content: space-between; align-items: center; margin-top: 8px;
+  }
+  .sig-clear {
+    background: none; border: 1px solid var(--dark-border); color: var(--text-dim);
+    padding: 6px 14px; border-radius: var(--radius); cursor: pointer;
+    font-size: 13px; font-family: 'DM Sans', sans-serif;
+  }
+  .sig-clear:hover { border-color: var(--error); color: var(--error); }
+  .sig-hint { font-size: 12px; color: var(--text-dim); }
+
   .form-footer { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 14px; line-height: 1.5; }
 
   .msg { padding: 20px; border-radius: var(--radius); text-align: center; margin-bottom: 20px; display: none; }
@@ -485,6 +504,17 @@
         </div>
       </div>
 
+      <!-- UNTERSCHRIFT -->
+      <div class="form-section" id="sigSection" style="display:none">
+        <h2>Unterschrift</h2>
+        <p style="font-size:13px; color:var(--text-dim); margin-bottom:10px;">Bitte unterschreibe mit dem Finger oder Stift im Feld unten.</p>
+        <canvas class="sig-canvas" id="sigCanvas"></canvas>
+        <div class="sig-actions">
+          <button type="button" class="sig-clear" id="sigClear">Unterschrift löschen</button>
+          <span class="sig-hint">Pflichtfeld *</span>
+        </div>
+      </div>
+
       <button type="submit" class="submit-btn" id="submitBtn" style="display:none" disabled>Haftungsausschluss absenden</button>
       <div class="form-footer" id="formFooter" style="display:none">
         Der Haftungsausschluss wird als PDF gespeichert.<br>
@@ -598,6 +628,17 @@
           <label for="jConfirmHaftung">
             Mir ist bewusst, dass zusätzlich ein Haftungsausschluss für mein Kind vorliegen muss. <span class="req">*</span>
           </label>
+        </div>
+      </div>
+
+      <!-- UNTERSCHRIFT JUGEND -->
+      <div class="form-section">
+        <h2>Unterschrift</h2>
+        <p style="font-size:13px; color:var(--text-dim); margin-bottom:10px;">Bitte unterschreibe mit dem Finger oder Stift im Feld unten.</p>
+        <canvas class="sig-canvas" id="jugendSigCanvas"></canvas>
+        <div class="sig-actions">
+          <button type="button" class="sig-clear" id="jugendSigClear">Unterschrift löschen</button>
+          <span class="sig-hint">Pflichtfeld *</span>
         </div>
       </div>
 
@@ -786,6 +827,8 @@ function switchTab(tabId) {
     while (cl.children.length > 1) cl.removeChild(cl.lastChild);
     if (cl.children[0]) cl.children[0].querySelectorAll('input').forEach(inp => inp.value = '');
     childCount = 1;
+    document.getElementById('sigSection').style.display = 'none';
+    sigPad.reset();
   }
   if (tabId === 'jugend') {
     document.getElementById('jugendOkMsg').style.display = 'none';
@@ -797,6 +840,7 @@ function switchTab(tabId) {
     f.querySelectorAll('.ferr').forEach(el => el.classList.remove('show'));
     jugendSubmitBtn.disabled = true;
     jugendSubmitBtn.classList.remove('loading');
+    jugendSigPad.reset();
   }
 }
 
@@ -822,6 +866,75 @@ const confirmParentGroup = document.getElementById('confirmParentGroup');
 const submitBtn = document.getElementById('submitBtn');
 const formFooter = document.getElementById('formFooter');
 
+// ===== SIGNATURE PAD (Haftung) =====
+function initSigPad(canvasId, clearId) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let empty = true;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * (window.devicePixelRatio || 1);
+    canvas.height = rect.height * (window.devicePixelRatio || 1);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    empty = true;
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    drawing = true;
+    const p = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drawing) return;
+    const p = getPos(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    empty = false;
+    canvas.classList.remove('invalid');
+    if (canvasId === 'sigCanvas') checkForm();
+    else checkJugendForm();
+  });
+  canvas.addEventListener('pointerup', () => { drawing = false; });
+  canvas.addEventListener('pointercancel', () => { drawing = false; });
+
+  document.getElementById(clearId).addEventListener('click', () => {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    empty = true;
+    if (canvasId === 'sigCanvas') checkForm();
+    else checkJugendForm();
+  });
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  return {
+    isEmpty: () => empty,
+    toDataURL: () => canvas.toDataURL('image/png'),
+    reset: () => { resize(); },
+    resize: resize
+  };
+}
+
+const sigPad = initSigPad('sigCanvas', 'sigClear');
+const jugendSigPad = initSigPad('jugendSigCanvas', 'jugendSigClear');
+
 // Waiver type selection
 document.querySelectorAll('input[name="waiverType"]').forEach(radio => {
   radio.addEventListener('change', (e) => {
@@ -830,6 +943,8 @@ document.querySelectorAll('input[name="waiverType"]').forEach(radio => {
     minorSection.style.display = isMinor ? 'block' : 'none';
     confirmParentGroup.style.display = isMinor ? 'flex' : 'none';
     confirmSection.style.display = 'block';
+    document.getElementById('sigSection').style.display = 'block';
+    sigPad.resize();
     submitBtn.style.display = 'block';
     formFooter.style.display = 'block';
     checkForm();
@@ -958,6 +1073,7 @@ function checkForm() {
     if (!document.getElementById('confirmDsgvo').checked) ok = false;
     if (!document.getElementById('confirmParent').checked) ok = false;
   }
+  if (sigPad.isEmpty()) ok = false;
 
   submitBtn.disabled = !ok;
 }
@@ -990,7 +1106,8 @@ form.addEventListener('submit', async (e) => {
       strasse: document.getElementById('aStrasse').value.trim(),
       plz: document.getElementById('aPlz').value.trim(),
       ort: document.getElementById('aOrt').value.trim(),
-      datum: now
+      datum: now,
+      unterschrift: sigPad.toDataURL()
     };
   } else {
     const kinder = [];
@@ -1010,7 +1127,8 @@ form.addEventListener('submit', async (e) => {
       plz: document.getElementById('ePlz').value.trim(),
       ort: document.getElementById('eOrt').value.trim(),
       kinder: kinder,
-      datum: now
+      datum: now,
+      unterschrift: sigPad.toDataURL()
     };
   }
 
@@ -1086,6 +1204,7 @@ function checkJugendForm() {
   if (!document.getElementById('jConfirmEinverstaendnis').checked) ok = false;
   if (!document.getElementById('jConfirmDsgvo').checked) ok = false;
   if (!document.getElementById('jConfirmHaftung').checked) ok = false;
+  if (jugendSigPad.isEmpty()) ok = false;
   jugendSubmitBtn.disabled = !ok;
 }
 
@@ -1107,7 +1226,8 @@ jugendForm.addEventListener('submit', async (e) => {
     kVorname: document.getElementById('jKVorname').value.trim(),
     kNachname: document.getElementById('jKNachname').value.trim(),
     kGeburtsdatum: document.getElementById('jKGeburt').value,
-    datum: now
+    datum: now,
+    unterschrift: jugendSigPad.toDataURL()
   };
 
   jugendSubmitBtn.disabled = true;
