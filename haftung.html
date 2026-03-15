@@ -180,6 +180,25 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ===== SIGNATURE PAD ===== */
+  .sig-canvas {
+    width: 100%; height: 180px;
+    background: var(--dark); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); cursor: crosshair;
+    touch-action: none;
+  }
+  .sig-canvas.invalid { border-color: var(--error); }
+  .sig-actions {
+    display: flex; justify-content: space-between; align-items: center; margin-top: 8px;
+  }
+  .sig-clear {
+    background: none; border: 1px solid var(--dark-border); color: var(--text-dim);
+    padding: 6px 14px; border-radius: var(--radius); cursor: pointer;
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+  }
+  .sig-clear:hover { border-color: var(--error); color: var(--error); }
+  .sig-hint { font-size: 13px; color: var(--text-dim); }
+
   .form-footer { text-align: center; font-size: 14px; color: var(--text-dim); margin-top: 14px; line-height: 1.5; }
 
   .msg { padding: 20px; border-radius: var(--radius); text-align: center; margin-bottom: 20px; display: none; }
@@ -417,6 +436,17 @@
       </div>
     </div>
 
+    <!-- UNTERSCHRIFT -->
+    <div class="form-section" id="sigSection" style="display:none">
+      <h2>Unterschrift</h2>
+      <p style="font-size:15px; color:var(--text-dim); margin-bottom:12px;">Bitte unterschreibe mit dem Finger oder Stift im Feld unten.</p>
+      <canvas class="sig-canvas" id="sigCanvas"></canvas>
+      <div class="sig-actions">
+        <button type="button" class="sig-clear" id="sigClear">Unterschrift löschen</button>
+        <span class="sig-hint">Pflichtfeld *</span>
+      </div>
+    </div>
+
     <button type="submit" class="submit-btn" id="submitBtn" style="display:none" disabled>Haftungsausschluss absenden</button>
     <div class="form-footer" id="formFooter" style="display:none">
       Der Haftungsausschluss wird als PDF gespeichert.<br>
@@ -434,8 +464,64 @@ const adultFields = document.getElementById('adultFields');
 const minorSection = document.getElementById('minorSection');
 const confirmSection = document.getElementById('confirmSection');
 const confirmParentGroup = document.getElementById('confirmParentGroup');
+const sigSection = document.getElementById('sigSection');
 const submitBtn = document.getElementById('submitBtn');
 const formFooter = document.getElementById('formFooter');
+
+// ===== SIGNATURE PAD =====
+const sigCanvas = document.getElementById('sigCanvas');
+const sigCtx = sigCanvas.getContext('2d');
+let sigDrawing = false;
+let sigEmpty = true;
+
+function resizeCanvas() {
+  const rect = sigCanvas.getBoundingClientRect();
+  sigCanvas.width = rect.width * (window.devicePixelRatio || 1);
+  sigCanvas.height = rect.height * (window.devicePixelRatio || 1);
+  sigCtx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  sigCtx.strokeStyle = '#E8DCC8';
+  sigCtx.lineWidth = 2.5;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+  sigEmpty = true;
+}
+
+function getPos(e) {
+  const rect = sigCanvas.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e;
+  return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+}
+
+sigCanvas.addEventListener('pointerdown', (e) => {
+  sigDrawing = true;
+  const p = getPos(e);
+  sigCtx.beginPath();
+  sigCtx.moveTo(p.x, p.y);
+  sigCanvas.setPointerCapture(e.pointerId);
+});
+
+sigCanvas.addEventListener('pointermove', (e) => {
+  if (!sigDrawing) return;
+  const p = getPos(e);
+  sigCtx.lineTo(p.x, p.y);
+  sigCtx.stroke();
+  sigEmpty = false;
+  sigCanvas.classList.remove('invalid');
+  checkForm();
+});
+
+sigCanvas.addEventListener('pointerup', () => { sigDrawing = false; });
+sigCanvas.addEventListener('pointercancel', () => { sigDrawing = false; });
+
+document.getElementById('sigClear').addEventListener('click', () => {
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  sigEmpty = true;
+  checkForm();
+});
+
+// Resize on load and orientation change
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 // Waiver type selection
 document.querySelectorAll('input[name="waiverType"]').forEach(radio => {
@@ -445,8 +531,10 @@ document.querySelectorAll('input[name="waiverType"]').forEach(radio => {
     minorSection.style.display = isMinor ? 'block' : 'none';
     confirmParentGroup.style.display = isMinor ? 'flex' : 'none';
     confirmSection.style.display = 'block';
+    sigSection.style.display = 'block';
     submitBtn.style.display = 'block';
     formFooter.style.display = 'block';
+    resizeCanvas();
     checkForm();
   });
 });
@@ -573,6 +661,9 @@ function checkForm() {
     if (!document.getElementById('confirmParent').checked) ok = false;
   }
 
+  // Unterschrift muss vorhanden sein
+  if (sigEmpty) ok = false;
+
   submitBtn.disabled = !ok;
 }
 
@@ -604,7 +695,8 @@ form.addEventListener('submit', async (e) => {
       strasse: document.getElementById('aStrasse').value.trim(),
       plz: document.getElementById('aPlz').value.trim(),
       ort: document.getElementById('aOrt').value.trim(),
-      datum: now
+      datum: now,
+      unterschrift: sigCanvas.toDataURL('image/png')
     };
   } else {
     const kinder = [];
@@ -624,7 +716,8 @@ form.addEventListener('submit', async (e) => {
       plz: document.getElementById('ePlz').value.trim(),
       ort: document.getElementById('eOrt').value.trim(),
       kinder: kinder,
-      datum: now
+      datum: now,
+      unterschrift: sigCanvas.toDataURL('image/png')
     };
   }
 
@@ -671,6 +764,9 @@ function resetForm() {
   minorSection.style.display = 'none';
   confirmSection.style.display = 'none';
   confirmParentGroup.style.display = 'none';
+  sigSection.style.display = 'none';
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  sigEmpty = true;
   submitBtn.style.display = 'none';
   submitBtn.disabled = true;
   submitBtn.classList.remove('loading');
