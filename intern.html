@@ -385,6 +385,19 @@
   .ev-edit-btn:hover { background: rgba(212,160,32,0.25); }
   .ev-del-btn { background: rgba(231,76,60,0.15); color: #e74c3c; }
   .ev-del-btn:hover { background: rgba(231,76,60,0.25); }
+
+  /* News-Karten */
+  .nw-card { background: var(--dark-card); border: 1px solid var(--dark-border); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+  .nw-card .nw-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .nw-card .nw-title { font-weight: 700; font-size: 15px; color: var(--cream); }
+  .nw-card .nw-meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .nw-card .nw-preview { font-size: 13px; color: var(--text-dim); margin-top: 6px; max-height: 60px; overflow: hidden; }
+  .nw-card .nw-thumb { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+  .nw-card .nw-actions { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+  .nw-card .nw-actions button { padding: 4px 12px; font-size: 12px; font-family: 'DM Sans', sans-serif; border: none; border-radius: 6px; cursor: pointer; }
+  .nw-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; margin-right: auto; background: rgba(76,175,80,0.15); color: #4CAF50; }
+  .nw-badge.no-img { background: rgba(158,158,158,0.15); color: #9e9e9e; }
+  #nwBildPreview img { max-width: 200px; max-height: 120px; border-radius: 8px; }
   .del-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(20,20,20,0.85); z-index: 200;
@@ -507,6 +520,7 @@
         <button class="app-tab active" data-section="members">Mitgliederliste</button>
         <button class="app-tab" data-section="hallendienst">Hallendienst</button>
         <button class="app-tab" data-section="termine">Termine</button>
+        <button class="app-tab" data-section="news">News</button>
       </div>
       <div class="app-user-info">
         <span class="app-user-name" id="appUserName"></span>
@@ -599,6 +613,55 @@
         Termine werden geladen...
       </div>
       <div id="evListContent"></div>
+    </div>
+  </div>
+
+  <!-- Sektion: News -->
+  <div class="section" id="sectionNews">
+    <div class="event-form">
+      <h3 id="nwFormTitle">Neue News erstellen</h3>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Titel</label>
+          <input type="text" id="nwTitel" placeholder="z.B. Umschraubaktion im Januar">
+        </div>
+        <div class="form-group">
+          <label>Datum</label>
+          <input type="date" id="nwDatum">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Autor</label>
+          <input type="text" id="nwAutor" placeholder="Vorname Nachname">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Bild (optional)</label>
+          <input type="file" id="nwBild" accept="image/*" style="padding:6px;">
+          <div id="nwBildPreview" style="margin-top:8px;"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Inhalt</label>
+          <textarea id="nwInhalt" placeholder="News-Text..." style="min-height:120px;"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="submit-btn" id="nwSubmitBtn" onclick="nwSubmit()">News erstellen</button>
+        <button class="submit-btn" id="nwCancelBtn" style="display:none; background:#999;" onclick="nwCancelEdit()">Abbrechen</button>
+      </div>
+      <div class="event-result" id="nwResult"></div>
+    </div>
+    <div class="event-list" id="nwList">
+      <h3>Bestehende News</h3>
+      <div class="loading" id="nwLoading" style="display:none">
+        <div class="spinner"></div>
+        News werden geladen...
+      </div>
+      <div id="nwListContent"></div>
     </div>
   </div>
 
@@ -860,6 +923,10 @@ document.querySelectorAll('.app-tab').forEach(tab => {
     if (section === 'termine' && !evLoaded) {
       evLoaded = true;
       evLoadEvents();
+    }
+    if (section === 'news' && !nwLoaded) {
+      nwLoaded = true;
+      nwLoadNews();
     }
   });
 });
@@ -1182,6 +1249,229 @@ function evRenderList() {
       + mailBadge
       + '<button class="ev-edit-btn" onclick="evStartEdit(' + idx + ')">Bearbeiten</button>'
       + '<button class="ev-del-btn" onclick="evDelete(\'' + escAttr(ev.kalender) + '\',\'' + escAttr(ev.id) + '\')">L\u00f6schen</button>'
+      + '</div></div>';
+  });
+  container.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════
+// NEWS
+// ═══════════════════════════════════════════════════
+
+var nwLoaded = false;
+var allNews = [];
+var nwEditingId = null;
+var nwBildData = null;
+
+function nwPost(action, extra) {
+  var body = Object.assign({
+    action: action,
+    username: sessionCredentials.username,
+    password: sessionCredentials.password
+  }, extra || {});
+  return fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body),
+    redirect: 'follow'
+  }).then(function(r) { return r.text(); }).then(function(text) {
+    try { return JSON.parse(text); } catch(e) {
+      console.error('NW Response:', text);
+      return { error: 'Serverfehler' };
+    }
+  });
+}
+
+function nwLoadNews() {
+  document.getElementById('nwLoading').style.display = 'block';
+  nwPost('getNews').then(function(data) {
+    document.getElementById('nwLoading').style.display = 'none';
+    if (data.error) { nwShowResult(data.error, true); return; }
+    allNews = data.news || [];
+    nwRenderList();
+  }).catch(function() {
+    document.getElementById('nwLoading').style.display = 'none';
+    nwShowResult('Verbindungsfehler', true);
+  });
+}
+
+// Bild-Upload Preview
+document.getElementById('nwBild').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  var preview = document.getElementById('nwBildPreview');
+  if (!file) { nwBildData = null; preview.innerHTML = ''; return; }
+
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var base64 = ev.target.result.split(',')[1];
+    nwBildData = { base64: base64, mimeType: file.type };
+    preview.innerHTML = '<img src="' + ev.target.result + '">';
+  };
+  reader.readAsDataURL(file);
+});
+
+function nwSubmit() {
+  if (nwEditingId) {
+    nwUpdate();
+  } else {
+    nwCreate();
+  }
+}
+
+function nwCreate() {
+  var titel = document.getElementById('nwTitel').value.trim();
+  var datum = document.getElementById('nwDatum').value;
+  var autor = document.getElementById('nwAutor').value.trim();
+  var inhalt = document.getElementById('nwInhalt').value;
+
+  if (!titel) { nwShowResult('Bitte Titel eingeben', true); return; }
+  if (!datum) { nwShowResult('Bitte Datum angeben', true); return; }
+  if (!autor) { nwShowResult('Bitte Autor angeben', true); return; }
+
+  // Datum von ISO zu TT.MM.JJJJ
+  var dp = datum.split('-');
+  var datumDE = dp[2] + '.' + dp[1] + '.' + dp[0];
+
+  showProgress('News wird erstellt...', '');
+
+  var payload = { titel: titel, datum: datumDE, autor: autor, inhalt: inhalt };
+  if (nwBildData) {
+    payload.bildBase64 = nwBildData.base64;
+    payload.bildMimeType = nwBildData.mimeType;
+  }
+
+  nwPost('createNews', payload).then(function(data) {
+    hideProgress();
+    if (data.error) { nwShowResult(data.error, true); return; }
+    nwShowResult(data.message, false);
+    nwClearForm();
+    nwLoaded = false;
+    nwLoadNews();
+  }).catch(function(err) {
+    hideProgress();
+    nwShowResult('Verbindungsfehler: ' + err.message, true);
+  });
+}
+
+function nwDelete(docId) {
+  showProgress('News wird gelöscht...', '');
+  nwPost('deleteNews', { docId: docId }).then(function(data) {
+    hideProgress();
+    if (data.error) { nwShowResult(data.error, true); return; }
+    nwShowResult(data.message, false);
+    nwLoaded = false;
+    nwLoadNews();
+  }).catch(function(err) {
+    hideProgress();
+    nwShowResult('Verbindungsfehler: ' + err.message, true);
+  });
+}
+
+function nwStartEdit(idx) {
+  var n = allNews[idx];
+  nwEditingId = n.id;
+
+  document.getElementById('nwTitel').value = n.titel;
+  // Datum von TT.MM.JJJJ zu ISO
+  var dp = n.datum.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (dp) {
+    document.getElementById('nwDatum').value = dp[3] + '-' + ('0' + dp[2]).slice(-2) + '-' + ('0' + dp[1]).slice(-2);
+  }
+  document.getElementById('nwAutor').value = n.autor;
+  document.getElementById('nwInhalt').value = n.inhalt;
+
+  document.getElementById('nwFormTitle').textContent = 'News bearbeiten';
+  document.getElementById('nwSubmitBtn').textContent = 'News aktualisieren';
+  document.getElementById('nwCancelBtn').style.display = 'inline-block';
+  document.getElementById('nwResult').className = 'event-result';
+  document.getElementById('nwTitel').focus();
+}
+
+function nwCancelEdit() {
+  nwEditingId = null;
+  nwClearForm();
+  document.getElementById('nwFormTitle').textContent = 'Neue News erstellen';
+  document.getElementById('nwSubmitBtn').textContent = 'News erstellen';
+  document.getElementById('nwCancelBtn').style.display = 'none';
+  document.getElementById('nwResult').className = 'event-result';
+}
+
+function nwUpdate() {
+  var titel = document.getElementById('nwTitel').value.trim();
+  var datum = document.getElementById('nwDatum').value;
+  var autor = document.getElementById('nwAutor').value.trim();
+  var inhalt = document.getElementById('nwInhalt').value;
+
+  if (!titel) { nwShowResult('Bitte Titel eingeben', true); return; }
+
+  var dp = datum.split('-');
+  var datumDE = dp[2] + '.' + dp[1] + '.' + dp[0];
+
+  showProgress('News wird aktualisiert...', '');
+
+  var payload = { docId: nwEditingId, titel: titel, datum: datumDE, autor: autor, inhalt: inhalt };
+  if (nwBildData) {
+    payload.bildBase64 = nwBildData.base64;
+    payload.bildMimeType = nwBildData.mimeType;
+  }
+
+  nwPost('updateNews', payload).then(function(data) {
+    hideProgress();
+    if (data.error) { nwShowResult(data.error, true); return; }
+    nwShowResult(data.message, false);
+    nwCancelEdit();
+    nwLoaded = false;
+    nwLoadNews();
+  }).catch(function(err) {
+    hideProgress();
+    nwShowResult('Verbindungsfehler: ' + err.message, true);
+  });
+}
+
+function nwClearForm() {
+  document.getElementById('nwTitel').value = '';
+  document.getElementById('nwDatum').value = '';
+  document.getElementById('nwAutor').value = '';
+  document.getElementById('nwInhalt').value = '';
+  document.getElementById('nwBild').value = '';
+  document.getElementById('nwBildPreview').innerHTML = '';
+  nwBildData = null;
+}
+
+function nwShowResult(msg, isError) {
+  var el = document.getElementById('nwResult');
+  el.textContent = msg;
+  el.className = 'event-result ' + (isError ? 'error' : 'success');
+}
+
+function nwRenderList() {
+  var container = document.getElementById('nwListContent');
+  if (allNews.length === 0) {
+    container.innerHTML = '<div class="no-results">Keine News vorhanden</div>';
+    return;
+  }
+  var html = '';
+  allNews.forEach(function(n, idx) {
+    var preview = n.inhalt.length > 150 ? n.inhalt.substring(0, 150) + '...' : n.inhalt;
+    var bildBadge = n.hatBild
+      ? '<span class="nw-badge">Mit Bild</span>'
+      : '<span class="nw-badge no-img">Ohne Bild</span>';
+
+    html += '<div class="nw-card">'
+      + '<div class="nw-top">'
+      + '<div>'
+      + '<div class="nw-title">' + escHtml(n.titel) + '</div>'
+      + '<div class="nw-meta">' + escHtml(n.datum) + ' &mdash; ' + escHtml(n.autor) + '</div>'
+      + '</div>'
+      + '</div>';
+    if (preview) {
+      html += '<div class="nw-preview">' + escHtml(preview) + '</div>';
+    }
+    html += '<div class="nw-actions">'
+      + bildBadge
+      + '<a href="' + escAttr(n.docUrl) + '" target="_blank" style="padding:4px 12px;font-size:12px;border-radius:6px;background:rgba(33,150,243,0.15);color:#2196F3;text-decoration:none;">Google Doc</a>'
+      + '<button class="ev-edit-btn" onclick="nwStartEdit(' + idx + ')">Bearbeiten</button>'
+      + '<button class="ev-del-btn" onclick="nwDelete(\'' + escAttr(n.id) + '\')">L\u00f6schen</button>'
       + '</div></div>';
   });
   container.innerHTML = html;
