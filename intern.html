@@ -112,16 +112,6 @@
   .login-box button:hover { background: var(--yellow-light); }
   .login-box button:disabled { opacity: 0.5; cursor: not-allowed; }
   .login-err { color: var(--error); font-size: 13px; margin-top: 10px; display: none; }
-  .login-hint { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
-  .login-back {
-    background: none; border: none; color: var(--text-dim); font-size: 13px;
-    cursor: pointer; margin-top: 16px; font-family: 'DM Sans', sans-serif;
-    text-decoration: underline;
-  }
-  .login-back:hover { color: var(--cream); }
-
-  .login-step { display: none; }
-  .login-step.active { display: block; }
 
   /* ===== APP ===== */
   .app { display: none; padding-top: 85px; }
@@ -299,24 +289,10 @@
     <h1>Interner Bereich</h1>
     <div class="subtitle">Boulderverein Zugzwang e.V.</div>
 
-    <!-- Hauptlogin: Benutzername + Passwort -->
-    <div class="login-step active" id="stepLogin">
-      <input type="text" id="usernameInput" placeholder="Benutzername" autocomplete="username">
-      <input type="password" id="loginPw" placeholder="Passwort" autocomplete="current-password">
-      <button onclick="doLogin()">Anmelden</button>
-      <div class="login-err" id="loginErr"></div>
-    </div>
-
-    <!-- Passwort festlegen (Erstanmeldung) -->
-    <div class="login-step" id="stepSetPassword">
-      <div class="welcome-msg" id="welcomeMsg"></div>
-      <input type="password" id="newPw1" placeholder="Neues Passwort" autocomplete="new-password">
-      <input type="password" id="newPw2" placeholder="Passwort wiederholen" autocomplete="new-password">
-      <button onclick="setPassword()">Passwort festlegen</button>
-      <div class="login-hint">Mindestens 6 Zeichen</div>
-      <div class="login-err" id="setPwErr"></div>
-      <button class="login-back" onclick="backToLogin()">Zurück</button>
-    </div>
+    <input type="text" id="usernameInput" placeholder="Benutzername" autocomplete="username">
+    <input type="password" id="loginPw" placeholder="Passwort" autocomplete="current-password">
+    <button onclick="doLogin()">Anmelden</button>
+    <div class="login-err" id="loginErr"></div>
   </div>
 </div>
 
@@ -356,34 +332,24 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8
 
 let allMembers = [];
 let currentUser = null;
-let currentUsername = '';
+let sessionCredentials = null;
 
-// ── Login-Flow ──
-
-function showStep(stepId) {
-  document.querySelectorAll('.login-step').forEach(s => s.classList.remove('active'));
-  document.getElementById(stepId).classList.add('active');
-  document.querySelectorAll('.login-err').forEach(e => { e.style.display = 'none'; e.textContent = ''; });
-  document.querySelectorAll('.login-box input').forEach(i => i.classList.remove('error'));
-}
-
-function showError(id, msg) {
-  const el = document.getElementById(id);
+function showError(msg) {
+  const el = document.getElementById('loginErr');
   el.textContent = msg;
   el.style.display = 'block';
-}
-
-function backToLogin() {
-  showStep('stepLogin');
-  document.getElementById('usernameInput').focus();
 }
 
 function doLogin() {
   const username = document.getElementById('usernameInput').value.trim();
   const pw = document.getElementById('loginPw').value;
   if (!username || !pw) return;
-  const btn = document.querySelector('#stepLogin button');
+
+  const btn = document.querySelector('.login-box button');
+  const err = document.getElementById('loginErr');
   btn.disabled = true;
+  err.style.display = 'none';
+  document.getElementById('loginPw').classList.remove('error');
 
   fetch(API_URL, {
     method: 'POST',
@@ -393,127 +359,42 @@ function doLogin() {
     .then(r => r.json())
     .then(data => {
       btn.disabled = false;
-      if (data.needsPassword) {
-        currentUsername = username;
-        document.getElementById('welcomeMsg').textContent = 'Willkommen, ' + data.displayName + '! Bitte lege dein Passwort fest.';
-        showStep('stepSetPassword');
-        document.getElementById('newPw1').focus();
-        return;
-      }
       if (data.error) {
-        showError('loginErr', data.error);
+        showError(data.error);
         document.getElementById('loginPw').classList.add('error');
         return;
       }
-      loginSuccess(data);
-    })
-    .catch(() => {
-      btn.disabled = false;
-      showError('loginErr', 'Verbindungsfehler');
-    });
-}
-
-function setPassword() {
-  const pw1 = document.getElementById('newPw1').value;
-  const pw2 = document.getElementById('newPw2').value;
-  if (!pw1) return;
-  if (pw1.length < 6) {
-    showError('setPwErr', 'Passwort muss mindestens 6 Zeichen lang sein');
-    document.getElementById('newPw1').classList.add('error');
-    return;
-  }
-  if (pw1 !== pw2) {
-    showError('setPwErr', 'Passw\u00f6rter stimmen nicht \u00fcberein');
-    document.getElementById('newPw2').classList.add('error');
-    return;
-  }
-  const btn = document.querySelector('#stepSetPassword button:first-of-type');
-  btn.disabled = true;
-
-  fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'setPassword', username: currentUsername, password: pw1 })
-  })
-    .then(r => r.json())
-    .then(data => {
-      btn.disabled = false;
-      if (data.error) { showError('setPwErr', data.error); return; }
-      loginSuccess(data);
-    })
-    .catch(() => {
-      btn.disabled = false;
-      showError('setPwErr', 'Verbindungsfehler');
-    });
-}
-
-function loginSuccess(data) {
-  localStorage.setItem('zz_token', data.token);
-  localStorage.setItem('zz_displayName', data.displayName);
-  localStorage.setItem('zz_rolle', data.rolle);
-  currentUser = { displayName: data.displayName, rolle: data.rolle };
-  loadMembers(data.token);
-}
-
-// ── Daten laden ──
-
-function loadMembers(token) {
-  document.getElementById('loadingMsg').style.display = 'block';
-  fetch(API_URL + '?action=members&token=' + encodeURIComponent(token))
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) {
-        // Token ungültig → zurück zum Login
-        localStorage.removeItem('zz_token');
-        localStorage.removeItem('zz_displayName');
-        localStorage.removeItem('zz_rolle');
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('app').style.display = 'none';
-        return;
-      }
-      if (data.user) currentUser = data.user;
+      sessionCredentials = { username: username, password: pw };
+      currentUser = data.user;
       allMembers = (data.members || []).reverse();
-      showApp();
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('appUserName').textContent = currentUser ? currentUser.displayName : '';
+      document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
+      document.getElementById('searchInput').focus();
+      renderList(allMembers);
     })
     .catch(() => {
-      document.getElementById('loadingMsg').innerHTML = '<div style="color:var(--error)">Verbindungsfehler. Bitte Seite neu laden.</div>';
+      btn.disabled = false;
+      showError('Verbindungsfehler');
     });
-}
-
-// ── App anzeigen ──
-
-function showApp() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  document.getElementById('loadingMsg').style.display = 'none';
-  document.getElementById('appUserName').textContent = currentUser ? currentUser.displayName : '';
-  document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
-  document.getElementById('searchInput').focus();
-  renderList(allMembers);
 }
 
 function doLogout() {
-  localStorage.removeItem('zz_token');
-  localStorage.removeItem('zz_displayName');
-  localStorage.removeItem('zz_rolle');
   currentUser = null;
-  currentUsername = '';
+  sessionCredentials = null;
   allMembers = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
-  showStep('stepLogin');
   document.getElementById('usernameInput').value = '';
   document.getElementById('loginPw').value = '';
+  document.getElementById('loginErr').style.display = 'none';
   document.getElementById('usernameInput').focus();
 }
-
-// Kein Auto-Login — Benutzer muss sich immer anmelden
 
 // ── Enter-Keys ──
 document.getElementById('usernameInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPw').focus(); });
 document.getElementById('loginPw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-document.getElementById('newPw1').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('newPw2').focus(); });
-document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key === 'Enter') setPassword(); });
 
 // ── Tab-Navigation ──
 document.querySelectorAll('.app-tab').forEach(tab => {
@@ -608,9 +489,9 @@ function saveChip(idx) {
   const m=allMembers[idx];
   const chip=document.getElementById('chipSel'+idx).value;
   const chipnr=document.getElementById('chipNr'+idx).value.trim();
-  const token=localStorage.getItem('zz_token');
+  if (!sessionCredentials) { alert('Bitte neu anmelden'); return; }
   m.chip=chip; m.chipnr=chipnr;
-  fetch(API_URL+'?token='+encodeURIComponent(token)+'&action=updateChip&nachname='+encodeURIComponent(m.nachname)+'&vorname='+encodeURIComponent(m.vorname)+'&chip='+encodeURIComponent(chip)+'&chipnr='+encodeURIComponent(chipnr))
+  fetch(API_URL+'?username='+encodeURIComponent(sessionCredentials.username)+'&password='+encodeURIComponent(sessionCredentials.password)+'&action=updateChip&nachname='+encodeURIComponent(m.nachname)+'&vorname='+encodeURIComponent(m.vorname)+'&chip='+encodeURIComponent(chip)+'&chipnr='+encodeURIComponent(chipnr))
     .then(r=>r.json()).then(d=>{if(d.error)alert('Fehler: '+d.error);}).catch(err=>alert('Speichern fehlgeschlagen: '+err));
   const q=document.getElementById('searchInput').value.trim().toLowerCase();
   if(q){const terms=q.split(/\s+/);const filtered=allMembers.filter(m2=>{const h=(m2.nachname+' '+m2.vorname+' '+m2.email+' '+m2.telefon+' '+m2.ort+' '+m2.chipnr).toLowerCase();return terms.every(t=>h.includes(t));});renderList(filtered,q);}
