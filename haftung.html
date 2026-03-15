@@ -479,6 +479,8 @@ function resizeCanvas() {
   sigCanvas.width = rect.width * (window.devicePixelRatio || 1);
   sigCanvas.height = rect.height * (window.devicePixelRatio || 1);
   sigCtx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  sigCtx.fillStyle = '#ffffff';
+  sigCtx.fillRect(0, 0, sigCanvas.width, sigCanvas.height);
   sigCtx.strokeStyle = '#1a1a1a';
   sigCtx.lineWidth = 3;
   sigCtx.lineCap = 'round';
@@ -514,7 +516,8 @@ sigCanvas.addEventListener('pointerup', () => { sigDrawing = false; });
 sigCanvas.addEventListener('pointercancel', () => { sigDrawing = false; });
 
 document.getElementById('sigClear').addEventListener('click', () => {
-  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  sigCtx.fillStyle = '#ffffff';
+  sigCtx.fillRect(0, 0, sigCanvas.width, sigCanvas.height);
   sigEmpty = true;
   checkForm();
 });
@@ -765,7 +768,8 @@ function resetForm() {
   confirmSection.style.display = 'none';
   confirmParentGroup.style.display = 'none';
   sigSection.style.display = 'none';
-  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  sigCtx.fillStyle = '#ffffff';
+  sigCtx.fillRect(0, 0, sigCanvas.width, sigCanvas.height);
   sigEmpty = true;
   submitBtn.style.display = 'none';
   submitBtn.disabled = true;
