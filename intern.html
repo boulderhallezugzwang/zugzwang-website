@@ -551,8 +551,19 @@
             <textarea id="evBeschreibung" placeholder="Optionaler Beschreibungstext..."></textarea>
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>E-Mail-Versand</label>
+            <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:6px;">
+              <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="evMailMode" value="none" checked> Keine Mail</label>
+              <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="evMailMode" value="all"> An alle Mitglieder</label>
+              <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="evMailMode" value="custom"> An bestimmte Adressen</label>
+            </div>
+            <input type="text" id="evMailTo" placeholder="E-Mail-Adressen (kommagetrennt)" style="display:none;">
+          </div>
+        </div>
         <div class="form-actions">
-          <button class="submit-btn" id="evSubmitBtn" onclick="evSubmit()">Termin erstellen &amp; Mail senden</button>
+          <button class="submit-btn" id="evSubmitBtn" onclick="evSubmit()">Termin erstellen</button>
           <button class="submit-btn" id="evCancelBtn" style="display:none; background:#999;" onclick="evCancelEdit()">Abbrechen</button>
         </div>
         <div class="event-result" id="evResult"></div>
@@ -773,6 +784,30 @@ document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key =
 // ── Tab-Navigation ──
 var hdLoaded = false;
 var evLoaded = false;
+
+// Mail-Modus Radio-Buttons: Textfeld ein-/ausblenden + Button-Text anpassen
+document.querySelectorAll('input[name="evMailMode"]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    document.getElementById('evMailTo').style.display = (this.value === 'custom') ? 'block' : 'none';
+    evUpdateButtonText();
+  });
+});
+
+function evGetMailMode() {
+  var checked = document.querySelector('input[name="evMailMode"]:checked');
+  return checked ? checked.value : 'none';
+}
+
+function evUpdateButtonText() {
+  var mode = evGetMailMode();
+  var isEdit = !!evEditingId;
+  if (isEdit) {
+    document.getElementById('evSubmitBtn').textContent = mode === 'none' ? 'Termin ändern' : 'Ändern & Mail senden';
+  } else {
+    document.getElementById('evSubmitBtn').textContent = mode === 'none' ? 'Termin erstellen' : 'Erstellen & Mail senden';
+  }
+}
+
 document.querySelectorAll('.app-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
@@ -939,16 +974,21 @@ function evCreate() {
   var zeitVon = document.getElementById('evVon').value;
   var zeitBis = document.getElementById('evBis').value;
   var beschreibung = document.getElementById('evBeschreibung').value.trim();
+  var mailMode = evGetMailMode();
+  var mailTo = document.getElementById('evMailTo').value.trim();
 
   if (!titel) { evShowResult('Bitte Titel eingeben', true); return; }
   if (!datum) { evShowResult('Bitte Datum angeben', true); return; }
   if (!zeitVon || !zeitBis) { evShowResult('Bitte Uhrzeiten angeben', true); return; }
 
-  showProgress('Termin wird erstellt...', 'Mails werden an alle Mitglieder gesendet');
+  var progressMsg = mailMode === 'none' ? 'Termin wird erstellt...' : 'Termin wird erstellt...';
+  var progressDetail = mailMode === 'none' ? '' : 'Mails werden gesendet';
+  showProgress(progressMsg, progressDetail);
 
   evPost('createEvent', {
     kalender: kalender, titel: titel, datum: datum,
-    zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung
+    zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung,
+    mailMode: mailMode, mailTo: mailTo
   }).then(data => {
     hideProgress();
     if (data.error) { evShowResult(data.error, true); return; }
@@ -964,9 +1004,12 @@ function evCreate() {
 }
 
 function evDelete(kalender, eventId) {
-  showProgress('Termin wird gelöscht...', 'Absagemails werden gesendet');
+  var mailMode = evGetMailMode();
+  var mailTo = document.getElementById('evMailTo').value.trim();
+  var progressDetail = mailMode === 'none' ? '' : 'Absagemails werden gesendet';
+  showProgress('Termin wird gelöscht...', progressDetail);
 
-  evPost('deleteEvent', { kalender: kalender, eventId: eventId }).then(data => {
+  evPost('deleteEvent', { kalender: kalender, eventId: eventId, mailMode: mailMode, mailTo: mailTo }).then(data => {
     hideProgress();
     if (data.error) { evShowResult(data.error, true); return; }
     evShowResult(data.message, false);
@@ -987,10 +1030,9 @@ function evStartEdit(idx) {
   document.getElementById('evVon').value = ev.zeitVon;
   document.getElementById('evBis').value = ev.zeitBis;
   document.getElementById('evBeschreibung').value = ev.beschreibung;
-  document.getElementById('evSubmitBtn').textContent = '\u00c4ndern & Mail senden';
   document.getElementById('evCancelBtn').style.display = 'inline-block';
   document.getElementById('evResult').style.display = 'none';
-  // Zum Formular scrollen
+  evUpdateButtonText();
   document.getElementById('evTitel').focus();
 }
 
@@ -998,9 +1040,9 @@ function evCancelEdit() {
   evEditingId = null;
   document.getElementById('evTitel').value = '';
   document.getElementById('evBeschreibung').value = '';
-  document.getElementById('evSubmitBtn').textContent = 'Termin erstellen & Mail senden';
   document.getElementById('evCancelBtn').style.display = 'none';
   document.getElementById('evResult').style.display = 'none';
+  evUpdateButtonText();
 }
 
 function evSubmit() {
@@ -1012,13 +1054,18 @@ function evSubmit() {
     var zeitBis = document.getElementById('evBis').value;
     var beschreibung = document.getElementById('evBeschreibung').value.trim();
 
-    if (!titel || !datum || !zeitVon || !zeitBis) { evShowResult('Alle Felder ausf\u00fcllen', true); return; }
+    var mailMode = evGetMailMode();
+    var mailTo = document.getElementById('evMailTo').value.trim();
 
-    showProgress('Termin wird ge\u00e4ndert...', '\u00c4nderungsmails werden gesendet');
+    if (!titel || !datum || !zeitVon || !zeitBis) { evShowResult('Alle Felder ausfüllen', true); return; }
+
+    var progressDetail = mailMode === 'none' ? '' : 'Änderungsmails werden gesendet';
+    showProgress('Termin wird geändert...', progressDetail);
 
     evPost('updateEvent', {
       kalender: evEditingId.kalender, eventId: evEditingId.id,
-      titel: titel, datum: datum, zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung
+      titel: titel, datum: datum, zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung,
+      mailMode: mailMode, mailTo: mailTo
     }).then(data => {
       hideProgress();
       if (data.error) { evShowResult(data.error, true); return; }
