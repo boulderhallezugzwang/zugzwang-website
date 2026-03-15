@@ -80,13 +80,16 @@
     text-transform: uppercase; margin-bottom: 4px;
   }
   .login-box .subtitle { font-size: 13px; color: var(--text-dim); margin-bottom: 28px; }
+  .login-box .welcome-msg {
+    font-size: 15px; color: var(--cream); margin-bottom: 20px;
+  }
   .login-box input {
     width: 100%; padding: 12px 16px; font-size: 16px;
     font-family: 'DM Sans', sans-serif;
     border: 1px solid var(--dark-border); border-radius: var(--radius);
     background: var(--dark); color: var(--cream);
     outline: none; text-align: center; letter-spacing: 1px;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s; margin-bottom: 8px;
   }
   .login-box input:focus { border-color: var(--yellow); }
   .login-box input.error {
@@ -98,7 +101,7 @@
     75% { transform: translateX(6px); }
   }
   .login-box button {
-    width: 100%; margin-top: 14px; padding: 12px;
+    width: 100%; margin-top: 6px; padding: 12px;
     font-size: 15px; font-weight: 700;
     font-family: 'Barlow Condensed', sans-serif;
     text-transform: uppercase; letter-spacing: 1px;
@@ -107,28 +110,45 @@
     cursor: pointer; transition: background 0.2s;
   }
   .login-box button:hover { background: var(--yellow-light); }
+  .login-box button:disabled { opacity: 0.5; cursor: not-allowed; }
   .login-err { color: var(--error); font-size: 13px; margin-top: 10px; display: none; }
+  .login-hint { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  .login-back {
+    background: none; border: none; color: var(--text-dim); font-size: 13px;
+    cursor: pointer; margin-top: 16px; font-family: 'DM Sans', sans-serif;
+    text-decoration: underline;
+  }
+  .login-back:hover { color: var(--cream); }
+
+  .login-step { display: none; }
+  .login-step.active { display: block; }
 
   /* ===== APP ===== */
   .app { display: none; padding-top: 64px; }
   .app-header {
     background: var(--dark-card); border-bottom: 1px solid var(--dark-border);
-    padding: 16px 24px; position: sticky; top: 64px; z-index: 50;
+    padding: 0; position: sticky; top: 64px; z-index: 50;
   }
   .app-header-inner {
-    max-width: 720px; margin: 0 auto;
+    max-width: 720px; margin: 0 auto; padding: 12px 24px;
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
   }
-  .app-title {
+  .app-tabs {
+    display: flex; gap: 2px;
+  }
+  .app-tab {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 18px; font-weight: 700; color: var(--yellow);
-    text-transform: uppercase;
+    font-size: 15px; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; background: none; border: none;
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
   }
-  .app-count {
-    font-size: 12px; font-weight: 600; color: var(--yellow-light);
-    background: rgba(212,160,32,0.12); padding: 3px 10px;
-    border-radius: 20px; white-space: nowrap;
+  .app-tab.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
+  .app-tab:hover { color: var(--cream); }
+  .app-user-info {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; color: var(--text-dim);
   }
+  .app-user-name { white-space: nowrap; }
   .logout-btn {
     background: none; border: 1px solid var(--dark-border);
     color: var(--text-dim); font-size: 13px; font-family: 'DM Sans', sans-serif;
@@ -136,7 +156,20 @@
   }
   .logout-btn:hover { border-color: var(--error); color: var(--error); }
 
-  .search-bar { max-width: 720px; margin: 20px auto 0; padding: 0 24px; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .section-header {
+    max-width: 720px; margin: 0 auto; padding: 16px 24px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .app-count {
+    font-size: 12px; font-weight: 600; color: var(--yellow-light);
+    background: rgba(212,160,32,0.12); padding: 3px 10px;
+    border-radius: 20px; white-space: nowrap;
+  }
+
+  .search-bar { max-width: 720px; margin: 12px auto 0; padding: 0 24px; }
   .search-bar input {
     width: 100%; padding: 12px 16px; font-size: 16px;
     font-family: 'DM Sans', sans-serif;
@@ -219,8 +252,9 @@
     .nav-links a { font-size: 11px; padding: 5px 8px; }
   }
   @media (max-width: 520px) {
-    .app-header { padding: 12px 16px; }
+    .app-header-inner { padding: 10px 16px; flex-wrap: wrap; }
     .search-bar, .list-container { padding-left: 16px; padding-right: 16px; }
+    .section-header { padding-left: 16px; padding-right: 16px; }
     .member-card { padding: 12px 14px; }
     .member-meta { flex-direction: column; gap: 2px; }
     .login-box { padding: 36px 28px; }
@@ -264,9 +298,33 @@
   <div class="login-box">
     <h1>Interner Bereich</h1>
     <div class="subtitle">Boulderverein Zugzwang e.V.</div>
-    <input type="password" id="pwInput" placeholder="Passwort" autocomplete="off">
-    <button onclick="doLogin()">Anmelden</button>
-    <div class="login-err" id="loginErr">Falsches Passwort</div>
+
+    <!-- Schritt 1: Benutzername -->
+    <div class="login-step active" id="stepUsername">
+      <input type="text" id="usernameInput" placeholder="Benutzername" autocomplete="username">
+      <button onclick="checkUsername()">Weiter</button>
+      <div class="login-err" id="usernameErr"></div>
+    </div>
+
+    <!-- Schritt 2a: Passwort festlegen (Erstanmeldung) -->
+    <div class="login-step" id="stepSetPassword">
+      <div class="welcome-msg" id="welcomeMsg"></div>
+      <input type="password" id="newPw1" placeholder="Neues Passwort" autocomplete="new-password">
+      <input type="password" id="newPw2" placeholder="Passwort wiederholen" autocomplete="new-password">
+      <button onclick="setPassword()">Passwort festlegen</button>
+      <div class="login-hint">Mindestens 6 Zeichen</div>
+      <div class="login-err" id="setPwErr"></div>
+      <button class="login-back" onclick="backToUsername()">Anderer Benutzername</button>
+    </div>
+
+    <!-- Schritt 2b: Anmelden -->
+    <div class="login-step" id="stepLogin">
+      <div class="welcome-msg" id="loginGreeting"></div>
+      <input type="password" id="loginPw" placeholder="Passwort" autocomplete="current-password">
+      <button onclick="doLogin()">Anmelden</button>
+      <div class="login-err" id="loginErr"></div>
+      <button class="login-back" onclick="backToUsername()">Anderer Benutzername</button>
+    </div>
   </div>
 </div>
 
@@ -274,20 +332,29 @@
 <div class="app" id="app">
   <div class="app-header">
     <div class="app-header-inner">
-      <span class="app-title">Mitgliederliste</span>
-      <span class="app-count" id="countBadge">-</span>
-      <button class="logout-btn" onclick="doLogout()">Abmelden</button>
+      <div class="app-tabs">
+        <button class="app-tab active" data-section="members">Mitgliederliste</button>
+      </div>
+      <div class="app-user-info">
+        <span class="app-user-name" id="appUserName"></span>
+        <button class="logout-btn" onclick="doLogout()">Abmelden</button>
+      </div>
     </div>
   </div>
 
-  <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="Name, E-Mail oder Telefon suchen..." autocomplete="off">
-  </div>
-
-  <div class="list-container" id="listContainer">
-    <div class="loading" id="loadingMsg">
-      <div class="spinner"></div>
-      Mitglieder werden geladen...
+  <!-- Sektion: Mitgliederliste -->
+  <div class="section active" id="sectionMembers">
+    <div class="section-header">
+      <span class="app-count" id="countBadge">-</span>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Name, E-Mail oder Telefon suchen..." autocomplete="off">
+    </div>
+    <div class="list-container" id="listContainer">
+      <div class="loading" id="loadingMsg">
+        <div class="spinner"></div>
+        Mitglieder werden geladen...
+      </div>
     </div>
   </div>
 </div>
@@ -296,59 +363,202 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec';
 
 let allMembers = [];
+let currentUser = null;
+let currentUsername = '';
 
-function doLogin() {
-  const pw = document.getElementById('pwInput').value;
-  if (!pw) return;
-  const inp = document.getElementById('pwInput');
-  const err = document.getElementById('loginErr');
-  inp.classList.remove('error'); err.style.display = 'none';
+// ── Login-Flow ──
 
-  fetch(API_URL + '?pw=' + encodeURIComponent(pw))
+function showStep(stepId) {
+  document.querySelectorAll('.login-step').forEach(s => s.classList.remove('active'));
+  document.getElementById(stepId).classList.add('active');
+  // Fehler zurücksetzen
+  document.querySelectorAll('.login-err').forEach(e => { e.style.display = 'none'; e.textContent = ''; });
+  document.querySelectorAll('.login-box input').forEach(i => i.classList.remove('error'));
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function backToUsername() {
+  showStep('stepUsername');
+  document.getElementById('usernameInput').focus();
+}
+
+function checkUsername() {
+  const username = document.getElementById('usernameInput').value.trim();
+  if (!username) return;
+  const btn = document.querySelector('#stepUsername button');
+  btn.disabled = true;
+
+  fetch(API_URL + '?action=checkUser&username=' + encodeURIComponent(username))
     .then(r => r.json())
     .then(data => {
-      if (data.error) { inp.classList.add('error'); err.style.display = 'block'; return; }
-      sessionStorage.setItem('zz_pw', pw);
+      btn.disabled = false;
+      if (data.error) { showError('usernameErr', data.error); return; }
+      if (!data.exists) {
+        showError('usernameErr', 'Benutzername nicht gefunden');
+        document.getElementById('usernameInput').classList.add('error');
+        return;
+      }
+      currentUsername = username;
+      if (data.needsPassword) {
+        document.getElementById('welcomeMsg').textContent = 'Willkommen, ' + data.displayName + '! Bitte lege dein Passwort fest.';
+        showStep('stepSetPassword');
+        document.getElementById('newPw1').focus();
+      } else {
+        document.getElementById('loginGreeting').textContent = 'Hallo, ' + data.displayName;
+        showStep('stepLogin');
+        document.getElementById('loginPw').focus();
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      showError('usernameErr', 'Verbindungsfehler');
+    });
+}
+
+function setPassword() {
+  const pw1 = document.getElementById('newPw1').value;
+  const pw2 = document.getElementById('newPw2').value;
+  if (!pw1) return;
+  if (pw1.length < 6) {
+    showError('setPwErr', 'Passwort muss mindestens 6 Zeichen lang sein');
+    document.getElementById('newPw1').classList.add('error');
+    return;
+  }
+  if (pw1 !== pw2) {
+    showError('setPwErr', 'Passwörter stimmen nicht überein');
+    document.getElementById('newPw2').classList.add('error');
+    return;
+  }
+  const btn = document.querySelector('#stepSetPassword button:first-of-type');
+  btn.disabled = true;
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'setPassword', username: currentUsername, password: pw1 })
+  })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      if (data.error) { showError('setPwErr', data.error); return; }
+      loginSuccess(data);
+    })
+    .catch(() => {
+      btn.disabled = false;
+      showError('setPwErr', 'Verbindungsfehler');
+    });
+}
+
+function doLogin() {
+  const pw = document.getElementById('loginPw').value;
+  if (!pw) return;
+  const btn = document.querySelector('#stepLogin button:first-of-type');
+  btn.disabled = true;
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'login', username: currentUsername, password: pw })
+  })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      if (data.error) {
+        showError('loginErr', data.error);
+        document.getElementById('loginPw').classList.add('error');
+        return;
+      }
+      loginSuccess(data);
+    })
+    .catch(() => {
+      btn.disabled = false;
+      showError('loginErr', 'Verbindungsfehler');
+    });
+}
+
+function loginSuccess(data) {
+  localStorage.setItem('zz_token', data.token);
+  localStorage.setItem('zz_displayName', data.displayName);
+  localStorage.setItem('zz_rolle', data.rolle);
+  currentUser = { displayName: data.displayName, rolle: data.rolle };
+  loadMembers(data.token);
+}
+
+// ── Daten laden ──
+
+function loadMembers(token) {
+  document.getElementById('loadingMsg').style.display = 'block';
+  fetch(API_URL + '?action=members&token=' + encodeURIComponent(token))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        // Token ungültig → zurück zum Login
+        localStorage.removeItem('zz_token');
+        localStorage.removeItem('zz_displayName');
+        localStorage.removeItem('zz_rolle');
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+        return;
+      }
+      if (data.user) currentUser = data.user;
       allMembers = (data.members || []).reverse();
       showApp();
     })
     .catch(() => {
-      inp.classList.add('error');
-      err.textContent = 'Verbindungsfehler'; err.style.display = 'block';
+      document.getElementById('loadingMsg').innerHTML = '<div style="color:var(--error)">Verbindungsfehler. Bitte Seite neu laden.</div>';
     });
 }
 
-document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-
-function doLogout() {
-  sessionStorage.removeItem('zz_pw');
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('pwInput').value = '';
-  allMembers = [];
-}
+// ── App anzeigen ──
 
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('appUserName').textContent = currentUser ? currentUser.displayName : '';
   document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
   document.getElementById('searchInput').focus();
   renderList(allMembers);
 }
 
-(function autoLogin() {
-  const pw = sessionStorage.getItem('zz_pw');
-  if (!pw) return;
-  fetch(API_URL + '?pw=' + encodeURIComponent(pw))
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) { sessionStorage.removeItem('zz_pw'); return; }
-      allMembers = (data.members || []).reverse();
-      showApp();
-    }).catch(() => {});
-})();
+function doLogout() {
+  localStorage.removeItem('zz_token');
+  localStorage.removeItem('zz_displayName');
+  localStorage.removeItem('zz_rolle');
+  currentUser = null;
+  currentUsername = '';
+  allMembers = [];
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  showStep('stepUsername');
+  document.getElementById('usernameInput').value = '';
+  document.getElementById('usernameInput').focus();
+}
 
+// Kein Auto-Login — Benutzer muss sich immer anmelden
+
+// ── Enter-Keys ──
+document.getElementById('usernameInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkUsername(); });
+document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key === 'Enter') setPassword(); });
+document.getElementById('loginPw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ── Tab-Navigation ──
+document.querySelectorAll('.app-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    var sectionId = 'section' + tab.dataset.section.charAt(0).toUpperCase() + tab.dataset.section.slice(1);
+    document.getElementById(sectionId).classList.add('active');
+  });
+});
+
+// ── Suche ──
 let searchTimeout;
 document.getElementById('searchInput').addEventListener('input', e => {
   clearTimeout(searchTimeout);
@@ -364,10 +574,12 @@ document.getElementById('searchInput').addEventListener('input', e => {
   }, 150);
 });
 
+// ── Mitgliederliste rendern ──
+
 function renderList(members, query) {
   const container = document.getElementById('listContainer');
   if (members.length === 0) {
-    container.innerHTML = `<div class="no-results"><div class="nr-icon">🔍</div>${query ? 'Kein Mitglied gefunden für „'+escHtml(query)+'"' : 'Keine Mitglieder vorhanden'}</div>`;
+    container.innerHTML = '<div class="no-results"><div class="nr-icon">&#128269;</div>' + (query ? 'Kein Mitglied gefunden f\u00fcr \u201e'+escHtml(query)+'\u201c' : 'Keine Mitglieder vorhanden') + '</div>';
     updateCount(members.length); return;
   }
   let html = '';
@@ -375,23 +587,28 @@ function renderList(members, query) {
     const initials = (m.vorname.charAt(0)+m.nachname.charAt(0)).toUpperCase();
     const name = escHtml(m.vorname)+' '+escHtml(m.nachname);
     const displayName = query ? highlightMatch(name, query) : name;
-    html += `<div class="member-card"><div class="member-avatar">${initials}</div><div class="member-info"><div class="member-name">${displayName}</div><div class="member-meta">`;
-    if (m.telefon) html += `<span><a href="tel:${escAttr(m.telefon)}">${escHtml(m.telefon)}</a></span>`;
-    if (m.email) html += `<span><a href="mailto:${escAttr(m.email)}">${escHtml(m.email)}</a></span>`;
-    if (m.ort) html += `<span>${escHtml(m.ort)}</span>`;
-    html += `</div></div><div class="member-badges">`;
-    if (m.status) html += `<span class="member-status">${escHtml(m.status)}</span>`;
+    html += '<div class="member-card"><div class="member-avatar">'+initials+'</div><div class="member-info"><div class="member-name">'+displayName+'</div><div class="member-meta">';
+    if (m.telefon) html += '<span><a href="tel:'+escAttr(m.telefon)+'">'+escHtml(m.telefon)+'</a></span>';
+    if (m.email) html += '<span><a href="mailto:'+escAttr(m.email)+'">'+escHtml(m.email)+'</a></span>';
+    if (m.ort) html += '<span>'+escHtml(m.ort)+'</span>';
+    html += '</div></div><div class="member-badges">';
+    if (m.status) html += '<span class="member-status">'+escHtml(m.status)+'</span>';
     const chipClass = m.chip==='Ja'?'has-chip':'no-chip';
     const chipLabel = m.chip==='Ja'?'Chip: '+escHtml(m.chipnr||'-'):'Kein Chip';
     const idx = allMembers.indexOf(m);
-    html += `<span class="chip-badge ${chipClass}" onclick="editChip(${idx})" title="Klicken zum Bearbeiten">${chipLabel}</span>`;
-    html += `<div class="chip-edit" id="chipEdit${idx}" style="display:none">
-      <select id="chipSel${idx}"><option value="Ja" ${m.chip==='Ja'?'selected':''}>Ja</option><option value="Nein" ${m.chip!=='Ja'?'selected':''}>Nein</option></select>
-      <input id="chipNr${idx}" value="${escAttr(m.chipnr||'')}" placeholder="ChipNr.">
-      <button class="save-btn" onclick="saveChip(${idx})">OK</button>
-      <button class="cancel-btn" onclick="cancelChip(${idx})">✕</button>
-    </div>`;
-    html += `</div></div>`;
+    const isAdmin = currentUser && currentUser.rolle === 'admin';
+    if (isAdmin) {
+      html += '<span class="chip-badge '+chipClass+'" onclick="editChip('+idx+')" title="Klicken zum Bearbeiten">'+chipLabel+'</span>';
+      html += '<div class="chip-edit" id="chipEdit'+idx+'" style="display:none">'
+        + '<select id="chipSel'+idx+'"><option value="Ja" '+(m.chip==='Ja'?'selected':'')+'>Ja</option><option value="Nein" '+(m.chip!=='Ja'?'selected':'')+'>Nein</option></select>'
+        + '<input id="chipNr'+idx+'" value="'+escAttr(m.chipnr||'')+'" placeholder="ChipNr.">'
+        + '<button class="save-btn" onclick="saveChip('+idx+')">OK</button>'
+        + '<button class="cancel-btn" onclick="cancelChip('+idx+')">&#10005;</button>'
+        + '</div>';
+    } else {
+      html += '<span class="chip-badge '+chipClass+'">'+chipLabel+'</span>';
+    }
+    html += '</div></div>';
   });
   container.innerHTML = html;
   updateCount(members.length);
@@ -423,9 +640,9 @@ function saveChip(idx) {
   const m=allMembers[idx];
   const chip=document.getElementById('chipSel'+idx).value;
   const chipnr=document.getElementById('chipNr'+idx).value.trim();
-  const pw=sessionStorage.getItem('zz_pw');
+  const token=localStorage.getItem('zz_token');
   m.chip=chip; m.chipnr=chipnr;
-  fetch(API_URL+'?pw='+encodeURIComponent(pw)+'&action=updateChip&nachname='+encodeURIComponent(m.nachname)+'&vorname='+encodeURIComponent(m.vorname)+'&chip='+encodeURIComponent(chip)+'&chipnr='+encodeURIComponent(chipnr))
+  fetch(API_URL+'?token='+encodeURIComponent(token)+'&action=updateChip&nachname='+encodeURIComponent(m.nachname)+'&vorname='+encodeURIComponent(m.vorname)+'&chip='+encodeURIComponent(chip)+'&chipnr='+encodeURIComponent(chipnr))
     .then(r=>r.json()).then(d=>{if(d.error)alert('Fehler: '+d.error);}).catch(err=>alert('Speichern fehlgeschlagen: '+err));
   const q=document.getElementById('searchInput').value.trim().toLowerCase();
   if(q){const terms=q.split(/\s+/);const filtered=allMembers.filter(m2=>{const h=(m2.nachname+' '+m2.vorname+' '+m2.email+' '+m2.telefon+' '+m2.ort+' '+m2.chipnr).toLowerCase();return terms.every(t=>h.includes(t));});renderList(filtered,q);}
