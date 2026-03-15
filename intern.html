@@ -385,6 +385,25 @@
   .ev-edit-btn:hover { background: rgba(212,160,32,0.25); }
   .ev-del-btn { background: rgba(231,76,60,0.15); color: #e74c3c; }
   .ev-del-btn:hover { background: rgba(231,76,60,0.25); }
+  .del-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(20,20,20,0.85); z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .del-box {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 16px; padding: 28px; max-width: 380px; width: 90%;
+  }
+  .del-box h3 { margin: 0 0 12px 0; font-size: 16px; color: var(--cream); }
+  .del-box label { display: block; padding: 6px 0; cursor: pointer; font-size: 14px; color: var(--cream); }
+  .del-box label input { margin-right: 8px; }
+  .del-box .del-custom-input { width: 100%; padding: 8px; margin-top: 6px; border-radius: 6px; border: 1px solid var(--dark-border); background: var(--dark-bg); color: var(--cream); font-size: 13px; display: none; }
+  .del-box .del-buttons { display: flex; gap: 8px; margin-top: 16px; }
+  .del-box .del-buttons button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .del-box .del-confirm { background: #e53935; color: white; }
+  .del-box .del-confirm:hover { background: #c62828; }
+  .del-box .del-cancel { background: rgba(255,255,255,0.1); color: var(--cream); }
+  .del-box .del-cancel:hover { background: rgba(255,255,255,0.15); }
   .progress-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(20,20,20,0.85); z-index: 200;
@@ -580,6 +599,21 @@
           <div class="spinner"></div>
           Termine werden geladen...
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lösch-Dialog -->
+  <div class="del-overlay" id="delOverlay" style="display:none">
+    <div class="del-box">
+      <h3>Termin löschen</h3>
+      <label><input type="radio" name="delMailMode" value="none" checked> Nur löschen, keine Mail</label>
+      <label><input type="radio" name="delMailMode" value="all"> Absagemail an alle Mitglieder</label>
+      <label><input type="radio" name="delMailMode" value="custom"> Absagemail an bestimmte Adressen</label>
+      <input type="text" class="del-custom-input" id="delMailTo" placeholder="E-Mail-Adressen (kommagetrennt)">
+      <div class="del-buttons">
+        <button class="del-cancel" onclick="delCancel()">Abbrechen</button>
+        <button class="del-confirm" onclick="delConfirm()">Löschen</button>
       </div>
     </div>
   </div>
@@ -1007,9 +1041,37 @@ function evCreate() {
   });
 }
 
+var pendingDelete = null;
+
 function evDelete(kalender, eventId) {
-  var mailMode = evGetMailMode();
-  var mailTo = document.getElementById('evMailTo').value.trim();
+  pendingDelete = { kalender: kalender, eventId: eventId };
+  document.getElementById('delOverlay').style.display = 'flex';
+  document.querySelector('input[name="delMailMode"][value="none"]').checked = true;
+  document.getElementById('delMailTo').style.display = 'none';
+  document.getElementById('delMailTo').value = '';
+}
+
+document.querySelectorAll('input[name="delMailMode"]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    document.getElementById('delMailTo').style.display = (this.value === 'custom') ? 'block' : 'none';
+  });
+});
+
+function delCancel() {
+  pendingDelete = null;
+  document.getElementById('delOverlay').style.display = 'none';
+}
+
+function delConfirm() {
+  if (!pendingDelete) return;
+  var kalender = pendingDelete.kalender;
+  var eventId = pendingDelete.eventId;
+  var mailMode = document.querySelector('input[name="delMailMode"]:checked').value;
+  var mailTo = document.getElementById('delMailTo').value.trim();
+
+  document.getElementById('delOverlay').style.display = 'none';
+  pendingDelete = null;
+
   var progressDetail = mailMode === 'none' ? '' : 'Absagemails werden gesendet';
   showProgress('Termin wird gelöscht...', progressDetail);
 
