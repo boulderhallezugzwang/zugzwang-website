@@ -375,11 +375,21 @@ function doLogin() {
   fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'login', username: username, password: pw })
+    body: JSON.stringify({ action: 'login', username: username, password: pw }),
+    redirect: 'follow'
   })
-    .then(r => r.json())
-    .then(data => {
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    })
+    .then(text => {
       btn.disabled = false;
+      var data;
+      try { data = JSON.parse(text); } catch(e) {
+        console.error('Response:', text);
+        showError('loginErr', 'Serverfehler — bitte Script-Deployment prüfen');
+        return;
+      }
       if (data.needsPassword) {
         sessionCredentials = { username: username, password: pw };
         document.getElementById('welcomeMsg').textContent = 'Willkommen, ' + data.displayName + '! Bitte lege dein eigenes Passwort fest.';
@@ -395,9 +405,10 @@ function doLogin() {
       sessionCredentials = { username: username, password: pw };
       enterApp(data);
     })
-    .catch(() => {
+    .catch(err => {
       btn.disabled = false;
-      showError('loginErr', 'Verbindungsfehler');
+      console.error('Login-Fehler:', err);
+      showError('loginErr', 'Verbindungsfehler: ' + err.message);
     });
 }
 
