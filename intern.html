@@ -1340,9 +1340,6 @@ function nlSend() {
   if (!betreff) { nlShowResult('Bitte Betreff eingeben', true); return; }
   if (!textInhalt) { nlShowResult('Bitte Nachricht eingeben', true); return; }
 
-  var empfaenger = mailMode === 'all' ? 'alle Mitglieder' : 'ausgewählte Adressen';
-  if (!confirm('Newsletter an ' + empfaenger + ' senden?')) return;
-
   showProgress('Newsletter wird gesendet...', 'Mails werden verschickt');
 
   var body = {
