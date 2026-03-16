@@ -10,6 +10,34 @@
 const SPREADSHEET_ID = '1HGhz-q7zWtYYFvLr8hnUZ2Yzz8p_p_e5NPYmwokluN8';
 const KUENDIGUNG_SHEET_NAME = 'Kündigungen';
 
+// Config aus Sheet lesen
+function getConfigValue(key) {
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('Config');
+  if (!sheet) return '';
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return '';
+  var data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0].toString() === key) return data[i][1].toString();
+  }
+  return '';
+}
+
+function sendNotifyKuendigung(vorname, nachname, datum) {
+  var aktiv = getConfigValue('notify_kuendigung_aktiv');
+  if (aktiv !== 'ja') return;
+  var email = getConfigValue('notify_kuendigung_email');
+  if (!email) return;
+  MailApp.sendEmail({
+    to: email,
+    subject: 'Kündigung eingegangen: ' + vorname + ' ' + nachname,
+    body: 'Eine Kündigung ist eingegangen:\n\n' +
+      '  Name:   ' + vorname + ' ' + nachname + '\n' +
+      '  Datum:  ' + datum + '\n',
+    name: 'Kündigungs-Formular'
+  });
+}
+
 const KUENDIGUNG_HEADERS = [
   'Vorname', 'Nachname', 'E-Mail', 'Kündigungsdatum'
 ];
@@ -48,6 +76,8 @@ function doPost(e) {
       // ── Mitglied nicht gefunden ──
       sendNichtGefundenMail(data);
     }
+    // Interne Benachrichtigung
+    sendNotifyKuendigung(data.vorname, data.nachname, kuendigungsDatum);
 
     return ContentService.createTextOutput(
       JSON.stringify({ status: 'ok' })

@@ -20,7 +20,33 @@
 const SPREADSHEET_ID = '1HGhz-q7zWtYYFvLr8hnUZ2Yzz8p_p_e5NPYmwokluN8';
 const SHEET_NAME = 'Hallendienst';
 const BENUTZER_TAB = 'Benutzer';
-const VEREIN_EMAIL = 'boulderhallezugzwang@gmail.com';
+// Config aus Sheet lesen
+function getConfigValue(key) {
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('Config');
+  if (!sheet) return '';
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return '';
+  var data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0].toString() === key) return data[i][1].toString();
+  }
+  return '';
+}
+
+function sendNotifyHallendienst(vorname, nachname, datum) {
+  var aktiv = getConfigValue('notify_hallendienst_aktiv');
+  if (aktiv !== 'ja') return;
+  var email = getConfigValue('notify_hallendienst_email');
+  if (!email) return;
+  MailApp.sendEmail({
+    to: email,
+    subject: 'Hallendienst-Anmeldung: ' + vorname + ' ' + nachname,
+    body: 'Neue Hallendienst-Anmeldung:\n\n' +
+      '  Name:   ' + vorname + ' ' + nachname + '\n' +
+      '  Datum:  ' + datum + '\n',
+    name: 'Hallendienst-Formular'
+  });
+}
 const CALENDAR_ID = '701eb54a002f16ec329ce8f473337455832df22c4bdc86ee12065b780a6e50c6@group.calendar.google.com';
 
 // Öffnungszeiten je Wochentag
@@ -224,6 +250,7 @@ function doPost(e) {
 
     createCalendarEvent(data.datum, data.vorname, data.nachname);
     sendBestaetigungsMail(data);
+    sendNotifyHallendienst(data.vorname, data.nachname, data.datum);
 
     return jsonResponse({ status: 'ok' });
 

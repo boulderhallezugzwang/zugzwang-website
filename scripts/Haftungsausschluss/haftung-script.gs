@@ -18,6 +18,35 @@ const SPREADSHEET_ID = '1HGhz-q7zWtYYFvLr8hnUZ2Yzz8p_p_e5NPYmwokluN8';
 const SHEET_NAME = 'Haftungsausschlüsse';
 const PDF_FOLDER_ID = '1ntwXqyKsHCf1Eea-9LcR0QMy2UIpd5gJ'; // ← Google Drive Ordner-ID
 
+// Config aus Sheet lesen
+function getConfigValue(key) {
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('Config');
+  if (!sheet) return '';
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return '';
+  var data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0].toString() === key) return data[i][1].toString();
+  }
+  return '';
+}
+
+function sendNotifyHaftung(typ, name, datum) {
+  var aktiv = getConfigValue('notify_haftung_aktiv');
+  if (aktiv !== 'ja') return;
+  var email = getConfigValue('notify_haftung_email');
+  if (!email) return;
+  MailApp.sendEmail({
+    to: email,
+    subject: 'Neuer Haftungsausschluss: ' + name,
+    body: 'Ein neuer Haftungsausschluss ist eingegangen:\n\n' +
+      '  Typ:    ' + typ + '\n' +
+      '  Name:   ' + name + '\n' +
+      '  Datum:  ' + datum + '\n',
+    name: 'Haftungsausschluss-Formular'
+  });
+}
+
 const HEADERS_ADULT = [
   'Vorname', 'Nachname', 'Geburtsdatum', 'E-Mail', 'Datum', 'Typ', 'PDF-Link'
 ];
@@ -101,6 +130,7 @@ function doPost(e) {
       ]);
 
       sendBestaetigungAdult(data, datum, pdfFile);
+      sendNotifyHaftung('Erwachsener', data.vorname + ' ' + data.nachname, datum);
 
     } else if (data.typ === 'erziehungsberechtigter') {
       // ── Erziehungsberechtigter + Kinder ──
@@ -125,6 +155,7 @@ function doPost(e) {
       ]);
 
       sendBestaetigungMinor(data, datum, pdfFile);
+      sendNotifyHaftung('Minderjährige', data.eVorname + ' ' + data.eNachname + ' (für ' + kinderStr + ')', datum);
 
     } else if (data.typ === 'jugendlicher') {
       // ── Einverständnis Jugendlicher ──
@@ -147,6 +178,7 @@ function doPost(e) {
       ]);
 
       sendBestaetigungJugend(data, kGeb, datum, pdfFile);
+      sendNotifyHaftung('Einverständnis Jugendliche/r', data.eVorname + ' ' + data.eNachname + ' (für ' + data.kVorname + ' ' + data.kNachname + ')', datum);
     }
 
     return ContentService.createTextOutput(
