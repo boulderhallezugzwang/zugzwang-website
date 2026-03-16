@@ -541,6 +541,7 @@
         <button class="app-tab" data-section="news">News</button>
         <button class="app-tab" data-section="newsletter">Newsletter</button>
         <button class="app-tab" data-section="team">Team</button>
+        <button class="app-tab" data-section="config" id="tabConfig" style="display:none">Config</button>
       </div>
       <div class="app-user-info">
         <span class="app-user-name" id="appUserName"></span>
@@ -784,6 +785,21 @@
     </div>
   </div>
 
+  <!-- Sektion: Config -->
+  <div class="section" id="sectionConfig">
+    <div class="event-form">
+      <h3>Benachrichtigungen</h3>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">E-Mail-Adressen für interne Benachrichtigungen bei Formular-Eingängen.</p>
+      <div id="cfgContent">
+        <div class="loading"><div class="spinner"></div>Wird geladen...</div>
+      </div>
+      <div class="form-actions" style="margin-top:16px;">
+        <button class="submit-btn" onclick="cfgSave()">Speichern</button>
+      </div>
+      <div class="event-result" id="cfgResult"></div>
+    </div>
+  </div>
+
   <!-- Lösch-Dialog -->
   <div class="del-overlay" id="delOverlay" style="display:none">
     <div class="del-box">
@@ -985,6 +1001,9 @@ function enterApp(data) {
   document.getElementById('app').style.display = 'block';
   document.getElementById('appUserName').textContent = currentUser ? currentUser.displayName : '';
   document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
+  if (currentUser && currentUser.rolle === 'admin') {
+    document.getElementById('tabConfig').style.display = '';
+  }
   document.getElementById('searchInput').focus();
   renderList(allMembers);
 }
@@ -1047,6 +1066,7 @@ document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key =
 var hdLoaded = false;
 var evLoaded = false;
 var tmLoaded = false;
+var cfgLoaded = false;
 
 // Mail-Modus Radio-Buttons: Textfeld ein-/ausblenden + Button-Text anpassen
 document.querySelectorAll('input[name="evMailMode"]').forEach(function(radio) {
@@ -1094,6 +1114,10 @@ document.querySelectorAll('.app-tab').forEach(tab => {
     if (section === 'team' && !tmLoaded) {
       tmLoaded = true;
       tmLoadTeam();
+    }
+    if (section === 'config' && !cfgLoaded) {
+      cfgLoaded = true;
+      cfgLoad();
     }
   });
 });
@@ -2206,6 +2230,91 @@ function tmDelete(idx) {
       // Revert
       tmData.splice(idx, 0, m);
       result.textContent = 'Fehler: ' + (err.message || err);
+      result.style.color = '#e74c3c';
+    });
+}
+
+// ── Config-Verwaltung ──
+
+var cfgData = [];
+var cfgLabels = {
+  'notify_mitgliedsantrag': 'Mitgliedsantrag',
+  'notify_haftung': 'Haftungsausschluss',
+  'notify_hallendienst': 'Hallendienst',
+  'notify_kuendigung': 'Kündigung'
+};
+
+function cfgLoad() {
+  document.getElementById('cfgContent').innerHTML = '<div class="loading"><div class="spinner"></div>Wird geladen...</div>';
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'getConfig', username: sessionCredentials.username, password: sessionCredentials.password })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) throw new Error(data.error);
+      cfgData = data.config || [];
+      cfgRender();
+    })
+    .catch(function(err) {
+      document.getElementById('cfgContent').innerHTML = '<p style="color:#e74c3c;">Fehler: ' + escHtml(err.message) + '</p>';
+    });
+}
+
+function cfgGetVal(key) {
+  for (var i = 0; i < cfgData.length; i++) {
+    if (cfgData[i].key === key) return cfgData[i].value;
+  }
+  return '';
+}
+
+function cfgRender() {
+  var html = '';
+  var keys = Object.keys(cfgLabels);
+  keys.forEach(function(prefix) {
+    var label = cfgLabels[prefix];
+    var aktiv = cfgGetVal(prefix + '_aktiv') === 'ja';
+    var email = cfgGetVal(prefix + '_email') || '';
+
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">';
+    html += '<label style="display:flex;align-items:center;gap:8px;min-width:200px;cursor:pointer;">';
+    html += '<input type="checkbox" id="cfg_' + prefix + '_aktiv" ' + (aktiv ? 'checked' : '') + ' style="width:18px;height:18px;">';
+    html += '<span style="font-weight:600;">' + escHtml(label) + '</span>';
+    html += '</label>';
+    html += '<input type="email" id="cfg_' + prefix + '_email" value="' + escHtml(email) + '" placeholder="E-Mail-Adresse" style="flex:1;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">';
+    html += '</div>';
+  });
+  document.getElementById('cfgContent').innerHTML = html;
+}
+
+function cfgSave() {
+  var items = [];
+  var keys = Object.keys(cfgLabels);
+  keys.forEach(function(prefix) {
+    var aktiv = document.getElementById('cfg_' + prefix + '_aktiv').checked ? 'ja' : 'nein';
+    var email = document.getElementById('cfg_' + prefix + '_email').value.trim();
+    items.push({ key: prefix + '_aktiv', value: aktiv });
+    items.push({ key: prefix + '_email', value: email });
+  });
+
+  var result = document.getElementById('cfgResult');
+  result.textContent = 'Wird gespeichert...';
+  result.style.color = 'var(--text-dim)';
+
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'saveConfig', username: sessionCredentials.username, password: sessionCredentials.password, items: items })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) throw new Error(data.error);
+      result.textContent = 'Gespeichert!';
+      result.style.color = 'var(--accent)';
+    })
+    .catch(function(err) {
+      result.textContent = 'Fehler: ' + err.message;
       result.style.color = '#e74c3c';
     });
 }

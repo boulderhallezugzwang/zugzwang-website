@@ -22,6 +22,80 @@ function jsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ── Config-Hilfsfunktionen ──
+
+function getConfigSheet() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName('Config');
+  if (!sheet) {
+    sheet = ss.insertSheet('Config');
+    sheet.getRange(1, 1, 1, 3).setValues([['Key', 'Value', 'Beschreibung']]);
+    // Defaults anlegen
+    var defaults = [
+      ['notify_mitgliedsantrag_aktiv', 'ja', 'Benachrichtigung bei neuem Mitgliedsantrag'],
+      ['notify_mitgliedsantrag_email', 'boulderhallezugzwang@gmail.com', 'E-Mail für Mitgliedsantrag-Benachrichtigung'],
+      ['notify_haftung_aktiv', 'nein', 'Benachrichtigung bei Haftungsausschluss'],
+      ['notify_haftung_email', '', 'E-Mail für Haftungsausschluss-Benachrichtigung'],
+      ['notify_hallendienst_aktiv', 'nein', 'Benachrichtigung bei Hallendienst-Anmeldung'],
+      ['notify_hallendienst_email', '', 'E-Mail für Hallendienst-Benachrichtigung'],
+      ['notify_kuendigung_aktiv', 'nein', 'Benachrichtigung bei Kündigung'],
+      ['notify_kuendigung_email', '', 'E-Mail für Kündigungs-Benachrichtigung']
+    ];
+    sheet.getRange(2, 1, defaults.length, 3).setValues(defaults);
+  }
+  return sheet;
+}
+
+function getConfigAll() {
+  var sheet = getConfigSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+  var data = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+  var config = [];
+  data.forEach(function(row) {
+    if (row[0]) {
+      config.push({ key: row[0].toString(), value: row[1].toString(), beschreibung: row[2].toString() });
+    }
+  });
+  return config;
+}
+
+function getConfigValue(key) {
+  var sheet = getConfigSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return '';
+  var data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0].toString() === key) return data[i][1].toString();
+  }
+  return '';
+}
+
+function saveConfig(items) {
+  var sheet = getConfigSheet();
+  var lastRow = sheet.getLastRow();
+  var data = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, 3).getValues() : [];
+
+  items.forEach(function(item) {
+    var found = false;
+    for (var i = 0; i < data.length; i++) {
+      if (data[i][0].toString() === item.key) {
+        data[i][1] = item.value;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      data.push([item.key, item.value, item.beschreibung || '']);
+    }
+  });
+
+  if (data.length > 0) {
+    sheet.getRange(2, 1, data.length, 3).setValues(data);
+  }
+  return { ok: true };
+}
+
 function getBenutzerSheet() {
   return SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(BENUTZER_TAB);
 }
@@ -191,6 +265,21 @@ function doPost(e) {
         if (!titel) return jsonResponse({ error: 'Titel erforderlich' });
 
         return jsonResponse(updateNewsDoc(docId, titel, datum, autor, inhalt, bildBase64, bildMimeType));
+      }
+    }
+
+    // Auth-geschützte Config-Aktionen (nur Admin)
+    if (action === 'getConfig' || action === 'saveConfig') {
+      var user = authenticateUser(body.username, body.password);
+      if (!user) return jsonResponse({ error: 'Nicht authentifiziert' });
+      if (user.rolle !== 'admin') return jsonResponse({ error: 'Keine Berechtigung' });
+
+      if (action === 'getConfig') {
+        return jsonResponse({ config: getConfigAll() });
+      }
+      if (action === 'saveConfig') {
+        var items = body.items || [];
+        return jsonResponse(saveConfig(items));
       }
     }
 
@@ -878,8 +967,7 @@ function updateNewsDoc(docId, titel, datum, autor, inhalt, bildBase64, bildMimeT
 // MITGLIEDSANTRAG: Formular-Verarbeitung
 // ═══════════════════════════════════════════════════
 
-var VEREIN_EMAIL = 'boulderhallezugzwang@gmail.com';
-var SEND_CONFIRMATION = true;
+var VEREIN_EMAIL_FALLBACK = 'boulderhallezugzwang@gmail.com';
 
 var MA_HEADERS = [
   'Nachname', 'Vorname', 'Ort', 'E-Mail', 'Geburtsdatum',
@@ -1012,6 +1100,11 @@ function maSendConfirmation(data, eintrittDe, mandatsRef) {
 }
 
 function maSendNotification(data, eintrittDe, mandatsRef) {
+  // Config prüfen: Benachrichtigung aktiv?
+  var aktiv = getConfigValue('notify_mitgliedsantrag_aktiv');
+  if (aktiv === 'nein') return;
+  var notifyEmail = getConfigValue('notify_mitgliedsantrag_email') || VEREIN_EMAIL_FALLBACK;
+
   var geburtsDe = maToDe(data.geburtsdatum);
 
   var familyText = '';
@@ -1043,7 +1136,7 @@ function maSendNotification(data, eintrittDe, mandatsRef) {
     'Eingegangen am: ' + eintrittDe;
 
   MailApp.sendEmail({
-    to: VEREIN_EMAIL,
+    to: notifyEmail,
     subject: 'Neuer Mitgliedsantrag: ' + data.vorname + ' ' + data.nachname,
     body: body,
     name: 'Mitgliedsantrag-Formular'
