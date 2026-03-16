@@ -23,6 +23,21 @@ function getConfigValue(key) {
   return '';
 }
 
+function sendNotifyJugendtraining(vorname, nachname, datum) {
+  var aktiv = getConfigValue('notify_jugendtraining_aktiv');
+  if (aktiv !== 'ja') return;
+  var email = getConfigValue('notify_jugendtraining_email');
+  if (!email) return;
+  MailApp.sendEmail({
+    to: email,
+    subject: 'Neue Jugendtraining-Anmeldung: ' + vorname + ' ' + nachname,
+    body: 'Eine neue Anmeldung zum Jugendtraining ist eingegangen:\n\n' +
+      '  Name:   ' + vorname + ' ' + nachname + '\n' +
+      '  Datum:  ' + datum + '\n',
+    name: 'Jugendtraining-Formular'
+  });
+}
+
 const HEADERS = [
   'Nachname', 'Vorname', 'Geburtsdatum', 'Adresse', 'PLZ', 'Ort',
   'E-Mail', 'Telefon Mobil', 'Bemerkungen',
@@ -78,6 +93,7 @@ function doPost(e) {
 
     // ── Mail ──
     sendBestaetigungsMail(data, heute, mandatsref, geb);
+    sendNotifyJugendtraining(data.vorname, data.nachname, heute);
 
     return ContentService.createTextOutput(
       JSON.stringify({ status: 'ok' })

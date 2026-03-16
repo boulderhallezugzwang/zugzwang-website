@@ -40,7 +40,13 @@ function getConfigSheet() {
       ['notify_hallendienst_email', '', 'E-Mail für Hallendienst-Benachrichtigung'],
       ['notify_kuendigung_aktiv', 'nein', 'Benachrichtigung bei Kündigung'],
       ['notify_kuendigung_email', '', 'E-Mail für Kündigungs-Benachrichtigung'],
-      ['kontakt_email', 'boulderhallezugzwang@gmail.com', 'Kontakt-E-Mail in Antwortmails an Ausfüller']
+      ['notify_jugendtraining_aktiv', 'nein', 'Benachrichtigung bei Jugendtraining-Anmeldung'],
+      ['notify_jugendtraining_email', '', 'E-Mail für Jugendtraining-Benachrichtigung'],
+      ['kontakt_mitgliedsantrag_email', 'boulderhallezugzwang@gmail.com', 'Kontakt-E-Mail in Mitgliedsantrag-Bestätigungen'],
+      ['kontakt_haftung_email', 'boulderhallezugzwang@gmail.com', 'Kontakt-E-Mail in Haftungsausschluss-Bestätigungen'],
+      ['kontakt_hallendienst_email', 'boulderhallezugzwang@gmail.com', 'Kontakt-E-Mail in Hallendienst-Bestätigungen'],
+      ['kontakt_kuendigung_email', 'boulderhallezugzwang@gmail.com', 'Kontakt-E-Mail in Kündigungs-Bestätigungen'],
+      ['kontakt_jugendtraining_email', 'boulderhallezugzwang@gmail.com', 'Kontakt-E-Mail in Jugendtraining-Bestätigungen']
     ];
     sheet.getRange(2, 1, defaults.length, 3).setValues(defaults);
   }
@@ -1085,7 +1091,7 @@ function maSendConfirmation(data, eintrittDe, mandatsRef) {
     '  IBAN:           ' + data.iban + '\n' +
     '  Mandatsreferenz: ' + mandatsRef + '\n' +
     familyText + '\n' +
-    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_email') || VEREIN_EMAIL_FALLBACK) + '.\n\n' +
+    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_mitgliedsantrag_email') || VEREIN_EMAIL_FALLBACK) + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +
