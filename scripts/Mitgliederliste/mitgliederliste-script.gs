@@ -267,7 +267,7 @@ function getMemberData(user) {
         ort: (row[colIdx['Ort']] || '').toString(),
         chip: (row[colIdx['Chip']] || '').toString(),
         chipnr: (row[colIdx['ChipNr.']] || '').toString(),
-        eintritt: (row[colIdx['Eintritt']] || '').toString()
+        eintritt: row[colIdx['Eintritt']] instanceof Date ? Utilities.formatDate(row[colIdx['Eintritt']], 'Europe/Berlin', 'dd.MM.yyyy') : (row[colIdx['Eintritt']] || '').toString()
       });
     }
   });
