@@ -2104,9 +2104,12 @@ function tmSubmit() {
 
         // Prüfen ob Datei schon existiert (für SHA)
         tmGhGet(imgPath).then(function(existing) {
-          return tmGhPutBinary(imgPath, base64data, existing.sha, 'Bild aktualisiert: ' + name);
+          return existing.sha || null;
         }).catch(function() {
-          return tmGhPutBinary(imgPath, base64data, null, 'Bild hinzugefügt: ' + name);
+          return null;
+        }).then(function(existingSha) {
+          var msg = existingSha ? 'Bild aktualisiert: ' + name : 'Bild hinzugefügt: ' + name;
+          return tmGhPutBinary(imgPath, base64data, existingSha, msg);
         }).then(function() {
           member.bild = imgPath;
           tmImageCache[imgPath] = base64full;
