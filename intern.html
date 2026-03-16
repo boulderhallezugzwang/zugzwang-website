@@ -1966,12 +1966,17 @@ var tmEditIdx = -1;
 var tmJsonSha = null;
 var tmImageCache = {}; // bild-path → base64 data-URL für sofortige Anzeige
 
+// Unsichtbare Zeichen entfernen (Mobile-Keyboard fügt oft Zero-Width-Spaces ein)
+function tmCleanToken(s) {
+  return s.replace(/[^\x20-\x7E]/g, '').trim();
+}
+
 // GitHub Token aus localStorage
 function tmGetToken() {
   var saved = localStorage.getItem('zz_gh_token');
   if (saved) return saved;
   var inp = document.getElementById('tmGhToken');
-  var t = inp ? inp.value.trim() : '';
+  var t = inp ? tmCleanToken(inp.value) : '';
   if (t) { localStorage.setItem('zz_gh_token', t); return t; }
   return '';
 }
@@ -1979,11 +1984,11 @@ function tmGetToken() {
 // Token speichern Button
 function tmSaveToken() {
   var inp = document.getElementById('tmGhToken');
-  var t = inp.value.trim();
+  var t = tmCleanToken(inp.value);
   if (!t) { alert('Bitte Token eingeben!'); return; }
   localStorage.setItem('zz_gh_token', t);
   document.getElementById('tmGhTokenRow').style.display = 'none';
-  alert('Token gespeichert!');
+  alert('Token gespeichert! (' + t.length + ' Zeichen)');
 }
 
 // Token-Feld vorbelegen
