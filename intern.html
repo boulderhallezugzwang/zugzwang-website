@@ -1988,7 +1988,7 @@ function tmSaveToken() {
   if (!t) { alert('Bitte Token eingeben!'); return; }
   localStorage.setItem('zz_gh_token', t);
   document.getElementById('tmGhTokenRow').style.display = 'none';
-  alert('Token gespeichert! (' + t.length + ' Zeichen)');
+  alert('Token gespeichert!');
 }
 
 // Token-Feld vorbelegen
@@ -2194,7 +2194,7 @@ function tmSubmit() {
   if (!bereich) { result.textContent = 'Bitte Bereich eingeben.'; result.style.color = '#e74c3c'; return; }
 
   var token = tmGetToken();
-  if (!token) { alert('Kein Token gefunden! localStorage=' + (localStorage.getItem('zz_gh_token') ? 'ja(' + localStorage.getItem('zz_gh_token').length + ')' : 'leer')); document.getElementById('tmGhTokenRow').style.display = ''; return; }
+  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
 
   var btn = document.getElementById('tmSubmitBtn');
   btn.disabled = true;
