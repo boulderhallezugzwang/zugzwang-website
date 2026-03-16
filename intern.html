@@ -747,10 +747,8 @@
         </div>
         <div class="form-group">
           <label>Bereich</label>
-          <select id="tmBereich">
-            <option value="vorstand">Vorstand</option>
-            <option value="jugendtraining">Jugendtraining</option>
-          </select>
+          <input type="text" id="tmBereich" list="tmBereichList" placeholder="z.B. Vorstand, Jugendtraining">
+          <datalist id="tmBereichList"></datalist>
         </div>
       </div>
       <div class="form-row">
@@ -1961,21 +1959,24 @@ function tmRenderList() {
   var container = document.getElementById('tmListContent');
   if (!tmData.length) { container.innerHTML = '<p>Noch keine Teammitglieder angelegt.</p>'; return; }
 
-  // Gruppieren nach Bereich
+  // Gruppieren nach Bereich (dynamisch)
   var groups = {};
-  var groupOrder = ['vorstand', 'jugendtraining'];
-  var groupLabels = { vorstand: 'Vorstand', jugendtraining: 'Jugendtraining' };
+  var groupOrder = [];
 
   tmData.forEach(function(m, i) {
-    var b = m.bereich || 'sonstige';
-    if (!groups[b]) groups[b] = [];
+    var b = m.bereich || 'Sonstige';
+    if (!groups[b]) { groups[b] = []; groupOrder.push(b); }
     groups[b].push({ member: m, idx: i });
   });
+
+  // Datalist für Bereich-Vorschläge aktualisieren
+  var dl = document.getElementById('tmBereichList');
+  dl.innerHTML = groupOrder.map(function(g) { return '<option value="' + escHtml(g) + '">'; }).join('');
 
   var html = '';
   groupOrder.forEach(function(g) {
     if (!groups[g] || !groups[g].length) return;
-    html += '<h4 style="margin:18px 0 8px;color:var(--primary);">' + escHtml(groupLabels[g] || g) + '</h4>';
+    html += '<h4 style="margin:18px 0 8px;color:var(--primary);">' + escHtml(g) + '</h4>';
     groups[g].sort(function(a, b) { return (a.member.reihenfolge || 99) - (b.member.reihenfolge || 99); });
     groups[g].forEach(function(item) {
       var m = item.member;
@@ -2039,7 +2040,7 @@ function tmCancelEdit() {
   tmEditIdx = -1;
   document.getElementById('tmName').value = '';
   document.getElementById('tmRolle').value = '';
-  document.getElementById('tmBereich').value = 'vorstand';
+  document.getElementById('tmBereich').value = '';
   document.getElementById('tmReihenfolge').value = 1;
   document.getElementById('tmBild').value = '';
   document.getElementById('tmBildPreview').innerHTML = '';
@@ -2067,6 +2068,7 @@ function tmSubmit() {
 
   if (!name) { result.textContent = 'Bitte Name eingeben.'; result.style.color = '#e74c3c'; return; }
   if (!rolle) { result.textContent = 'Bitte Rolle eingeben.'; result.style.color = '#e74c3c'; return; }
+  if (!bereich) { result.textContent = 'Bitte Bereich eingeben.'; result.style.color = '#e74c3c'; return; }
 
   var token = tmGetToken();
   if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }

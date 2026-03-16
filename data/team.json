@@ -2,77 +2,77 @@
   {
     "name": "Detlef Müller",
     "rolle": "1. Vorstand",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/detlef-mueller.jpg",
     "reihenfolge": 1
   },
   {
     "name": "Holger Baumann",
     "rolle": "2. Vorstand",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/baumann.jpg",
     "reihenfolge": 2
   },
   {
     "name": "Fabian Christof",
     "rolle": "Kassier",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/christof.jpg",
     "reihenfolge": 3
   },
   {
     "name": "Anne Sperber",
     "rolle": "Schriftführerin",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/sperber.jpg",
     "reihenfolge": 4
   },
   {
     "name": "Simon Ziegler",
     "rolle": "Routenbau",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/ziegler.jpg",
     "reihenfolge": 5
   },
   {
     "name": "Lilly Müller",
     "rolle": "Kommunikation",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/mueller-lilly.jpg",
     "reihenfolge": 6
   },
   {
     "name": "Alois Eckert",
     "rolle": "Einkauf",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/eckert-alois.jpg",
     "reihenfolge": 7
   },
   {
     "name": "Holger Eckert",
     "rolle": "Revisor",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/holger-eckert.jpg",
     "reihenfolge": 8
   },
   {
     "name": "Michael Ziebell",
     "rolle": "Revisor",
-    "bereich": "vorstand",
+    "bereich": "Vorstand",
     "bild": "img/vorstand/ziebell.jpg",
     "reihenfolge": 9
   },
   {
     "name": "Amy Gentner",
     "rolle": "Jugendtrainerin",
-    "bereich": "jugendtraining",
+    "bereich": "Jugendtraining",
     "bild": "img/vorstand/ganter.jpg",
     "reihenfolge": 1
   },
   {
     "name": "Detlef Müller",
     "rolle": "Jugentraining Unterstützer",
-    "bereich": "jugendtraining",
+    "bereich": "Jugendtraining",
     "reihenfolge": 2,
     "bild": "img/vorstand/detlef-mueller.jpg"
   }

@@ -388,7 +388,7 @@
 </nav>
 <div class="sub-nav">
   <div class="sub-nav-inner">
-    <a href="#vorstand">Vorstand</a>
+    <a href="#team">Team</a>
     <a href="#jahreskarte">Jahreskarte</a>
     <a href="#beitraege">Beiträge</a>
     <a href="#hinweise">Hinweise</a>
@@ -410,49 +410,49 @@
   </div>
 </section>
 
-<!-- VORSTAND -->
-<section class="section-divider" id="vorstand">
+<!-- TEAM -->
+<section class="section-divider" id="team">
   <span class="section-label">Team</span>
-  <h2 class="section-title">Vorstand</h2>
-  <div class="vorstand-grid">
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/mueller.jpg" alt="Detlef Müller" loading="lazy" onerror="this.parentElement.textContent='DM'"></div>
-      <div><div class="vorstand-name">Detlef Müller</div><div class="vorstand-role">1. Vorstand</div></div>
-    </div>
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/baumann.jpg" alt="Holger Baumann" loading="lazy" onerror="this.parentElement.textContent='HB'"></div>
-      <div><div class="vorstand-name">Holger Baumann</div><div class="vorstand-role">2. Vorstand</div></div>
-    </div>
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/christof.jpg" alt="Fabian Christof" loading="lazy" onerror="this.parentElement.textContent='FC'"></div>
-      <div><div class="vorstand-name">Fabian Christof</div><div class="vorstand-role">Kassier</div></div>
-    </div>
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/sperber.jpg" alt="Anne Sperber" loading="lazy" onerror="this.parentElement.textContent='AS'"></div>
-      <div><div class="vorstand-name">Anne Sperber</div><div class="vorstand-role">Schriftführer</div></div>
-    </div>
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/ziegler.jpg" alt="Simon Ziegler" loading="lazy" onerror="this.parentElement.textContent='SZ'"></div>
-      <div><div class="vorstand-name">Simon Ziegler</div><div class="vorstand-role">Beisitzer</div></div>
-    </div>
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/mueller-lilly.jpg" alt="Lilly Müller" loading="lazy" onerror="this.parentElement.textContent='LM'"></div>
-      <div><div class="vorstand-name">Lilly Müller</div><div class="vorstand-role">Beisitzer</div></div>
-    </div>
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/eckert-alois.jpg" alt="Alois Eckert" loading="lazy" onerror="this.parentElement.textContent='AE'"></div>
-      <div><div class="vorstand-name">Alois Eckert</div><div class="vorstand-role">Beisitzer</div></div>
-    </div>
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/eckert-holger.jpg" alt="Holger Eckert" loading="lazy" onerror="this.parentElement.textContent='HE'"></div>
-      <div><div class="vorstand-name">Holger Eckert</div><div class="vorstand-role">Revisor</div></div>
-    </div>
-    <div class="vorstand-card">
-      <div class="vorstand-icon"><img src="img/vorstand/ziebell.jpg" alt="Michael Ziebell" loading="lazy" onerror="this.parentElement.textContent='MZ'"></div>
-      <div><div class="vorstand-name">Michael Ziebell</div><div class="vorstand-role">Revisor</div></div>
-    </div>
+  <div id="teamContent">
+    <div style="text-align:center;padding:40px;color:var(--yellow-light);opacity:0.6;">Team wird geladen...</div>
   </div>
 </section>
+<script>
+(function() {
+  fetch('data/team.json?t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(team) {
+      var groups = {};
+      var order = [];
+      team.forEach(function(m) {
+        var b = m.bereich || 'Sonstige';
+        if (!groups[b]) { groups[b] = []; order.push(b); }
+        groups[b].push(m);
+      });
+      var html = '';
+      order.forEach(function(g) {
+        groups[g].sort(function(a, b) { return (a.reihenfolge || 99) - (b.reihenfolge || 99); });
+        html += '<h2 class="section-title">' + g + '</h2>';
+        html += '<div class="vorstand-grid">';
+        groups[g].forEach(function(m) {
+          var initials = m.name.split(' ').map(function(w) { return w[0]; }).join('');
+          html += '<div class="vorstand-card">';
+          html += '<div class="vorstand-icon">';
+          if (m.bild) {
+            html += '<img src="' + m.bild + '" alt="' + m.name + '" loading="lazy" onerror="this.parentElement.textContent=\'' + initials + '\'">';
+          } else {
+            html += initials;
+          }
+          html += '</div>';
+          html += '<div><div class="vorstand-name">' + m.name + '</div><div class="vorstand-role">' + (m.rolle || '') + '</div></div>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+      document.getElementById('teamContent').innerHTML = html;
+    });
+})();
+</script>
 
 <!-- JAHRESKARTE -->
 <section class="section-divider" id="jahreskarte">
