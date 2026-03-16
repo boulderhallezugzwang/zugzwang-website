@@ -1974,27 +1974,15 @@ function tmLoadTeam() {
   document.getElementById('tmLoading').style.display = '';
   document.getElementById('tmListContent').innerHTML = '';
 
-  // JSON von GitHub Pages laden (kein Token nötig, schnell)
-  var pagesUrl = 'https://boulderhallezugzwang.github.io/zugzwang-website/data/team.json?t=' + Date.now();
-
-  Promise.all([
-    fetch(pagesUrl).then(function(r) { return r.json(); }),
-    tmGhGet(TM_JSON_PATH)
-  ]).then(function(results) {
-    tmData = results[0];
-    tmJsonSha = results[1].sha;
+  // JSON direkt von GitHub API laden (immer aktuell)
+  tmGhGet(TM_JSON_PATH).then(function(file) {
+    tmJsonSha = file.sha;
+    tmData = JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
     document.getElementById('tmLoading').style.display = 'none';
     tmRenderList();
   }).catch(function(err) {
     document.getElementById('tmLoading').style.display = 'none';
-    // Fallback: nur API
-    tmGhGet(TM_JSON_PATH).then(function(file) {
-      tmJsonSha = file.sha;
-      tmData = JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
-      tmRenderList();
-    }).catch(function(err2) {
-      document.getElementById('tmListContent').innerHTML = '<p style="color:#e74c3c;">Fehler beim Laden: ' + escHtml(err2.message) + '</p>';
-    });
+    document.getElementById('tmListContent').innerHTML = '<p style="color:#e74c3c;">Fehler beim Laden: ' + escHtml(err.message) + '</p>';
   });
 }
 
