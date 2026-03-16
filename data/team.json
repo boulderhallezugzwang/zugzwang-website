@@ -78,8 +78,8 @@
   },
   {
     "name": "test tester",
-    "rolle": "testing",
-    "bereich": "neuer Bereich",
+    "rolle": "tester",
+    "bereich": "Bereichxy",
     "reihenfolge": 1,
     "bild": "img/vorstand/test-tester.jpg"
   }
