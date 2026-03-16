@@ -794,7 +794,10 @@
       <div class="form-row" id="tmGhTokenRow">
         <div class="form-group full">
           <label>GitHub Token <span style="color:var(--text-dim);font-weight:normal;">(wird lokal gespeichert, einmal eingeben)</span></label>
-          <input type="password" id="tmGhToken" placeholder="ghp_xxxxxxxxxxxx">
+          <div style="display:flex;gap:8px;">
+            <input type="password" id="tmGhToken" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;">
+            <button class="submit-btn" onclick="tmSaveToken()" style="padding:8px 16px;white-space:nowrap;">Token speichern</button>
+          </div>
         </div>
       </div>
       <div class="form-actions">
@@ -1969,6 +1972,15 @@ function tmGetToken() {
   var t = inp.value.trim();
   if (t) { localStorage.setItem('zz_gh_token', t); return t; }
   return localStorage.getItem('zz_gh_token') || '';
+}
+
+// Token speichern Button
+function tmSaveToken() {
+  var inp = document.getElementById('tmGhToken');
+  var t = inp.value.trim();
+  if (!t) { alert('Bitte Token eingeben!'); return; }
+  localStorage.setItem('zz_gh_token', t);
+  document.getElementById('tmGhTokenRow').style.display = 'none';
 }
 
 // Token-Feld vorbelegen
