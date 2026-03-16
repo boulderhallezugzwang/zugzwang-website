@@ -187,7 +187,7 @@ function sendConfirmationEmail(data, eintrittDe, mandatsRef) {
     '  IBAN:           ' + data.iban + '\n' +
     '  Mandatsreferenz: ' + mandatsRef + '\n' +
     familyText + '\n' +
-    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_email') || VEREIN_EMAIL_FALLBACK) + '.\n\n' +
+    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_mitgliedsantrag_email') || VEREIN_EMAIL_FALLBACK) + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +

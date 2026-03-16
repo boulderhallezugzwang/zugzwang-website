@@ -127,14 +127,20 @@
   }
   .app-header-inner {
     max-width: 720px; margin: 0 auto; padding: 12px 24px;
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    flex-wrap: wrap;
   }
   .app-tabs {
     display: flex; gap: 2px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    flex-shrink: 1; min-width: 0;
   }
+  .app-tabs::-webkit-scrollbar { display: none; }
   .app-tab {
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 15px; font-weight: 700; color: var(--text-dim);
+    white-space: nowrap; flex-shrink: 0;
     text-transform: uppercase; background: none; border: none;
     padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
   }
@@ -463,7 +469,10 @@
     .nav-links a { font-size: 11px; padding: 5px 8px; }
   }
   @media (max-width: 520px) {
-    .app-header-inner { padding: 10px 16px; flex-wrap: wrap; }
+    .app-header-inner { padding: 10px 12px; flex-wrap: wrap; }
+    .app-tabs { gap: 0; }
+    .app-tab { font-size: 13px; padding: 5px 10px; }
+    .app-user-info { width: 100%; justify-content: space-between; padding-top: 4px; border-top: 1px solid var(--dark-border); }
     .search-bar, .list-container { padding-left: 16px; padding-right: 16px; }
     .section-header { padding-left: 16px; padding-right: 16px; }
     .member-card { padding: 12px 14px; }
@@ -2286,12 +2295,25 @@ function cfgRender() {
     html += '</div>';
   });
 
-  // Kontakt-Email (wird in Antwortmails an Ausfüller angezeigt)
-  var kontakt = cfgGetVal('kontakt_email') || '';
+  // Kontakt-Emails pro Bereich (werden in Antwortmails an Ausfüller angezeigt)
+  var kontaktLabels = {
+    'kontakt_mitgliedsantrag_email': 'Mitgliedsantrag',
+    'kontakt_haftung_email': 'Haftungsausschluss',
+    'kontakt_hallendienst_email': 'Hallendienst',
+    'kontakt_kuendigung_email': 'Kündigung',
+    'kontakt_jugendtraining_email': 'Jugendtraining'
+  };
   html += '<div style="margin-top:20px;padding-top:16px;border-top:2px solid var(--border);">';
   html += '<h4 style="margin:0 0 8px;color:var(--primary);">Kontakt-E-Mail in Antwortmails</h4>';
-  html += '<p style="color:var(--text-dim);font-size:13px;margin-bottom:8px;">Diese Adresse wird in allen Bestätigungsmails an Ausfüller als Kontakt angezeigt.</p>';
-  html += '<input type="email" id="cfg_kontakt_email" value="' + escHtml(kontakt) + '" placeholder="z.B. boulderhallezugzwang@gmail.com" style="width:100%;max-width:400px;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">';
+  html += '<p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Diese Adressen werden in den Bestätigungsmails an Ausfüller als Kontakt angezeigt (pro Bereich).</p>';
+  var kontaktKeys = Object.keys(kontaktLabels);
+  kontaktKeys.forEach(function(key) {
+    var val = cfgGetVal(key) || '';
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;">';
+    html += '<span style="min-width:160px;font-weight:600;">' + escHtml(kontaktLabels[key]) + '</span>';
+    html += '<input type="email" id="cfg_' + key + '" value="' + escHtml(val) + '" placeholder="boulderhallezugzwang@gmail.com" style="flex:1;max-width:400px;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">';
+    html += '</div>';
+  });
   html += '</div>';
 
   document.getElementById('cfgContent').innerHTML = html;
@@ -2306,8 +2328,11 @@ function cfgSave() {
     items.push({ key: prefix + '_aktiv', value: aktiv });
     items.push({ key: prefix + '_email', value: email });
   });
-  // Kontakt-Email
-  items.push({ key: 'kontakt_email', value: document.getElementById('cfg_kontakt_email').value.trim() });
+  // Kontakt-Emails pro Bereich
+  ['kontakt_mitgliedsantrag_email','kontakt_haftung_email','kontakt_hallendienst_email','kontakt_kuendigung_email','kontakt_jugendtraining_email'].forEach(function(key) {
+    var el = document.getElementById('cfg_' + key);
+    if (el) items.push({ key: key, value: el.value.trim() });
+  });
 
   var result = document.getElementById('cfgResult');
   result.textContent = 'Wird gespeichert...';

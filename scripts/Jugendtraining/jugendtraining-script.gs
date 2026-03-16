@@ -142,7 +142,7 @@ function sendBestaetigungsMail(data, heute, mandatsref, geb) {
     '  Kontoinhaber:      ' + data.kontoinhaber + '\n' +
     '  IBAN:              ' + data.iban + '\n' +
     '  Mandatsreferenz:   ' + mandatsref + '\n\n' +
-    'Falls du Fragen hast, erreichst du uns unter ' + (getConfigValue('kontakt_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
+    'Falls du Fragen hast, erreichst du uns unter ' + (getConfigValue('kontakt_jugendtraining_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +

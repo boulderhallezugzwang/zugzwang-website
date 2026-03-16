@@ -161,7 +161,7 @@ function sendKuendigungsMail(data, kuendigungsDatum) {
     '  91275 Auerbach i.d.OPf.\n\n' +
     'Bitte den Chip auf ein Blatt Papier mit Deinen Daten kleben und nicht lose in ein Kuvert stecken.\n' +
     'Es besteht die Gefahr, dass das Kuvert beschädigt wird und der Chip verloren geht.\n\n' +
-    'Falls du Fragen hast, erreichst du uns unter ' + (getConfigValue('kontakt_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
+    'Falls du Fragen hast, erreichst du uns unter ' + (getConfigValue('kontakt_kuendigung_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +
@@ -185,7 +185,7 @@ function sendNichtGefundenMail(data) {
     '  E-Mail:  ' + data.email + '\n\n' +
     'Die Kündigung konnte daher nicht durchgeführt werden. Bitte prüfe, ob du den Namen ' +
     'genau so angegeben hast, wie er bei der Anmeldung verwendet wurde.\n\n' +
-    'Bei Fragen wende dich bitte an ' + (getConfigValue('kontakt_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
+    'Bei Fragen wende dich bitte an ' + (getConfigValue('kontakt_kuendigung_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +
