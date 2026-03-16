@@ -391,18 +391,36 @@
     font-size: 13px; margin-top: 8px; display: inline-block;
   }
   .news-readmore:hover { color: var(--yellow-light); }
-  .news-full {
-    font-size: 13px; color: var(--text); line-height: 1.6;
-    display: none; white-space: pre-line; margin-top: 4px;
+  .news-modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200;
+    background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; opacity: 0; visibility: hidden; transition: all 0.2s;
   }
-  .news-card.open .news-full { display: block; }
-  .news-card.open .news-preview { display: none; }
-  .news-card.open .news-readmore { display: none; }
-  .news-close {
-    background: none; border: none; color: var(--yellow); font-size: 12px;
-    font-weight: 600; cursor: pointer; padding: 4px 0; margin-top: 4px;
+  .news-modal-overlay.active { opacity: 1; visibility: visible; }
+  .news-modal {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: 12px; max-width: 600px; width: 100%;
+    max-height: 80vh; overflow-y: auto; position: relative;
   }
-  .news-close:hover { color: var(--yellow-light); }
+  .news-modal-img { width: 100%; height: 200px; object-fit: cover; border-radius: 12px 12px 0 0; }
+  .news-modal-body { padding: 20px 24px; }
+  .news-modal-body h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px; font-weight: 800; color: var(--cream);
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .news-modal-body .news-meta { margin-bottom: 12px; }
+  .news-modal-body .news-modal-text {
+    font-size: 14px; color: var(--text); line-height: 1.7; white-space: pre-line;
+  }
+  .news-modal-close {
+    position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
+    border-radius: 50%; background: rgba(0,0,0,0.6); border: none;
+    color: var(--cream); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .news-modal-close:hover { background: rgba(0,0,0,0.9); }
   .news-arrow {
     position: absolute; top: 50%; transform: translateY(-50%);
     width: 36px; height: 36px; border-radius: 50%;
@@ -1013,6 +1031,7 @@ function renderCalendar(events) {
 }
 
 // ===================== NEWS =====================
+let newsData = [];
 function renderNews(news) {
   const el = document.getElementById('newsList');
   const wrap = document.getElementById('newsWrap');
@@ -1020,13 +1039,14 @@ function renderNews(news) {
 
   news.sort((a, b) => new Date(b.date) - new Date(a.date));
   news = news.slice(0, 5);
+  newsData = news;
 
-  el.innerHTML = news.map(n => {
-    const img = `<img src="${n.imageUrl || 'img/news-default.jpg'}" alt="" referrerpolicy="no-referrer">`;
+  el.innerHTML = news.map((n, i) => {
+    const imgSrc = n.imageUrl || 'img/news-default.jpg';
     const hasContent = n.content && n.content.length > 0;
     return `
-      <div class="news-card">
-        <div class="news-image">${img}</div>
+      <div class="news-card" ${hasContent ? 'onclick="openNewsModal('+i+')" style="cursor:pointer"' : ''}>
+        <div class="news-image"><img src="${imgSrc}" alt="" referrerpolicy="no-referrer"></div>
         <div class="news-body">
           <h3>${n.title}</h3>
           <div class="news-meta">
@@ -1034,23 +1054,38 @@ function renderNews(news) {
             <span class="news-author">${n.author}</span>
           </div>
           <p class="news-preview">${n.contentPreview || ''}</p>
-          ${hasContent ? '<span class="news-readmore" onclick="this.closest(\'.news-card\').classList.add(\'open\');">weiterlesen</span>' : ''}
-          <div class="news-full">${n.content || ''}<br><button class="news-close" onclick="this.closest(\'.news-card\').classList.remove(\'open\');">Weniger anzeigen ▲</button></div>
+          ${hasContent ? '<span class="news-readmore">weiterlesen</span>' : ''}
         </div>
       </div>`;
   }).join('');
 
-  // Arrows
   if (news.length > 3) {
     const leftBtn = document.createElement('button');
     leftBtn.className = 'news-arrow left'; leftBtn.innerHTML = '&#8249;';
-    leftBtn.onclick = () => el.scrollBy({ left: -300, behavior: 'smooth' });
+    leftBtn.onclick = (e) => { e.stopPropagation(); el.scrollBy({ left: -300, behavior: 'smooth' }); };
     const rightBtn = document.createElement('button');
     rightBtn.className = 'news-arrow right'; rightBtn.innerHTML = '&#8250;';
-    rightBtn.onclick = () => el.scrollBy({ left: 300, behavior: 'smooth' });
+    rightBtn.onclick = (e) => { e.stopPropagation(); el.scrollBy({ left: 300, behavior: 'smooth' }); };
     wrap.appendChild(leftBtn);
     wrap.appendChild(rightBtn);
   }
+}
+
+function openNewsModal(idx) {
+  const n = newsData[idx];
+  if (!n) return;
+  document.getElementById('newsModalImg').src = n.imageUrl || 'img/news-default.jpg';
+  document.getElementById('newsModalTitle').textContent = n.title;
+  document.getElementById('newsModalDate').textContent = n.dateFormatted;
+  document.getElementById('newsModalAuthor').textContent = n.author;
+  document.getElementById('newsModalText').innerHTML = n.content || '';
+  document.getElementById('newsModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeNewsModal() {
+  document.getElementById('newsModal').classList.remove('active');
+  document.body.style.overflow = '';
 }
 
 // ===================== SUB-NAV HIGHLIGHT =====================
@@ -1087,9 +1122,28 @@ function closeLightbox() {
 }
 lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
 document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeLightbox(); closeNewsModal(); }
+});
 
 </script>
+
+<!-- News Modal -->
+<div class="news-modal-overlay" id="newsModal" onclick="if(event.target===this)closeNewsModal()">
+  <div class="news-modal">
+    <button class="news-modal-close" onclick="closeNewsModal()">&times;</button>
+    <img class="news-modal-img" id="newsModalImg" src="" alt="">
+    <div class="news-modal-body">
+      <h3 id="newsModalTitle"></h3>
+      <div class="news-meta">
+        <span class="news-date" id="newsModalDate"></span>
+        <span class="news-author" id="newsModalAuthor"></span>
+      </div>
+      <div class="news-modal-text" id="newsModalText"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
       
