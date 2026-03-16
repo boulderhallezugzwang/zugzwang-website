@@ -609,6 +609,18 @@
         </div>
         <div class="form-row">
           <div class="form-group full">
+            <label>Erinnerung (per E-Mail + in ICS-Kalenderdatei)</label>
+            <select id="evRemind" style="max-width:250px;">
+              <option value="0">Keine Erinnerung</option>
+              <option value="2">2 Stunden vorher</option>
+              <option value="24" selected>1 Tag vorher</option>
+              <option value="48">2 Tage vorher</option>
+              <option value="168">1 Woche vorher</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full">
             <label>E-Mail-Versand</label>
             <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:6px;">
               <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="evMailMode" value="none" checked> Keine Mail</label>
@@ -1141,10 +1153,12 @@ function evCreate() {
   var progressDetail = mailMode === 'none' ? '' : 'Mails werden gesendet';
   showProgress(progressMsg, progressDetail);
 
+  var remindHours = document.getElementById('evRemind').value;
+
   evPost('createEvent', {
     kalender: kalender, titel: titel, datum: datum,
     zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung,
-    mailMode: mailMode, mailTo: mailTo
+    mailMode: mailMode, mailTo: mailTo, remindHours: remindHours
   }).then(data => {
     hideProgress();
     if (data.error) { evShowResult(data.error, true); return; }
@@ -1214,6 +1228,7 @@ function evStartEdit(idx) {
   document.getElementById('evVon').value = ev.zeitVon;
   document.getElementById('evBis').value = ev.zeitBis;
   document.getElementById('evBeschreibung').value = ev.beschreibung;
+  document.getElementById('evRemind').value = ev.erinnerung || '0';
   document.getElementById('evCancelBtn').style.display = 'inline-block';
   document.getElementById('evResult').style.display = 'none';
   evUpdateButtonText();
@@ -1224,6 +1239,7 @@ function evCancelEdit() {
   evEditingId = null;
   document.getElementById('evTitel').value = '';
   document.getElementById('evBeschreibung').value = '';
+  document.getElementById('evRemind').value = '24';
   document.getElementById('evCancelBtn').style.display = 'none';
   document.getElementById('evResult').style.display = 'none';
   evUpdateButtonText();
@@ -1246,10 +1262,12 @@ function evSubmit() {
     var progressDetail = mailMode === 'none' ? '' : 'Änderungsmails werden gesendet';
     showProgress('Termin wird geändert...', progressDetail);
 
+    var remindHours = document.getElementById('evRemind').value;
+
     evPost('updateEvent', {
       kalender: evEditingId.kalender, eventId: evEditingId.id,
       titel: titel, datum: datum, zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung,
-      mailMode: mailMode, mailTo: mailTo
+      mailMode: mailMode, mailTo: mailTo, remindHours: remindHours
     }).then(data => {
       hideProgress();
       if (data.error) { evShowResult(data.error, true); return; }
@@ -1297,8 +1315,13 @@ function evRenderList() {
       var cls = ev.mailStatus === 'keine' ? 'mail-none' : (ev.mailStatus.indexOf('alle') === 0 ? 'mail-all' : 'mail-other');
       mailBadge = '<span class="ev-mail-badge ' + cls + '">Mail: ' + escHtml(ev.mailStatus) + '</span>';
     }
+    var remindBadge = '';
+    if (ev.erinnerung && ev.erinnerung > 0) {
+      var remindText = ev.erinnerung >= 168 ? '1 Woche' : (ev.erinnerung >= 48 ? '2 Tage' : (ev.erinnerung >= 24 ? '1 Tag' : ev.erinnerung + 'h'));
+      remindBadge = '<span class="ev-mail-badge" style="background:rgba(33,150,243,0.15);color:#2196F3;">Erinnerung: ' + remindText + '</span>';
+    }
     html += '<div class="ev-actions">'
-      + mailBadge
+      + mailBadge + remindBadge
       + '<button class="ev-edit-btn" onclick="evStartEdit(' + idx + ')">Bearbeiten</button>'
       + '<button class="ev-del-btn" onclick="evDelete(\'' + escAttr(ev.kalender) + '\',\'' + escAttr(ev.id) + '\')">L\u00f6schen</button>'
       + '</div></div>';

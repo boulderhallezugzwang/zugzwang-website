@@ -114,7 +114,8 @@ function doPost(e) {
 
         var mailMode = (body.mailMode || 'all').toString();
         var mailTo = (body.mailTo || '').toString();
-        var result = createCalEvent(kalender, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo);
+        var remindHours = (body.remindHours || '0').toString();
+        var result = createCalEvent(kalender, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours);
         return jsonResponse(result);
       }
 
@@ -142,7 +143,8 @@ function doPost(e) {
 
         var mailMode = (body.mailMode || 'all').toString();
         var mailTo = (body.mailTo || '').toString();
-        return jsonResponse(updateCalEvent(kalender, eventId, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo));
+        var remindHours = (body.remindHours || '0').toString();
+        return jsonResponse(updateCalEvent(kalender, eventId, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours));
       }
     }
 
@@ -323,11 +325,20 @@ var KALENDER_NAMEN = {
 var WOCHENTAGE_LANG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
 var MAIL_TAG_RE = /\n?\[ZZ-MAIL:[^\]]*\]/;
+var REMIND_TAG_RE = /\n?\[ZZ-REMIND:[^\]]*\]/;
+var REMINDED_TAG_RE = /\n?\[ZZ-REMINDED\]/;
 
-function buildMailTag(mailMode, emailCount) {
+function buildMailTag(mailMode, emailCount, recipients) {
   if (mailMode === 'none') return '\n[ZZ-MAIL:none]';
-  if (mailMode === 'custom') return '\n[ZZ-MAIL:custom:' + emailCount + ']';
+  if (mailMode === 'custom' && recipients && recipients.length > 0) {
+    return '\n[ZZ-MAIL:custom:' + emailCount + ':' + recipients.join(',') + ']';
+  }
   return '\n[ZZ-MAIL:all:' + emailCount + ']';
+}
+
+function buildRemindTag(remindHours) {
+  if (!remindHours || remindHours === '0') return '';
+  return '\n[ZZ-REMIND:' + remindHours + ']';
 }
 
 function parseMailTag(desc) {
@@ -340,8 +351,22 @@ function parseMailTag(desc) {
   return 'unbekannt';
 }
 
-function stripMailTag(desc) {
-  return desc.replace(MAIL_TAG_RE, '').trim();
+function parseRemindTag(desc) {
+  var m = desc.match(/\[ZZ-REMIND:(\d+)\]/);
+  return m ? parseInt(m[1]) : 0;
+}
+
+function getMailRecipients(desc) {
+  var m = desc.match(/\[ZZ-MAIL:([^\]]*)\]/);
+  if (!m) return { mode: 'none', addresses: [] };
+  var parts = m[1].split(':');
+  if (parts[0] === 'all') return { mode: 'all', addresses: [] };
+  if (parts[0] === 'custom' && parts[2]) return { mode: 'custom', addresses: parts[2].split(',') };
+  return { mode: parts[0], addresses: [] };
+}
+
+function stripTags(desc) {
+  return desc.replace(MAIL_TAG_RE, '').replace(REMIND_TAG_RE, '').replace(REMINDED_TAG_RE, '').trim();
 }
 
 function getCalendarEvents() {
@@ -371,8 +396,9 @@ function getCalendarEvents() {
         wochentag: WOCHENTAGE_LANG[start.getDay()],
         zeitVon: ('0' + start.getHours()).slice(-2) + ':' + ('0' + start.getMinutes()).slice(-2),
         zeitBis: ('0' + end.getHours()).slice(-2) + ':' + ('0' + end.getMinutes()).slice(-2),
-        beschreibung: stripMailTag(ev.getDescription() || ''),
-        mailStatus: parseMailTag(ev.getDescription() || '')
+        beschreibung: stripTags(ev.getDescription() || ''),
+        mailStatus: parseMailTag(ev.getDescription() || ''),
+        erinnerung: parseRemindTag(ev.getDescription() || '')
       });
     }
   }
@@ -414,7 +440,7 @@ function deleteCalEvent(kalender, eventId, mailMode, mailTo) {
   }
 }
 
-function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo) {
+function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours) {
   var cal = CalendarApp.getCalendarById(KALENDER[kalender]);
   if (!cal) return { error: 'Kalender nicht gefunden' };
 
@@ -436,21 +462,24 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
     ev.setTime(startDate, endDate);
 
     var emailCount = 0;
+    var actualRecipients = [];
 
     if (mailMode !== 'none') {
       var datumFormatiert = ('0' + startDate.getDate()).slice(-2) + '.' + ('0' + (startDate.getMonth() + 1)).slice(-2) + '.' + startDate.getFullYear();
       var wochentag = WOCHENTAGE_LANG[startDate.getDay()];
-      var icsContent = generateICS(titel, startDate, endDate, beschreibung);
-      var recipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
-      emailCount = sendUpdateMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, beschreibung, KALENDER_NAMEN[kalender], icsContent, recipients);
+      var icsContent = generateICS(titel, startDate, endDate, beschreibung, remindHours);
+      var customRecipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
+      actualRecipients = customRecipients || getEmailRecipients(null);
+      emailCount = sendUpdateMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, beschreibung, KALENDER_NAMEN[kalender], icsContent, customRecipients);
     }
 
-    // Mail-Status in Beschreibung aktualisieren
-    var descWithTag = (beschreibung || '') + buildMailTag(mailMode, emailCount);
+    // Mail-Status + Erinnerung in Beschreibung aktualisieren
+    var descWithTag = (beschreibung || '') + buildMailTag(mailMode, emailCount, mailMode === 'custom' ? actualRecipients : null) + buildRemindTag(remindHours);
     ev.setDescription(descWithTag);
 
     var msg = 'Termin aktualisiert.';
     if (emailCount > 0) msg += ' ' + emailCount + ' Änderungsmail(s) gesendet.';
+    if (remindHours && remindHours !== '0') msg += ' Erinnerung ' + remindHours + 'h vorher aktiv.';
 
     return { ok: true, message: msg };
   } catch (e) {
@@ -458,7 +487,7 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
   }
 }
 
-function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo) {
+function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours) {
   var dateParts = datumISO.split('-');
   var vonParts = zeitVon.split(':');
   var bisParts = zeitBis.split(':');
@@ -475,31 +504,34 @@ function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschrei
   if (!cal) return { error: 'Kalender nicht gefunden' };
 
   var emailCount = 0;
+  var actualRecipients = [];
 
   if (mailMode !== 'none') {
-    var icsContent = generateICS(titel, startDate, endDate, beschreibung);
+    var icsContent = generateICS(titel, startDate, endDate, beschreibung, remindHours);
     var wochentag = WOCHENTAGE_LANG[startDate.getDay()];
     var datumFormatiert = ('0' + startDate.getDate()).slice(-2) + '.' +
       ('0' + (startDate.getMonth() + 1)).slice(-2) + '.' + startDate.getFullYear();
 
-    var recipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
+    var customRecipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
+    actualRecipients = customRecipients || getEmailRecipients(null);
     emailCount = sendEventMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis,
-      beschreibung, KALENDER_NAMEN[kalenderKey], icsContent, recipients);
+      beschreibung, KALENDER_NAMEN[kalenderKey], icsContent, customRecipients);
   }
 
-  // Mail-Status in Beschreibung speichern
-  var descWithTag = (beschreibung || '') + buildMailTag(mailMode, emailCount);
+  // Mail-Status + Erinnerung in Beschreibung speichern
+  var descWithTag = (beschreibung || '') + buildMailTag(mailMode, emailCount, mailMode === 'custom' ? actualRecipients : null) + buildRemindTag(remindHours);
 
   var eventOptions = { description: descWithTag };
   cal.createEvent(titel, startDate, endDate, eventOptions);
 
   var msg = 'Termin "' + titel + '" erstellt.';
   if (emailCount > 0) msg += ' ' + emailCount + ' E-Mail(s) gesendet.';
+  if (remindHours && remindHours !== '0') msg += ' Erinnerung ' + remindHours + 'h vorher aktiv.';
 
   return { ok: true, message: msg };
 }
 
-function generateICS(titel, startDate, endDate, beschreibung) {
+function generateICS(titel, startDate, endDate, beschreibung, remindHours) {
   var now = new Date();
   var uid = Utilities.getUuid() + '@zugzwang';
 
@@ -524,10 +556,21 @@ function generateICS(titel, startDate, endDate, beschreibung) {
     'DTSTAMP:' + icsDate(now) + 'Z',
     'SUMMARY:' + titel.replace(/[,;\\]/g, ' '),
     beschreibung ? 'DESCRIPTION:' + beschreibung.replace(/\n/g, '\\n').replace(/[,;\\]/g, ' ') : '',
-    'ORGANIZER;CN=Boulderverein Zugzwang:mailto:boulderhallezugzwang@gmail.com',
-    'END:VEVENT',
-    'END:VCALENDAR'
+    'ORGANIZER;CN=Boulderverein Zugzwang:mailto:boulderhallezugzwang@gmail.com'
   ].filter(function(l) { return l; });
+
+  // Erinnerung als VALARM hinzufügen
+  if (remindHours && parseInt(remindHours) > 0) {
+    var minutes = parseInt(remindHours) * 60;
+    lines.push('BEGIN:VALARM');
+    lines.push('TRIGGER:-PT' + minutes + 'M');
+    lines.push('ACTION:DISPLAY');
+    lines.push('DESCRIPTION:Erinnerung: ' + titel.replace(/[,;\\]/g, ' '));
+    lines.push('END:VALARM');
+  }
+
+  lines.push('END:VEVENT');
+  lines.push('END:VCALENDAR');
 
   return lines.join('\r\n');
 }
@@ -1074,5 +1117,127 @@ function sendNewsletter(betreff, inhalt, htmlInhalt, mailMode, mailTo) {
     return { ok: true, message: count + ' E-Mail(s) gesendet.' };
   } catch (e) {
     return { error: 'Fehler beim Senden: ' + e.toString() };
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// ERINNERUNGS-MAILS: Automatischer täglicher Versand
+// ═══════════════════════════════════════════════════
+
+/**
+ * Trigger einrichten: Einmal manuell im Script-Editor ausführen.
+ * Erstellt einen täglichen Trigger der sendEventReminders() aufruft.
+ */
+function setupReminderTrigger() {
+  // Bestehende Trigger für diese Funktion entfernen
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'sendEventReminders') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  // Neuen täglichen Trigger erstellen (läuft jeden Tag um 8:00 Uhr)
+  ScriptApp.newTrigger('sendEventReminders')
+    .timeBased()
+    .everyHours(1)
+    .create();
+  Logger.log('Erinnerungs-Trigger erstellt (stündlich).');
+}
+
+/**
+ * Prüft alle Kalender-Termine auf fällige Erinnerungen und sendet E-Mails.
+ * Wird automatisch durch den Trigger aufgerufen.
+ */
+function sendEventReminders() {
+  var now = new Date();
+  var maxFuture = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 Tage voraus prüfen
+
+  var keys = Object.keys(KALENDER);
+  var totalSent = 0;
+
+  for (var k = 0; k < keys.length; k++) {
+    var key = keys[k];
+    var cal = CalendarApp.getCalendarById(KALENDER[key]);
+    if (!cal) continue;
+
+    var events = cal.getEvents(now, maxFuture);
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      var desc = ev.getDescription() || '';
+
+      // Schon erinnert? → überspringen
+      if (desc.indexOf('[ZZ-REMINDED]') !== -1) continue;
+
+      // Hat Erinnerung?
+      var remindHours = parseRemindTag(desc);
+      if (!remindHours) continue;
+
+      // Ist es Zeit für die Erinnerung?
+      var start = ev.getStartTime();
+      var remindTime = new Date(start.getTime() - remindHours * 60 * 60 * 1000);
+      if (now < remindTime) continue; // Noch zu früh
+
+      // Empfänger ermitteln
+      var mailInfo = getMailRecipients(desc);
+      var recipients = [];
+      if (mailInfo.mode === 'all') {
+        recipients = getEmailRecipients(null);
+      } else if (mailInfo.mode === 'custom') {
+        recipients = mailInfo.addresses;
+      } else {
+        // Keine Mails gesendet → auch keine Erinnerung
+        continue;
+      }
+
+      if (recipients.length === 0) continue;
+
+      // Erinnerungsmail senden
+      var titel = ev.getTitle();
+      var end = ev.getEndTime();
+      var datumFormatiert = ('0' + start.getDate()).slice(-2) + '.' + ('0' + (start.getMonth() + 1)).slice(-2) + '.' + start.getFullYear();
+      var wochentag = WOCHENTAGE_LANG[start.getDay()];
+      var zeitVon = ('0' + start.getHours()).slice(-2) + ':' + ('0' + start.getMinutes()).slice(-2);
+      var zeitBis = ('0' + end.getHours()).slice(-2) + ':' + ('0' + end.getMinutes()).slice(-2);
+      var cleanDesc = stripTags(desc);
+
+      var body = 'Hallo,\n\n' +
+        'Erinnerung an den kommenden Termin im Boulderverein Zugzwang:\n\n' +
+        titel + '\n' +
+        wochentag + ', ' + datumFormatiert + '\n' +
+        zeitVon + ' – ' + zeitBis + ' Uhr\n';
+
+      if (cleanDesc) body += '\n' + cleanDesc + '\n';
+
+      body += '\nWir freuen uns auf Dich!\n\n' +
+        'Sportliche Grüße,\n' +
+        'Boulderverein Zugzwang e.V.\n' +
+        'https://boulderhallezugzwang.github.io/zugzwang-website';
+
+      var count = 0;
+      for (var r = 0; r < recipients.length; r++) {
+        try {
+          MailApp.sendEmail({
+            to: recipients[r],
+            subject: 'Erinnerung: ' + titel + ' – ' + datumFormatiert,
+            body: body,
+            name: 'Boulderverein Zugzwang e.V.'
+          });
+          count++;
+        } catch (e) {
+          Logger.log('Erinnerungs-Mail-Fehler an ' + recipients[r] + ': ' + e.toString());
+        }
+      }
+
+      // Als erinnert markieren
+      var newDesc = desc.replace(REMIND_TAG_RE, '') + '\n[ZZ-REMINDED]';
+      ev.setDescription(newDesc);
+
+      totalSent += count;
+      Logger.log('Erinnerung gesendet für "' + titel + '": ' + count + ' Mail(s)');
+    }
+  }
+
+  if (totalSent > 0) {
+    Logger.log('Gesamt: ' + totalSent + ' Erinnerungs-Mail(s) gesendet.');
   }
 }
