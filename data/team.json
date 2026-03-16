@@ -68,5 +68,12 @@
     "bereich": "jugendtraining",
     "bild": "img/vorstand/ganter.jpg",
     "reihenfolge": 1
+  },
+  {
+    "name": "Michael Graf",
+    "rolle": "Jugentrainer Unterstützung",
+    "bereich": "jugendtraining",
+    "reihenfolge": 2,
+    "bild": "img/vorstand/michael-graf.jpg"
   }
 ]
