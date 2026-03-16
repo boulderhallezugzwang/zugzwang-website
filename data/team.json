@@ -110,5 +110,12 @@
     "bereich": "Routenbau",
     "reihenfolge": 1,
     "bild": ""
+  },
+  {
+    "name": "Simon Ziegler",
+    "rolle": "Routenbauer",
+    "bereich": "Routenbau",
+    "reihenfolge": 1,
+    "bild": "img/vorstand/simon-ziegler.jpg"
   }
 ]
