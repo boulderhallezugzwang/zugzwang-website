@@ -52,7 +52,7 @@
     "name": "Holger Eckert",
     "rolle": "Revisor",
     "bereich": "vorstand",
-    "bild": "img/vorstand/holger-eckert.jpg",
+    "bild": "img/vorstand/eckert-holger.jpg",
     "reihenfolge": 8
   },
   {
@@ -68,5 +68,12 @@
     "bereich": "jugendtraining",
     "bild": "img/vorstand/ganter.jpg",
     "reihenfolge": 1
+  },
+  {
+    "name": "Detlef Müller",
+    "rolle": "Jugentraining Unterstützer",
+    "bereich": "jugendtraining",
+    "reihenfolge": 2,
+    "bild": "img/vorstand/detlef-mueller.jpg"
   }
 ]
