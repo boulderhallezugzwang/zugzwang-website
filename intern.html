@@ -1968,10 +1968,12 @@ var tmImageCache = {}; // bild-path → base64 data-URL für sofortige Anzeige
 
 // GitHub Token aus localStorage
 function tmGetToken() {
+  var saved = localStorage.getItem('zz_gh_token');
+  if (saved) return saved;
   var inp = document.getElementById('tmGhToken');
-  var t = inp.value.trim();
+  var t = inp ? inp.value.trim() : '';
   if (t) { localStorage.setItem('zz_gh_token', t); return t; }
-  return localStorage.getItem('zz_gh_token') || '';
+  return '';
 }
 
 // Token speichern Button
@@ -1981,6 +1983,7 @@ function tmSaveToken() {
   if (!t) { alert('Bitte Token eingeben!'); return; }
   localStorage.setItem('zz_gh_token', t);
   document.getElementById('tmGhTokenRow').style.display = 'none';
+  alert('Token gespeichert!');
 }
 
 // Token-Feld vorbelegen
