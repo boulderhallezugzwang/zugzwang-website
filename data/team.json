@@ -75,12 +75,5 @@
     "bereich": "Jugendtraining",
     "reihenfolge": 2,
     "bild": "img/vorstand/detlef-mueller.jpg"
-  },
-  {
-    "name": "test tester",
-    "rolle": "tester",
-    "bereich": "Bereichxy",
-    "reihenfolge": 1,
-    "bild": "img/vorstand/test-tester.jpg"
   }
 ]
