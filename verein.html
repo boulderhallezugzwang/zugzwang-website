@@ -147,9 +147,8 @@
   .vorstand-name {
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 20px; font-weight: 700; color: var(--cream); text-transform: uppercase;
-    word-break: break-word;
   }
-  .vorstand-role { font-size: 14px; color: var(--yellow-light); font-weight: 600; word-break: break-word; }
+  .vorstand-role { font-size: 14px; color: var(--yellow-light); font-weight: 600; }
 
   /* ===== BEITRÄGE TABELLE ===== */
   .beitrag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
@@ -371,7 +370,11 @@
     .sub-nav-inner { padding: 0 8px; }
     .sub-nav a { font-size: 11px; padding: 4px 7px; }
     .beitrag-grid { grid-template-columns: 1fr; }
-    .vorstand-grid { grid-template-columns: 1fr 1fr; } /* explizit beibehalten */
+    .vorstand-grid { grid-template-columns: 1fr 1fr; }
+    .vorstand-icon { width: 56px; height: 56px; font-size: 15px; }
+    .vorstand-name { font-size: 16px; }
+    .vorstand-role { font-size: 12px; }
+    .vorstand-card { padding: 10px; gap: 10px; min-height: 0; }
     .hd-row { gap: 10px; padding: 10px 14px; }
     .hd-row-info .hd-row-datum { font-size: 14px; }
   }
