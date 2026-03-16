@@ -750,8 +750,6 @@
           <select id="tmBereich">
             <option value="vorstand">Vorstand</option>
             <option value="jugendtraining">Jugendtraining</option>
-            <option value="routenbau">Routenbau</option>
-            <option value="sonstige">Sonstige</option>
           </select>
         </div>
       </div>
@@ -1965,8 +1963,8 @@ function tmRenderList() {
 
   // Gruppieren nach Bereich
   var groups = {};
-  var groupOrder = ['vorstand', 'jugendtraining', 'routenbau', 'sonstige'];
-  var groupLabels = { vorstand: 'Vorstand', jugendtraining: 'Jugendtraining', routenbau: 'Routenbau', sonstige: 'Sonstige' };
+  var groupOrder = ['vorstand', 'jugendtraining'];
+  var groupLabels = { vorstand: 'Vorstand', jugendtraining: 'Jugendtraining' };
 
   tmData.forEach(function(m, i) {
     var b = m.bereich || 'sonstige';
