@@ -2189,7 +2189,7 @@ function tmSubmit() {
   if (!bereich) { result.textContent = 'Bitte Bereich eingeben.'; result.style.color = '#e74c3c'; return; }
 
   var token = tmGetToken();
-  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
+  if (!token) { alert('Kein Token gefunden! localStorage=' + (localStorage.getItem('zz_gh_token') ? 'ja(' + localStorage.getItem('zz_gh_token').length + ')' : 'leer')); document.getElementById('tmGhTokenRow').style.display = ''; return; }
 
   var btn = document.getElementById('tmSubmitBtn');
   btn.disabled = true;
@@ -2256,14 +2256,15 @@ function tmSubmit() {
     tmRenderList();
   }).catch(function(err) {
     btn.disabled = false;
+    var errMsg = err.message || String(err);
     // Token ungültig? Feld wieder zeigen
-    if (err.message && err.message.indexOf('Bad credentials') >= 0) {
+    if (errMsg.indexOf('Bad credentials') >= 0) {
       localStorage.removeItem('zz_gh_token');
       document.getElementById('tmGhToken').value = '';
       document.getElementById('tmGhTokenRow').style.display = '';
     }
-    result.textContent = 'Fehler: ' + (err.message || err);
-    result.style.color = '#e74c3c';
+    result.textContent = 'Fehler: ' + errMsg;
+    result.className = 'event-result error';
     // Revert bei Neuanlage
     if (tmEditIdx < 0) tmData.pop();
   });
