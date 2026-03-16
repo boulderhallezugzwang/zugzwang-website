@@ -1007,9 +1007,7 @@ function renderNews(news) {
   news = news.slice(0, 5);
 
   el.innerHTML = news.map((n, i) => {
-    const img = n.imageUrl
-      ? `<img src="${n.imageUrl}" alt="" referrerpolicy="no-referrer">`
-      : `<span style="font-size:32px">${['📢','🔧','📅','🏆','🎉'][i%5]}</span>`;
+    const img = `<img src="${n.imageUrl || 'img/news-default.jpg'}" alt="" referrerpolicy="no-referrer">`;
     const hasContent = n.content && n.content.length > 0;
     return `
       <div class="news-card">
