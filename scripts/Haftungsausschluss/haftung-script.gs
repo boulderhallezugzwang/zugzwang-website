@@ -466,11 +466,18 @@ function generatePdfJugend(data, kGeb, datum) {
   c3.setAttributes({ FONT_SIZE: 11, BOLD: true });
 
   body.appendParagraph('');
-  body.appendParagraph('');
 
   // Unterschrift
-  var sig = body.appendParagraph('_________________________________');
-  sig.setAttributes({ FONT_SIZE: 11 });
+  var sigTitle = body.appendParagraph('Unterschrift Erziehungsberechtigte/r');
+  sigTitle.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  sigTitle.setAttributes({ FONT_SIZE: 13, BOLD: true });
+
+  if (data.unterschrift) {
+    appendSignatureImage(body, data.unterschrift);
+  } else {
+    var sig = body.appendParagraph('_________________________________');
+    sig.setAttributes({ FONT_SIZE: 11 });
+  }
   var sigLabel = body.appendParagraph(data.eVorname + ' ' + data.eNachname + ' (Erziehungsberechtigte/r), ' + datum);
   sigLabel.setAttributes({ FONT_SIZE: 10, FOREGROUND_COLOR: '#666666' });
 
