@@ -117,5 +117,12 @@
     "bereich": "Routenbau",
     "reihenfolge": 3,
     "bild": "img/vorstand/simon-ziegler.jpg"
+  },
+  {
+    "name": "Mona Christof",
+    "rolle": "Routenbau",
+    "bereich": "Routenbau",
+    "reihenfolge": 1,
+    "bild": ""
   }
 ]
