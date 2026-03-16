@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Detlef Müller",
+    "rolle": "1. Vorstand",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/mueller.jpg",
+    "reihenfolge": 1
+  },
+  {
+    "name": "Holger Baumann",
+    "rolle": "2. Vorstand",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/baumann.jpg",
+    "reihenfolge": 2
+  },
+  {
+    "name": "Fabian Christof",
+    "rolle": "Kassier",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/christof.jpg",
+    "reihenfolge": 3
+  },
+  {
+    "name": "Anne Sperber",
+    "rolle": "Schriftführerin",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/sperber.jpg",
+    "reihenfolge": 4
+  },
+  {
+    "name": "Simon Ziegler",
+    "rolle": "Routenbauer",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/ziegler.jpg",
+    "reihenfolge": 5
+  },
+  {
+    "name": "Lilly Müller",
+    "rolle": "Jugendwartin",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/mueller-lilly.jpg",
+    "reihenfolge": 6
+  },
+  {
+    "name": "Alois Eckert",
+    "rolle": "Beisitzer",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/eckert-alois.jpg",
+    "reihenfolge": 7
+  },
+  {
+    "name": "Holger Eckert",
+    "rolle": "Beisitzer",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/eckert-holger.jpg",
+    "reihenfolge": 8
+  },
+  {
+    "name": "Michael Ziebell",
+    "rolle": "Beisitzer",
+    "bereich": "vorstand",
+    "bild": "img/vorstand/ziebell.jpg",
+    "reihenfolge": 9
+  },
+  {
+    "name": "Amy Ganter",
+    "rolle": "Jugendtrainerin",
+    "bereich": "jugendtraining",
+    "bild": "img/vorstand/ganter.jpg",
+    "reihenfolge": 1
+  }
+]

@@ -540,6 +540,7 @@
         <button class="app-tab" data-section="termine">Termine</button>
         <button class="app-tab" data-section="news">News</button>
         <button class="app-tab" data-section="newsletter">Newsletter</button>
+        <button class="app-tab" data-section="team">Team</button>
       </div>
       <div class="app-user-info">
         <span class="app-user-name" id="appUserName"></span>
@@ -726,6 +727,64 @@
         <button class="submit-btn" id="nlSendBtn" onclick="nlSend()">Newsletter senden</button>
       </div>
       <div class="event-result" id="nlResult"></div>
+    </div>
+  </div>
+
+  <!-- Sektion: Team -->
+  <div class="section" id="sectionTeam">
+    <div class="event-form" id="tmFormBox" style="display:none">
+      <h3 id="tmFormTitle">Teammitglied hinzufügen</h3>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Name</label>
+          <input type="text" id="tmName" placeholder="z.B. Amy Ganter">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Rolle</label>
+          <input type="text" id="tmRolle" placeholder="z.B. Jugendtrainerin">
+        </div>
+        <div class="form-group">
+          <label>Bereich</label>
+          <select id="tmBereich">
+            <option value="vorstand">Vorstand</option>
+            <option value="jugendtraining">Jugendtraining</option>
+            <option value="routenbau">Routenbau</option>
+            <option value="sonstige">Sonstige</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Reihenfolge</label>
+          <input type="number" id="tmReihenfolge" value="1" min="1" style="max-width:100px;">
+        </div>
+        <div class="form-group">
+          <label>Foto</label>
+          <input type="file" id="tmBild" accept="image/*" style="font-size:13px;">
+          <div id="tmBildPreview" style="margin-top:6px;"></div>
+        </div>
+      </div>
+      <div class="form-row" id="tmGhTokenRow">
+        <div class="form-group full">
+          <label>GitHub Token <span style="color:var(--text-dim);font-weight:normal;">(wird lokal gespeichert, einmal eingeben)</span></label>
+          <input type="password" id="tmGhToken" placeholder="ghp_xxxxxxxxxxxx">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="submit-btn" id="tmSubmitBtn" onclick="tmSubmit()">Hinzufügen</button>
+        <button class="submit-btn" id="tmCancelBtn" style="display:none; background:#999;" onclick="tmCancelEdit()">Abbrechen</button>
+      </div>
+      <div class="event-result" id="tmResult"></div>
+    </div>
+    <div class="event-list">
+      <h3>Team</h3>
+      <div class="loading" id="tmLoading" style="display:none">
+        <div class="spinner"></div>
+        Team wird geladen...
+      </div>
+      <div id="tmListContent"></div>
     </div>
   </div>
 
@@ -948,6 +1007,7 @@ document.getElementById('newPw2').addEventListener('keydown', e => { if (e.key =
 // ── Tab-Navigation ──
 var hdLoaded = false;
 var evLoaded = false;
+var tmLoaded = false;
 
 // Mail-Modus Radio-Buttons: Textfeld ein-/ausblenden + Button-Text anpassen
 document.querySelectorAll('input[name="evMailMode"]').forEach(function(radio) {
@@ -991,6 +1051,10 @@ document.querySelectorAll('.app-tab').forEach(tab => {
     if (section === 'news' && !nwLoaded) {
       nwLoaded = true;
       nwLoadNews();
+    }
+    if (section === 'team' && !tmLoaded) {
+      tmLoaded = true;
+      tmLoadTeam();
     }
   });
 });
@@ -1776,6 +1840,339 @@ function hdRender() {
       + '</div>';
   });
   container.innerHTML = html;
+}
+
+// ── Team-Verwaltung ──
+var TM_REPO = 'boulderhallezugzwang/zugzwang-website';
+var TM_JSON_PATH = 'data/team.json';
+var TM_IMG_DIR = 'img/vorstand/';
+var TM_BRANCH = 'main';
+var tmData = [];
+var tmEditIdx = -1;
+var tmJsonSha = null;
+
+// GitHub Token aus localStorage
+function tmGetToken() {
+  var inp = document.getElementById('tmGhToken');
+  var t = inp.value.trim();
+  if (t) { localStorage.setItem('zz_gh_token', t); return t; }
+  return localStorage.getItem('zz_gh_token') || '';
+}
+
+// Token-Feld vorbelegen
+(function() {
+  var saved = localStorage.getItem('zz_gh_token');
+  if (saved) {
+    document.getElementById('tmGhToken').value = saved;
+    document.getElementById('tmGhTokenRow').style.display = 'none';
+  }
+})();
+
+// GitHub API: Datei lesen
+function tmGhGet(path) {
+  return fetch('https://api.github.com/repos/' + TM_REPO + '/contents/' + path + '?ref=' + TM_BRANCH, {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  }).then(function(r) { return r.json(); });
+}
+
+// GitHub API: Datei schreiben/aktualisieren
+function tmGhPut(path, content, sha, message) {
+  var token = tmGetToken();
+  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return Promise.reject('no token'); }
+  var body = {
+    message: message,
+    content: btoa(unescape(encodeURIComponent(content))),
+    branch: TM_BRANCH
+  };
+  if (sha) body.sha = sha;
+  return fetch('https://api.github.com/repos/' + TM_REPO + '/contents/' + path, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'token ' + token,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(e.message || 'GitHub Fehler'); });
+    return r.json();
+  });
+}
+
+// GitHub API: Binärdatei hochladen
+function tmGhPutBinary(path, base64data, sha, message) {
+  var token = tmGetToken();
+  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return Promise.reject('no token'); }
+  var body = {
+    message: message,
+    content: base64data,
+    branch: TM_BRANCH
+  };
+  if (sha) body.sha = sha;
+  return fetch('https://api.github.com/repos/' + TM_REPO + '/contents/' + path, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'token ' + token,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(e.message || 'GitHub Fehler'); });
+    return r.json();
+  });
+}
+
+// Team laden (von GitHub Pages für Geschwindigkeit, SHA von API)
+function tmIsAdmin() {
+  return currentUser && currentUser.rolle === 'admin';
+}
+
+function tmLoadTeam() {
+  if (tmIsAdmin()) document.getElementById('tmFormBox').style.display = '';
+  document.getElementById('tmLoading').style.display = '';
+  document.getElementById('tmListContent').innerHTML = '';
+
+  // JSON von GitHub Pages laden (kein Token nötig, schnell)
+  var pagesUrl = 'https://boulderhallezugzwang.github.io/zugzwang-website/data/team.json?t=' + Date.now();
+
+  Promise.all([
+    fetch(pagesUrl).then(function(r) { return r.json(); }),
+    tmGhGet(TM_JSON_PATH)
+  ]).then(function(results) {
+    tmData = results[0];
+    tmJsonSha = results[1].sha;
+    document.getElementById('tmLoading').style.display = 'none';
+    tmRenderList();
+  }).catch(function(err) {
+    document.getElementById('tmLoading').style.display = 'none';
+    // Fallback: nur API
+    tmGhGet(TM_JSON_PATH).then(function(file) {
+      tmJsonSha = file.sha;
+      tmData = JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
+      tmRenderList();
+    }).catch(function(err2) {
+      document.getElementById('tmListContent').innerHTML = '<p style="color:#e74c3c;">Fehler beim Laden: ' + escHtml(err2.message) + '</p>';
+    });
+  });
+}
+
+// Team-Liste rendern
+function tmRenderList() {
+  var container = document.getElementById('tmListContent');
+  if (!tmData.length) { container.innerHTML = '<p>Noch keine Teammitglieder angelegt.</p>'; return; }
+
+  // Gruppieren nach Bereich
+  var groups = {};
+  var groupOrder = ['vorstand', 'jugendtraining', 'routenbau', 'sonstige'];
+  var groupLabels = { vorstand: 'Vorstand', jugendtraining: 'Jugendtraining', routenbau: 'Routenbau', sonstige: 'Sonstige' };
+
+  tmData.forEach(function(m, i) {
+    var b = m.bereich || 'sonstige';
+    if (!groups[b]) groups[b] = [];
+    groups[b].push({ member: m, idx: i });
+  });
+
+  var html = '';
+  groupOrder.forEach(function(g) {
+    if (!groups[g] || !groups[g].length) return;
+    html += '<h4 style="margin:18px 0 8px;color:var(--primary);">' + escHtml(groupLabels[g] || g) + '</h4>';
+    groups[g].sort(function(a, b) { return (a.member.reihenfolge || 99) - (b.member.reihenfolge || 99); });
+    groups[g].forEach(function(item) {
+      var m = item.member;
+      var imgSrc = m.bild ? 'https://boulderhallezugzwang.github.io/zugzwang-website/' + m.bild + '?t=' + Date.now() : '';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--card-bg);border-radius:8px;margin-bottom:6px;">';
+      if (imgSrc) {
+        html += '<img src="' + imgSrc + '" style="width:50px;height:50px;border-radius:50%;object-fit:cover;" onerror="this.style.display=\'none\'">';
+      } else {
+        html += '<div style="width:50px;height:50px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:20px;">?</div>';
+      }
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-weight:600;">' + escHtml(m.name) + '</div>';
+      html += '<div style="font-size:13px;color:var(--text-dim);">' + escHtml(m.rolle || '') + ' <span style="opacity:0.5;">#' + (m.reihenfolge || '–') + '</span></div>';
+      html += '</div>';
+      if (tmIsAdmin()) {
+        html += '<button class="hd-btn" onclick="tmStartEdit(' + item.idx + ')" title="Bearbeiten" style="font-size:16px;">&#9998;</button>';
+        html += '<button class="hd-btn danger" onclick="tmDelete(' + item.idx + ')" title="Löschen">&times;</button>';
+      }
+      html += '</div>';
+    });
+  });
+  container.innerHTML = html;
+}
+
+// Bild-Vorschau
+document.getElementById('tmBild').addEventListener('change', function() {
+  var file = this.files[0];
+  var preview = document.getElementById('tmBildPreview');
+  if (!file) { preview.innerHTML = ''; return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    preview.innerHTML = '<img src="' + e.target.result + '" style="width:60px;height:60px;border-radius:50%;object-fit:cover;">';
+  };
+  reader.readAsDataURL(file);
+});
+
+// Bearbeiten starten
+function tmStartEdit(idx) {
+  tmEditIdx = idx;
+  var m = tmData[idx];
+  document.getElementById('tmName').value = m.name || '';
+  document.getElementById('tmRolle').value = m.rolle || '';
+  document.getElementById('tmBereich').value = m.bereich || 'sonstige';
+  document.getElementById('tmReihenfolge').value = m.reihenfolge || 1;
+  document.getElementById('tmBild').value = '';
+  var preview = document.getElementById('tmBildPreview');
+  if (m.bild) {
+    preview.innerHTML = '<img src="https://boulderhallezugzwang.github.io/zugzwang-website/' + m.bild + '?t=' + Date.now() + '" style="width:60px;height:60px;border-radius:50%;object-fit:cover;" onerror="this.parentNode.innerHTML=\'\'">';
+  } else {
+    preview.innerHTML = '';
+  }
+  document.getElementById('tmFormTitle').textContent = 'Teammitglied bearbeiten';
+  document.getElementById('tmSubmitBtn').textContent = 'Speichern';
+  document.getElementById('tmCancelBtn').style.display = '';
+  document.getElementById('tmName').focus();
+  document.getElementById('sectionTeam').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Bearbeiten abbrechen
+function tmCancelEdit() {
+  tmEditIdx = -1;
+  document.getElementById('tmName').value = '';
+  document.getElementById('tmRolle').value = '';
+  document.getElementById('tmBereich').value = 'vorstand';
+  document.getElementById('tmReihenfolge').value = 1;
+  document.getElementById('tmBild').value = '';
+  document.getElementById('tmBildPreview').innerHTML = '';
+  document.getElementById('tmFormTitle').textContent = 'Teammitglied hinzufügen';
+  document.getElementById('tmSubmitBtn').textContent = 'Hinzufügen';
+  document.getElementById('tmCancelBtn').style.display = 'none';
+  document.getElementById('tmResult').textContent = '';
+}
+
+// Dateinamen generieren aus Name
+function tmSlugify(name) {
+  return name.toLowerCase()
+    .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+// Speichern (Hinzufügen oder Bearbeiten)
+function tmSubmit() {
+  var name = document.getElementById('tmName').value.trim();
+  var rolle = document.getElementById('tmRolle').value.trim();
+  var bereich = document.getElementById('tmBereich').value;
+  var reihenfolge = parseInt(document.getElementById('tmReihenfolge').value) || 1;
+  var fileInput = document.getElementById('tmBild');
+  var result = document.getElementById('tmResult');
+
+  if (!name) { result.textContent = 'Bitte Name eingeben.'; result.style.color = '#e74c3c'; return; }
+  if (!rolle) { result.textContent = 'Bitte Rolle eingeben.'; result.style.color = '#e74c3c'; return; }
+
+  var token = tmGetToken();
+  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
+
+  var btn = document.getElementById('tmSubmitBtn');
+  btn.disabled = true;
+  result.textContent = 'Wird gespeichert...';
+  result.style.color = 'var(--text-dim)';
+
+  var member;
+  if (tmEditIdx >= 0) {
+    member = tmData[tmEditIdx];
+    member.name = name;
+    member.rolle = rolle;
+    member.bereich = bereich;
+    member.reihenfolge = reihenfolge;
+  } else {
+    member = { name: name, rolle: rolle, bereich: bereich, reihenfolge: reihenfolge, bild: '' };
+    tmData.push(member);
+  }
+
+  var file = fileInput.files[0];
+  var uploadPromise;
+
+  if (file) {
+    uploadPromise = new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var base64full = e.target.result;
+        var base64data = base64full.split(',')[1];
+        var ext = file.name.split('.').pop().toLowerCase();
+        if (['jpg','jpeg','png','webp'].indexOf(ext) < 0) ext = 'jpg';
+        var imgFilename = tmSlugify(name) + '.' + ext;
+        var imgPath = TM_IMG_DIR + imgFilename;
+
+        // Prüfen ob Datei schon existiert (für SHA)
+        tmGhGet(imgPath).then(function(existing) {
+          return tmGhPutBinary(imgPath, base64data, existing.sha, 'Bild aktualisiert: ' + name);
+        }).catch(function() {
+          return tmGhPutBinary(imgPath, base64data, null, 'Bild hinzugefügt: ' + name);
+        }).then(function() {
+          member.bild = imgPath;
+          resolve();
+        }).catch(reject);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  } else {
+    uploadPromise = Promise.resolve();
+  }
+
+  uploadPromise.then(function() {
+    var jsonContent = JSON.stringify(tmData, null, 2) + '\n';
+    var msg = tmEditIdx >= 0 ? 'Team aktualisiert: ' + name : 'Teammitglied hinzugefügt: ' + name;
+    return tmGhPut(TM_JSON_PATH, jsonContent, tmJsonSha, msg);
+  }).then(function(res) {
+    tmJsonSha = res.content.sha;
+    btn.disabled = false;
+    result.textContent = 'Gespeichert! (Änderung sichtbar nach GitHub Pages Deploy, ca. 1-2 Min.)';
+    result.style.color = 'var(--accent)';
+    tmCancelEdit();
+    tmRenderList();
+  }).catch(function(err) {
+    btn.disabled = false;
+    // Token ungültig? Feld wieder zeigen
+    if (err.message && err.message.indexOf('Bad credentials') >= 0) {
+      localStorage.removeItem('zz_gh_token');
+      document.getElementById('tmGhToken').value = '';
+      document.getElementById('tmGhTokenRow').style.display = '';
+    }
+    result.textContent = 'Fehler: ' + (err.message || err);
+    result.style.color = '#e74c3c';
+    // Revert bei Neuanlage
+    if (tmEditIdx < 0) tmData.pop();
+  });
+}
+
+// Löschen
+function tmDelete(idx) {
+  var m = tmData[idx];
+  if (!confirm('Soll "' + m.name + '" wirklich aus dem Team entfernt werden?')) return;
+
+  var token = tmGetToken();
+  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
+
+  var result = document.getElementById('tmResult');
+  result.textContent = 'Wird gelöscht...';
+  result.style.color = 'var(--text-dim)';
+
+  tmData.splice(idx, 1);
+  var jsonContent = JSON.stringify(tmData, null, 2) + '\n';
+
+  tmGhPut(TM_JSON_PATH, jsonContent, tmJsonSha, 'Teammitglied entfernt: ' + m.name)
+    .then(function(res) {
+      tmJsonSha = res.content.sha;
+      result.textContent = m.name + ' entfernt.';
+      result.style.color = 'var(--accent)';
+      tmRenderList();
+    }).catch(function(err) {
+      // Revert
+      tmData.splice(idx, 0, m);
+      result.textContent = 'Fehler: ' + (err.message || err);
+      result.style.color = '#e74c3c';
+    });
 }
 
 // Datepicker Defaults setzen
