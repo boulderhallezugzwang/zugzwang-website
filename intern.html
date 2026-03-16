@@ -1850,6 +1850,7 @@ var TM_BRANCH = 'main';
 var tmData = [];
 var tmEditIdx = -1;
 var tmJsonSha = null;
+var tmImageCache = {}; // bild-path → base64 data-URL für sofortige Anzeige
 
 // GitHub Token aus localStorage
 function tmGetToken() {
@@ -1980,7 +1981,7 @@ function tmRenderList() {
     groups[g].sort(function(a, b) { return (a.member.reihenfolge || 99) - (b.member.reihenfolge || 99); });
     groups[g].forEach(function(item) {
       var m = item.member;
-      var imgSrc = m.bild ? 'https://boulderhallezugzwang.github.io/zugzwang-website/' + m.bild + '?t=' + Date.now() : '';
+      var imgSrc = tmImageCache[m.bild] || (m.bild ? 'https://boulderhallezugzwang.github.io/zugzwang-website/' + m.bild + '?t=' + Date.now() : '');
       html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--card-bg);border-radius:8px;margin-bottom:6px;">';
       if (imgSrc) {
         html += '<img src="' + imgSrc + '" style="width:50px;height:50px;border-radius:50%;object-fit:cover;" onerror="this.style.display=\'none\'">';
@@ -2110,6 +2111,7 @@ function tmSubmit() {
           return tmGhPutBinary(imgPath, base64data, null, 'Bild hinzugefügt: ' + name);
         }).then(function() {
           member.bild = imgPath;
+          tmImageCache[imgPath] = base64full;
           resolve();
         }).catch(reject);
       };
