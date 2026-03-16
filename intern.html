@@ -973,6 +973,14 @@ function setNewPassword() {
 function enterApp(data) {
   currentUser = data.user;
   allMembers = (data.members || []).reverse();
+  // Session in localStorage speichern (1h gültig)
+  if (sessionCredentials) {
+    localStorage.setItem('zz_session', JSON.stringify({
+      username: sessionCredentials.username,
+      password: sessionCredentials.password,
+      expires: Date.now() + 3600000
+    }));
+  }
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('appUserName').textContent = currentUser ? currentUser.displayName : '';
@@ -985,6 +993,7 @@ function doLogout() {
   currentUser = null;
   sessionCredentials = null;
   allMembers = [];
+  localStorage.removeItem('zz_session');
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   showStep('stepLogin');
@@ -993,6 +1002,40 @@ function doLogout() {
   document.getElementById('loginErr').style.display = 'none';
   document.getElementById('usernameInput').focus();
 }
+
+// Auto-Login: gespeicherte Session prüfen
+(function() {
+  var s = localStorage.getItem('zz_session');
+  if (!s) return;
+  try { s = JSON.parse(s); } catch(e) { return; }
+  if (!s.username || !s.password || Date.now() > s.expires) {
+    localStorage.removeItem('zz_session');
+    return;
+  }
+  sessionCredentials = { username: s.username, password: s.password };
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('appUserName').textContent = 'Anmelden...';
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'login', username: s.username, password: s.password }),
+    redirect: 'follow'
+  })
+    .then(function(r) { return r.text(); })
+    .then(function(text) {
+      var data;
+      try { data = JSON.parse(text); } catch(e) { throw new Error('Parse-Fehler'); }
+      if (data.error) throw new Error(data.error);
+      enterApp(data);
+    })
+    .catch(function() {
+      localStorage.removeItem('zz_session');
+      sessionCredentials = null;
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('loginScreen').style.display = 'flex';
+    });
+})();
 
 // ── Enter-Keys ──
 document.getElementById('usernameInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPw').focus(); });
