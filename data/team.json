@@ -103,5 +103,12 @@
     "bereich": "Jugendtraining",
     "reihenfolge": 5,
     "bild": ""
+  },
+  {
+    "name": "Max Heckel",
+    "rolle": "Leitung Routenbau",
+    "bereich": "Routenbau",
+    "reihenfolge": 1,
+    "bild": ""
   }
 ]
