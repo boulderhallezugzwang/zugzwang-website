@@ -2151,8 +2151,6 @@ function tmSubmit() {
 // Löschen
 function tmDelete(idx) {
   var m = tmData[idx];
-  if (!confirm('Soll "' + m.name + '" wirklich aus dem Team entfernt werden?')) return;
-
   var token = tmGetToken();
   if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
 
