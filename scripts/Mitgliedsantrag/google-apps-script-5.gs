@@ -6,20 +6,8 @@
 // Semikolon-getrennt, deutsches Datumsformat
 // ═══════════════════════════════════════════════════════════════
 
-const VEREIN_EMAIL_FALLBACK = 'boulderhallezugzwang@gmail.com';
-
-// Config aus Sheet lesen
-function getConfigValue(key) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
-  if (!sheet) return '';
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return '';
-  var data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
-  for (var i = 0; i < data.length; i++) {
-    if (data[i][0].toString() === key) return data[i][1].toString();
-  }
-  return '';
-}
+// VEREIN_EMAIL_FALLBACK und getConfigValue() sind in mitgliederliste-script.gs definiert
+// (gebundene Scripts teilen den gleichen Namespace)
 
 // ClubDesk-Spalten (exakt wie beim Import erwartet)
 const HEADERS = [
