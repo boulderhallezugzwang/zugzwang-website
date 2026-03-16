@@ -310,15 +310,34 @@
 <!-- TRAINERIN -->
 <section class="section-divider">
   <span class="section-label">Team</span>
-  <h2 class="section-title">Trainerin</h2>
-  <div class="trainer-card">
-    <div class="trainer-avatar"><img src="img/vorstand/ganter.jpg" alt="Amy Ganter" onerror="this.parentElement.textContent='AG'"></div>
-    <div>
-      <div class="trainer-name">Amy Ganter</div>
-      <div class="trainer-role">Jugendtrainerin</div>
-    </div>
-  </div>
+  <h2 class="section-title">Jugendtraining</h2>
+  <div id="trainerContent"></div>
 </section>
+<script>
+(function() {
+  fetch('data/team.json?t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(team) {
+      var trainers = team.filter(function(m) { return m.bereich === 'Jugendtraining'; });
+      trainers.sort(function(a, b) { return (a.reihenfolge || 99) - (b.reihenfolge || 99); });
+      var html = '';
+      trainers.forEach(function(m) {
+        var initials = m.name.split(' ').map(function(w) { return w[0]; }).join('');
+        html += '<div class="trainer-card">';
+        html += '<div class="trainer-avatar">';
+        if (m.bild) {
+          html += '<img src="' + m.bild + '" alt="' + m.name + '" onerror="this.parentElement.textContent=\'' + initials + '\'">';
+        } else {
+          html += initials;
+        }
+        html += '</div>';
+        html += '<div><div class="trainer-name">' + m.name + '</div><div class="trainer-role">' + (m.rolle || '') + '</div></div>';
+        html += '</div>';
+      });
+      document.getElementById('trainerContent').innerHTML = html || '<p>Keine Trainer eingetragen.</p>';
+    });
+})();
+</script>
 
 <!-- ANMELDEFORMULAR -->
 <section class="section-divider">
