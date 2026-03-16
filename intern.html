@@ -479,16 +479,23 @@
     .member-meta { flex-direction: column; gap: 2px; }
     .login-box { padding: 36px 28px; }
     /* Hallendienst responsive */
+    .hd-tools { padding: 0 12px; gap: 6px; }
+    .hd-tool-group { min-width: 0; padding: 10px 12px; }
     .hd-list { padding: 0 12px 40px; }
     .hd-row {
-      flex-wrap: wrap; gap: 4px 10px; padding: 10px 12px;
+      flex-wrap: wrap; padding: 10px 12px; gap: 2px 8px;
     }
-    .hd-row .hd-date { min-width: auto; }
+    .hd-row .hd-date { min-width: auto; font-size: 13px; }
     .hd-row .hd-day { min-width: auto; }
     .hd-row .hd-time { min-width: auto; }
-    .hd-row .hd-person { width: 100%; white-space: normal; }
-    .hd-tools { flex-direction: column; }
-    .hd-tool-group { flex-direction: column; align-items: stretch; }
+    .hd-row .hd-person {
+      width: 100%; order: 10;
+      white-space: normal; overflow: visible;
+      font-size: 13px; padding-top: 4px;
+      border-top: 1px solid var(--dark-border); margin-top: 4px;
+    }
+    .hd-row .hd-status { margin-left: auto; }
+    .hd-row > .hd-btn.danger:last-child { margin-left: 4px; }
   }
 
   /* ===== FOOTER ===== */
@@ -1906,8 +1913,9 @@ function hdRender() {
 
     var person = '';
     if (t.vorname) {
-      person = '<span class="hd-person booked">' + escHtml(t.vorname + ' ' + t.nachname)
-        + ' <button class="hd-btn danger" onclick="hdClearPerson(\'' + escAttr(t.datum) + '\',this)" style="padding:2px 6px;font-size:10px;margin-left:4px" title="Person entfernen">&times;</button></span>';
+      person = '<span class="hd-person booked" style="display:flex;align-items:center;gap:6px;">'
+        + '<span>' + escHtml(t.vorname + ' ' + t.nachname) + '</span>'
+        + '<button class="hd-btn danger" onclick="hdClearPerson(\'' + escAttr(t.datum) + '\',this)" style="padding:2px 6px;font-size:10px;flex-shrink:0" title="Person entfernen">&times;</button></span>';
     } else {
       person = '<span class="hd-person free">Frei</span>';
     }
