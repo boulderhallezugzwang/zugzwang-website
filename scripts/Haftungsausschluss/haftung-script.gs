@@ -584,6 +584,7 @@ function sendBestaetigungAdult(data, datum, pdfFile) {
     '  Geburtsdatum:   ' + formatDate(data.geburtsdatum) + '\n' +
     '  Datum:          ' + datum + '\n\n' +
     'Im Anhang findest du eine PDF-Kopie des Haftungsausschlusses.\n\n' +
+    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +
@@ -612,6 +613,7 @@ function sendBestaetigungMinor(data, datum, pdfFile) {
     kinderListe + '\n\n' +
     '  Datum:  ' + datum + '\n\n' +
     'Im Anhang findest du eine PDF-Kopie des Haftungsausschlusses.\n\n' +
+    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +
@@ -638,6 +640,7 @@ function sendBestaetigungJugend(data, kGeb, datum, pdfFile) {
     'Die Einverständniserklärung gilt bis auf Widerruf bzw. bis zur Vollendung des 18. Lebensjahres.\n\n' +
     'Bitte beachte, dass zusätzlich ein Haftungsausschluss für dein Kind vorliegen muss.\n\n' +
     'Im Anhang findest du eine PDF-Kopie der Einverständniserklärung.\n\n' +
+    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +
