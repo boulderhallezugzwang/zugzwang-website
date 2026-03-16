@@ -794,8 +794,8 @@
       <div class="form-row" id="tmGhTokenRow">
         <div class="form-group full">
           <label>GitHub Token <span style="color:var(--text-dim);font-weight:normal;">(wird lokal gespeichert, einmal eingeben)</span></label>
-          <div style="display:flex;gap:8px;">
-            <input type="password" id="tmGhToken" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="text" id="tmGhToken" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
             <button class="submit-btn" onclick="tmSaveToken()" style="padding:8px 16px;white-space:nowrap;">Token speichern</button>
           </div>
         </div>
