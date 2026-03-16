@@ -266,7 +266,8 @@ function getMemberData(user) {
         status: (row[colIdx['Status']] || '').toString(),
         ort: (row[colIdx['Ort']] || '').toString(),
         chip: (row[colIdx['Chip']] || '').toString(),
-        chipnr: (row[colIdx['ChipNr.']] || '').toString()
+        chipnr: (row[colIdx['ChipNr.']] || '').toString(),
+        eintritt: (row[colIdx['Eintritt']] || '').toString()
       });
     }
   });

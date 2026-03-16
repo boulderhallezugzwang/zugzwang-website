@@ -1131,6 +1131,7 @@ function renderList(members, query) {
     if (m.telefon) html += '<span><a href="tel:'+escAttr(m.telefon)+'">'+escHtml(m.telefon)+'</a></span>';
     if (m.email) html += '<span><a href="mailto:'+escAttr(m.email)+'">'+escHtml(m.email)+'</a></span>';
     if (m.ort) html += '<span>'+escHtml(m.ort)+'</span>';
+    if (m.eintritt) html += '<span>Eintritt: '+escHtml(m.eintritt)+'</span>';
     html += '</div></div><div class="member-badges">';
     if (m.status) html += '<span class="member-status">'+escHtml(m.status)+'</span>';
     const chipClass = m.chip==='Ja'?'has-chip':'no-chip';
