@@ -432,8 +432,8 @@
       var html = '';
       order.forEach(function(g) {
         groups[g].sort(function(a, b) { return (a.reihenfolge || 99) - (b.reihenfolge || 99); });
-        html += '<h2 class="section-title">' + g + '</h2>';
-        html += '<div class="vorstand-grid">';
+        html += '<h2 class="section-title" style="margin-top:40px;">' + g + '</h2>';
+        html += '<div class="vorstand-grid" style="margin-bottom:20px;">';
         groups[g].forEach(function(m) {
           var initials = m.name.split(' ').map(function(w) { return w[0]; }).join('');
           html += '<div class="vorstand-card">';
