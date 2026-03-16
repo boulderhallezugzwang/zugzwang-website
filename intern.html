@@ -1601,7 +1601,7 @@ function nwLoadNews() {
   });
 }
 
-// Bild-Upload Preview
+// Bild-Upload: auf max 512px verkleinern + JPEG 80%
 document.getElementById('nwBild').addEventListener('change', function(e) {
   var file = e.target.files[0];
   var preview = document.getElementById('nwBildPreview');
@@ -1609,9 +1609,23 @@ document.getElementById('nwBild').addEventListener('change', function(e) {
 
   var reader = new FileReader();
   reader.onload = function(ev) {
-    var base64 = ev.target.result.split(',')[1];
-    nwBildData = { base64: base64, mimeType: file.type };
-    preview.innerHTML = '<img src="' + ev.target.result + '">';
+    var img = new Image();
+    img.onload = function() {
+      var maxSize = 512;
+      var w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      var base64 = dataUrl.split(',')[1];
+      nwBildData = { base64: base64, mimeType: 'image/jpeg' };
+      preview.innerHTML = '<img src="' + dataUrl + '">';
+    };
+    img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 });
