@@ -419,8 +419,13 @@
 </section>
 <script>
 (function() {
-  fetch('data/team.json?t=' + Date.now())
+  fetch('https://api.github.com/repos/boulderhallezugzwang/zugzwang-website/contents/data/team.json?ref=main', {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  })
     .then(function(r) { return r.json(); })
+    .then(function(file) {
+      return JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
+    })
     .then(function(team) {
       var groups = {};
       var order = [];
