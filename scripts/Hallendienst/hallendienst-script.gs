@@ -558,7 +558,7 @@ function sendBestaetigungsMail(data) {
     '  Datum:    ' + wochentag + ', ' + data.datum + '\n' +
     '  Uhrzeit:  ' + zeit.start + ' – ' + zeit.end + ' Uhr\n\n' +
     'Bitte sei pünktlich vor Ort. Bei Verhinderung melde dich bitte rechtzeitig unter ' +
-    'boulderhallezugzwang@gmail.com, damit wir einen Ersatz finden können.\n\n' +
+    (getConfigValue('kontakt_email') || 'boulderhallezugzwang@gmail.com') + ', damit wir einen Ersatz finden können.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +

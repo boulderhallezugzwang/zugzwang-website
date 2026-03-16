@@ -2285,6 +2285,15 @@ function cfgRender() {
     html += '<input type="email" id="cfg_' + prefix + '_email" value="' + escHtml(email) + '" placeholder="E-Mail-Adresse" style="flex:1;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">';
     html += '</div>';
   });
+
+  // Kontakt-Email (wird in Antwortmails an Ausfüller angezeigt)
+  var kontakt = cfgGetVal('kontakt_email') || '';
+  html += '<div style="margin-top:20px;padding-top:16px;border-top:2px solid var(--border);">';
+  html += '<h4 style="margin:0 0 8px;color:var(--primary);">Kontakt-E-Mail in Antwortmails</h4>';
+  html += '<p style="color:var(--text-dim);font-size:13px;margin-bottom:8px;">Diese Adresse wird in allen Bestätigungsmails an Ausfüller als Kontakt angezeigt.</p>';
+  html += '<input type="email" id="cfg_kontakt_email" value="' + escHtml(kontakt) + '" placeholder="z.B. boulderhallezugzwang@gmail.com" style="width:100%;max-width:400px;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">';
+  html += '</div>';
+
   document.getElementById('cfgContent').innerHTML = html;
 }
 
@@ -2297,6 +2306,8 @@ function cfgSave() {
     items.push({ key: prefix + '_aktiv', value: aktiv });
     items.push({ key: prefix + '_email', value: email });
   });
+  // Kontakt-Email
+  items.push({ key: 'kontakt_email', value: document.getElementById('cfg_kontakt_email').value.trim() });
 
   var result = document.getElementById('cfgResult');
   result.textContent = 'Wird gespeichert...';

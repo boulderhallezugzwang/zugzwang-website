@@ -11,6 +11,18 @@
 const SPREADSHEET_ID = '1HGhz-q7zWtYYFvLr8hnUZ2Yzz8p_p_e5NPYmwokluN8';
 const SHEET_NAME = 'Jugendtraining';
 
+function getConfigValue(key) {
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('Config');
+  if (!sheet) return '';
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return '';
+  var data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0].toString() === key) return data[i][1].toString();
+  }
+  return '';
+}
+
 const HEADERS = [
   'Nachname', 'Vorname', 'Geburtsdatum', 'Adresse', 'PLZ', 'Ort',
   'E-Mail', 'Telefon Mobil', 'Bemerkungen',
@@ -130,7 +142,7 @@ function sendBestaetigungsMail(data, heute, mandatsref, geb) {
     '  Kontoinhaber:      ' + data.kontoinhaber + '\n' +
     '  IBAN:              ' + data.iban + '\n' +
     '  Mandatsreferenz:   ' + mandatsref + '\n\n' +
-    'Falls du Fragen hast, erreichst du uns unter boulderhallezugzwang@gmail.com.\n\n' +
+    'Falls du Fragen hast, erreichst du uns unter ' + (getConfigValue('kontakt_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +

@@ -39,7 +39,8 @@ function getConfigSheet() {
       ['notify_hallendienst_aktiv', 'nein', 'Benachrichtigung bei Hallendienst-Anmeldung'],
       ['notify_hallendienst_email', '', 'E-Mail für Hallendienst-Benachrichtigung'],
       ['notify_kuendigung_aktiv', 'nein', 'Benachrichtigung bei Kündigung'],
-      ['notify_kuendigung_email', '', 'E-Mail für Kündigungs-Benachrichtigung']
+      ['notify_kuendigung_email', '', 'E-Mail für Kündigungs-Benachrichtigung'],
+      ['kontakt_email', 'boulderhallezugzwang@gmail.com', 'Kontakt-E-Mail in Antwortmails an Ausfüller']
     ];
     sheet.getRange(2, 1, defaults.length, 3).setValues(defaults);
   }
@@ -1084,7 +1085,7 @@ function maSendConfirmation(data, eintrittDe, mandatsRef) {
     '  IBAN:           ' + data.iban + '\n' +
     '  Mandatsreferenz: ' + mandatsRef + '\n' +
     familyText + '\n' +
-    'Bei Fragen erreichst du uns unter boulderhallezugzwang@gmail.com.\n\n' +
+    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_email') || VEREIN_EMAIL_FALLBACK) + '.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'Neuhauser Straße 1\n' +
