@@ -131,12 +131,5 @@
     "bereich": "Routenbau",
     "reihenfolge": 2,
     "bild": ""
-  },
-  {
-    "name": "Test",
-    "rolle": "Test",
-    "bereich": "Routenbau",
-    "reihenfolge": 6,
-    "bild": ""
   }
 ]
