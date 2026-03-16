@@ -286,21 +286,22 @@
   }
   .hd-row:hover { border-color: rgba(255,255,255,0.12); }
   .hd-row.past { opacity: 0.4; }
+  .hd-info { display: flex; align-items: center; gap: 8px; }
   .hd-row .hd-date {
-    font-weight: 700; font-size: 14px; color: var(--cream); min-width: 100px;
+    font-weight: 700; font-size: 14px; color: var(--cream); white-space: nowrap;
   }
   .hd-row .hd-day {
-    font-size: 13px; color: var(--text-dim); min-width: 30px;
+    font-size: 13px; color: var(--text-dim);
   }
   .hd-row .hd-time {
-    font-size: 13px; color: var(--text-dim); min-width: 90px;
+    font-size: 13px; color: var(--text-dim); white-space: nowrap;
   }
   .hd-row .hd-person {
     flex: 1; font-size: 14px; min-width: 0;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .hd-row .hd-person.free { color: var(--success); font-weight: 600; }
   .hd-row .hd-person.booked { color: var(--cream); }
+  .hd-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .hd-row .hd-status {
     font-size: 11px; font-weight: 600; padding: 2px 8px;
     border-radius: 12px; white-space: nowrap;
@@ -483,19 +484,19 @@
     .hd-tool-group { min-width: 0; padding: 10px 12px; }
     .hd-list { padding: 0 12px 40px; }
     .hd-row {
-      flex-wrap: wrap; padding: 10px 12px; gap: 2px 8px;
+      flex-wrap: wrap; padding: 10px 12px; gap: 6px;
     }
-    .hd-row .hd-date { min-width: auto; font-size: 13px; }
-    .hd-row .hd-day { min-width: auto; }
-    .hd-row .hd-time { min-width: auto; }
+    .hd-info {
+      flex-wrap: wrap; gap: 2px 8px; width: 100%;
+    }
+    .hd-info .hd-time {
+      width: 100%; font-size: 12px;
+    }
     .hd-row .hd-person {
-      width: 100%; order: 10;
+      width: 100%; font-size: 13px;
       white-space: normal; overflow: visible;
-      font-size: 13px; padding-top: 4px;
-      border-top: 1px solid var(--dark-border); margin-top: 4px;
     }
-    .hd-row .hd-status { margin-left: auto; }
-    .hd-row > .hd-btn.danger:last-child { margin-left: 4px; }
+    .hd-actions { width: 100%; justify-content: flex-end; }
   }
 
   /* ===== FOOTER ===== */
@@ -1923,12 +1924,16 @@ function hdRender() {
     var statusClass = t.status.toLowerCase() === 'aktiv' ? 'aktiv' : 'inaktiv';
 
     html += '<div class="' + rowClass + '">'
+      + '<div class="hd-info">'
       + '<span class="hd-date">' + escHtml(t.datum) + '</span>'
       + '<span class="hd-day">' + escHtml(t.wochentag) + '</span>'
       + '<span class="hd-time">' + escHtml(t.uhrzeit) + '</span>'
+      + '</div>'
       + person
+      + '<div class="hd-actions">'
       + '<span class="hd-status ' + statusClass + '">' + escHtml(t.status) + '</span>'
       + '<button class="hd-btn danger" onclick="hdDelete(\'' + escAttr(t.datum) + '\',this)" title="L\u00f6schen">&times;</button>'
+      + '</div>'
       + '</div>';
   });
   container.innerHTML = html;
