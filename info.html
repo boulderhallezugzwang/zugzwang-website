@@ -43,7 +43,7 @@
   }
   .nav-top {
     max-width: 1200px; margin: 0 auto;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: center; justify-content: space-between;
     padding: 10px 24px 4px;
   }
   .nav-logo {
@@ -53,6 +53,13 @@
   }
   .nav-logo .zug { color: var(--cream); }
   .nav-logo .zwang { color: var(--yellow); }
+  .nav-login {
+    color: var(--cream-dim); text-decoration: none;
+    display: flex; align-items: center; gap: 4px;
+    font-size: 13px; font-weight: 500; transition: color 0.2s;
+  }
+  .nav-login:hover { color: var(--yellow); }
+  .nav-login svg { width: 20px; height: 20px; fill: currentColor; }
   .nav-links {
     display: flex; gap: 0px 2px; align-items: center; justify-content: center;
     flex-wrap: wrap; padding: 0 24px 6px;
@@ -328,6 +335,7 @@
 <nav>
   <div class="nav-top">
     <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+    <a href="intern.html" class="nav-login" title="Intern"><svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg></a>
   </div>
   <div class="nav-links">
     <a href="index.html">Boulderhalle</a>
@@ -335,7 +343,6 @@
     <a href="team.html">Team</a>
     <a href="jugendtraining.html">Jugendtraining</a>
     <a href="info.html" class="active">Info</a>
-    <a href="intern.html">Intern</a>
   </div>
 </nav>
 
