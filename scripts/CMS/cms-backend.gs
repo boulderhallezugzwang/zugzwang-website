@@ -296,7 +296,8 @@ function getNews() {
 
 function getCalendarEvents() {
   const now = new Date();
-  const future = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 Tage voraus
+  const future90 = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 Tage voraus
+  const future365 = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 365 Tage voraus
   const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
   const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const pad = (n) => n < 10 ? '0' + n : '' + n;
@@ -312,7 +313,9 @@ function getCalendarEvents() {
         continue;
       }
 
-      const events = cal.getEvents(now, future);
+      // Events-Kalender 365 Tage voraus, alle anderen 90 Tage
+      const futureDate = calKey === 'events' ? future365 : future90;
+      const events = cal.getEvents(now, futureDate);
       Logger.log('📅 ' + calKey + ': ' + events.length + ' Termine gefunden');
 
       for (const ev of events) {
