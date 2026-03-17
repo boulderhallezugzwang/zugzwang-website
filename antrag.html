@@ -44,8 +44,8 @@
   }
   .nav-top {
     max-width: 1200px; margin: 0 auto;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 24px 4px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 24px 4px; position: relative;
   }
   .nav-logo {
     font-family: 'Barlow Condensed', sans-serif;
@@ -58,6 +58,8 @@
     color: var(--cream-dim); text-decoration: none;
     display: flex; align-items: center; gap: 4px;
     font-size: 13px; font-weight: 500; transition: color 0.2s;
+    position: absolute; right: 24px; top: 50%;
+    transform: translateY(-50%);
   }
   .nav-login:hover { color: var(--yellow); }
   .nav-login svg { width: 18px; height: 18px; fill: currentColor; }
