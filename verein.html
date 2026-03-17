@@ -248,8 +248,8 @@
   .hd-scroll::-webkit-scrollbar-thumb { background: var(--dark-border); border-radius: 3px; }
   .hd-list { display: flex; flex-direction: column; }
   .hd-row {
-    display: flex; align-items: center; gap: 16px;
-    padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
     transition: all 0.2s;
   }
   .hd-row:last-child { border-bottom: none; }
@@ -257,27 +257,30 @@
   .hd-row.hd-open:hover { background: rgba(46,204,113,0.06); }
   .hd-row.hd-taken { opacity: 0.6; }
   .hd-row-date {
-    width: 52px; flex-shrink: 0; text-align: center;
+    width: 44px; flex-shrink: 0; text-align: center;
     background: rgba(212,160,32,0.06); border-right: 3px solid var(--yellow);
-    border-radius: 6px 0 0 6px; padding: 8px 0; margin: -12px 0; margin-left: -20px;
+    border-radius: 6px 0 0 6px; padding: 6px 0; margin: -8px 0; margin-left: -16px;
     align-self: stretch; display: flex; flex-direction: column; justify-content: center;
   }
   .hd-row-wt {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 11px; font-weight: 700; color: var(--yellow);
+    font-size: 10px; font-weight: 700; color: var(--yellow);
     text-transform: uppercase; letter-spacing: 1px;
   }
   .hd-row-day {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 20px; font-weight: 800; color: var(--cream); line-height: 1;
+    font-size: 18px; font-weight: 800; color: var(--cream); line-height: 1;
   }
-  .hd-row-month { font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
-  .hd-row-info { flex: 1; min-width: 0; }
+  .hd-row-month { font-size: 9px; color: var(--text-dim); text-transform: uppercase; }
+  .hd-row-info {
+    flex: 1; min-width: 0;
+    display: flex; align-items: baseline; gap: 8px;
+  }
   .hd-row-datum {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 16px; font-weight: 700; color: var(--cream);
+    font-size: 14px; font-weight: 700; color: var(--cream); white-space: nowrap;
   }
-  .hd-row-zeit { font-size: 13px; color: var(--text-dim); }
+  .hd-row-zeit { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
   .hd-row-status { flex-shrink: 0; }
   .hd-name {
     font-size: 13px; color: var(--yellow-light); font-weight: 600;
@@ -377,8 +380,12 @@
     .sub-nav a { font-size: 11px; padding: 4px 7px; }
     .beitrag-grid { grid-template-columns: 1fr; }
     .vorstand-grid { grid-template-columns: 1fr 1fr; }
-    .hd-row { gap: 10px; padding: 10px 14px; }
-    .hd-row-info .hd-row-datum { font-size: 14px; }
+    .hd-row { gap: 8px; padding: 7px 12px; }
+    .hd-row-date { width: 40px; margin-left: -12px; margin-top: -7px; margin-bottom: -7px; }
+    .hd-row-datum { font-size: 13px; }
+    .hd-row-zeit { font-size: 11px; }
+    .hd-name { font-size: 11px; padding: 2px 8px; }
+    .hd-badge-open { font-size: 11px; padding: 2px 8px; }
   }
 </style>
 </head>
@@ -612,7 +619,7 @@ function renderHallendienst() {
           <div class="hd-row-month">${mon}</div>
         </div>
         <div class="hd-row-info">
-          <div class="hd-row-datum">${t.wochentagLang}, ${t.datum}</div>
+          <div class="hd-row-datum">${t.datum}</div>
           <div class="hd-row-zeit">${t.uhrzeit}</div>
         </div>
         <div class="hd-row-status">${status}</div>
