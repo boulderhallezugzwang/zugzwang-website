@@ -189,8 +189,7 @@
       var html = '';
       order.forEach(function(g) {
         groups[g].sort(function(a, b) { return (a.reihenfolge || 99) - (b.reihenfolge || 99); });
-        // Bei Jugendtraining nur den ersten Eintrag zeigen
-        var members = g === 'Jugendtraining' ? [groups[g][0]] : groups[g];
+        var members = groups[g];
         html += '<h2 class="section-title" style="margin-top:40px;">' + g + '</h2>';
         html += '<div class="vorstand-grid" style="margin-bottom:20px;">';
         members.forEach(function(m) {

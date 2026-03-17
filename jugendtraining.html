@@ -318,43 +318,6 @@
   </div>
 </section>
 
-<!-- TRAINERIN -->
-<section class="section-divider">
-  <span class="section-label">Team</span>
-  <h2 class="section-title">Jugendtraining</h2>
-  <div id="trainerContent"></div>
-</section>
-<script>
-(function() {
-  fetch('https://api.github.com/repos/boulderhallezugzwang/zugzwang-website/contents/data/team.json?ref=main', {
-    headers: { 'Accept': 'application/vnd.github.v3+json' }
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(file) {
-      return JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
-    })
-    .then(function(team) {
-      var trainers = team.filter(function(m) { return m.bereich === 'Jugendtraining'; });
-      trainers.sort(function(a, b) { return (a.reihenfolge || 99) - (b.reihenfolge || 99); });
-      var html = '';
-      trainers.forEach(function(m) {
-        var initials = m.name.split(' ').map(function(w) { return w[0]; }).join('');
-        html += '<div class="trainer-card">';
-        html += '<div class="trainer-avatar">';
-        if (m.bild) {
-          html += '<img src="' + m.bild + '" alt="' + m.name + '" onerror="this.parentElement.textContent=\'' + initials + '\'">';
-        } else {
-          html += initials;
-        }
-        html += '</div>';
-        html += '<div><div class="trainer-name">' + m.name + '</div><div class="trainer-role">' + (m.rolle || '') + '</div></div>';
-        html += '</div>';
-      });
-      document.getElementById('trainerContent').innerHTML = html || '<p>Keine Trainer eingetragen.</p>';
-    });
-})();
-</script>
-
 <!-- ANMELDEFORMULAR -->
 <section class="section-divider">
   <span class="section-label">Anmeldung</span>
