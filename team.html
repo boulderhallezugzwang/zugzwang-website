@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Impressum — Boulderverein Zugzwang e.V.</title>
+<title>Team — Boulderverein Zugzwang e.V.</title>
+<meta name="description" content="Das Team des Boulderverein Zugzwang e.V. — Vorstand, Jugendtraining und Routenbau.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -22,6 +23,7 @@
     --text-dim: #8a8680;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     background: var(--black); color: var(--text);
     font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.6;
@@ -60,9 +62,9 @@
   .nav-links a:hover { color: var(--cream); background: rgba(255,255,255,0.06); }
   .nav-links a.active { color: var(--yellow); background: rgba(212,160,32,0.1); }
 
-  /* ===== PAGE ===== */
+  /* ===== PAGE HEADER ===== */
   .page-header {
-    margin-top: 82px; padding: 48px 24px 0;
+    margin-top: 64px; padding: 48px 24px 0;
     max-width: 1200px; margin-left: auto; margin-right: auto;
   }
   .section-label {
@@ -78,29 +80,32 @@
     letter-spacing: 0.5px; margin-bottom: 32px;
   }
 
-  /* ===== CONTENT ===== */
-  .content {
-    max-width: 800px; margin: 0 auto; padding: 0 24px 64px;
+  /* ===== SECTIONS ===== */
+  section { max-width: 1200px; margin: 0 auto; padding: 48px 24px; }
+
+  /* ===== TEAM GRID ===== */
+  .vorstand-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;
   }
-  .imp-card {
+  .vorstand-card {
     background: var(--dark-card); border: 1px solid var(--dark-border);
-    border-radius: 12px; padding: 32px; margin-bottom: 24px;
+    border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;
   }
-  .imp-card h3 {
+  .vorstand-icon {
+    width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(212,160,32,0.1); border: 2px solid rgba(212,160,32,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: var(--yellow-light); overflow: hidden;
+  }
+  .vorstand-icon img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .vorstand-info { min-width: 0; }
+  .vorstand-name {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 20px; font-weight: 700; color: var(--cream);
-    text-transform: uppercase; letter-spacing: 1px;
-    margin-bottom: 16px; padding-bottom: 10px;
-    border-bottom: 2px solid var(--yellow);
+    font-size: 20px; font-weight: 700; color: var(--cream); text-transform: uppercase;
   }
-  .imp-card p { margin-bottom: 12px; line-height: 1.7; }
-  .imp-card p:last-child { margin-bottom: 0; }
-  .imp-card a { color: var(--yellow); text-decoration: none; }
-  .imp-card a:hover { color: var(--yellow-light); text-decoration: underline; }
-  .imp-card strong { color: var(--cream); }
-  .imp-todo {
-    color: var(--text-dim); font-style: italic;
-  }
+  .vorstand-role { font-size: 14px; color: var(--yellow-light); font-weight: 600; }
 
   /* ===== FOOTER ===== */
   footer {
@@ -118,9 +123,10 @@
   .footer-links a:hover { color: var(--cream); }
   .footer-copy { color: var(--text-dim); font-size: 12px; margin-top: 16px; }
 
+  /* ===== RESPONSIVE ===== */
   @media (max-width: 768px) {
     .nav-links a { font-size: 11px; padding: 5px 8px; }
-    .imp-card { padding: 20px; }
+    .vorstand-grid { grid-template-columns: 1fr 1fr; }
   }
 </style>
 </head>
@@ -134,7 +140,7 @@
   <div class="nav-links">
     <a href="index.html">Boulderhalle</a>
     <a href="verein.html">Verein</a>
-    <a href="team.html">Team</a>
+    <a href="team.html" class="active">Team</a>
     <a href="jugendtraining.html">Jugendtraining</a>
     <a href="info.html">Info</a>
     <a href="intern.html">Intern</a>
@@ -142,68 +148,60 @@
 </nav>
 
 <!-- PAGE HEADER -->
-<div class="page-header">
-  <span class="section-label">Rechtliches</span>
-  <h2 class="section-title">Impressum</h2>
+<div class="page-header" style="margin-top:80px;">
+  <span class="section-label">Team</span>
+  <h2 class="section-title">Unser Team</h2>
 </div>
 
-<!-- CONTENT -->
-<div class="content">
-
-  <div class="imp-card">
-    <h3>Angaben gemäß § 5 TMG</h3>
-    <p>
-      <strong>Boulderverein Zugzwang e.V.</strong><br>
-      Neuhauser Straße 1<br>
-      91275 Auerbach i.d.OPf.
-    </p>
-    <p>
-      <strong>Vereinsregister:</strong> <span class="imp-todo">VR XXXXX, Amtsgericht Amberg</span><br>
-    </p>
+<!-- TEAM -->
+<section>
+  <div id="teamContent">
+    <div style="text-align:center;padding:40px;color:var(--yellow-light);opacity:0.6;">Team wird geladen...</div>
   </div>
-
-  <div class="imp-card">
-    <h3>Vertreten durch</h3>
-    <p>
-      <strong>1. Vorstand:</strong> Detlef Müller<br>
-      <strong>2. Vorstand:</strong> Holger Baumann
-    </p>
-  </div>
-
-  <div class="imp-card">
-    <h3>Kontakt</h3>
-    <p>
-      <strong>E-Mail:</strong> <a href="mailto:boulderhallezugzwang@gmail.com">boulderhallezugzwang@gmail.com</a><br>
-      <strong>Telefon:</strong> <span class="imp-todo">Auf Anfrage</span>
-    </p>
-  </div>
-
-  <div class="imp-card">
-    <h3>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h3>
-    <p>
-      Detlef Müller<br>
-      Neuhauser Straße 1<br>
-      91275 Auerbach i.d.OPf.
-    </p>
-  </div>
-
-  <div class="imp-card">
-    <h3>Haftungsausschluss</h3>
-    <p><strong>Haftung für Inhalte:</strong> Die Inhalte dieser Seiten wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte können wir jedoch keine Gewähr übernehmen. Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen.</p>
-    <p><strong>Haftung für Links:</strong> Unser Angebot enthält Links zu externen Webseiten Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich.</p>
-  </div>
-
-  <div class="imp-card">
-    <h3>Urheberrecht</h3>
-    <p>Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers.</p>
-  </div>
-
-  <div class="imp-card">
-    <h3>Datenschutz</h3>
-    <p>Informationen zum Datenschutz finden Sie in unserer <a href="info.html#datenschutz">Datenschutzerklärung</a>.</p>
-  </div>
-
-</div>
+</section>
+<script>
+(function() {
+  fetch('https://api.github.com/repos/boulderhallezugzwang/zugzwang-website/contents/data/team.json?ref=main', {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(file) {
+      return JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
+    })
+    .then(function(team) {
+      var groups = {};
+      var order = [];
+      team.forEach(function(m) {
+        var b = m.bereich || 'Sonstige';
+        if (!groups[b]) { groups[b] = []; order.push(b); }
+        groups[b].push(m);
+      });
+      var html = '';
+      order.forEach(function(g) {
+        groups[g].sort(function(a, b) { return (a.reihenfolge || 99) - (b.reihenfolge || 99); });
+        // Bei Jugendtraining nur den ersten Eintrag zeigen
+        var members = g === 'Jugendtraining' ? [groups[g][0]] : groups[g];
+        html += '<h2 class="section-title" style="margin-top:40px;">' + g + '</h2>';
+        html += '<div class="vorstand-grid" style="margin-bottom:20px;">';
+        members.forEach(function(m) {
+          var initials = m.name.split(' ').map(function(w) { return w[0]; }).join('');
+          html += '<div class="vorstand-card">';
+          html += '<div class="vorstand-icon">';
+          if (m.bild) {
+            html += '<img src="' + m.bild + '" alt="' + m.name + '" loading="lazy" onerror="this.parentElement.textContent=\'' + initials + '\'">';
+          } else {
+            html += initials;
+          }
+          html += '</div>';
+          html += '<div class="vorstand-info"><div class="vorstand-name">' + m.name + '</div><div class="vorstand-role">' + (m.rolle || '') + '</div></div>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+      document.getElementById('teamContent').innerHTML = html;
+    });
+})();
+</script>
 
 <!-- FOOTER -->
 <footer>

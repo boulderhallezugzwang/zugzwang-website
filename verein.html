@@ -382,6 +382,7 @@
   <div class="nav-links">
     <a href="index.html">Boulderhalle</a>
     <a href="verein.html" class="active">Verein</a>
+    <a href="team.html">Team</a>
     <a href="jugendtraining.html">Jugendtraining</a>
     <a href="info.html">Info</a>
     <a href="intern.html">Intern</a>
@@ -389,7 +390,6 @@
 </nav>
 <div class="sub-nav">
   <div class="sub-nav-inner">
-    <a href="#team">Team</a>
     <a href="#jahreskarte">Jahreskarte</a>
     <a href="#beitraege">Beiträge</a>
     <a href="#hinweise">Hinweise</a>
@@ -410,55 +410,6 @@
     <p>Der Boulderverein Zugzwang e.V. wurde am <strong>20. Dezember 2013</strong> von 24 Personen gegründet und ist als gemeinnützig eingetragen. Unser Zweck ist die <strong>Förderung des Klettersports in Auerbach und Umgebung</strong>.</p>
   </div>
 </section>
-
-<!-- TEAM -->
-<section class="section-divider" id="team">
-  <span class="section-label">Team</span>
-  <div id="teamContent">
-    <div style="text-align:center;padding:40px;color:var(--yellow-light);opacity:0.6;">Team wird geladen...</div>
-  </div>
-</section>
-<script>
-(function() {
-  fetch('https://api.github.com/repos/boulderhallezugzwang/zugzwang-website/contents/data/team.json?ref=main', {
-    headers: { 'Accept': 'application/vnd.github.v3+json' }
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(file) {
-      return JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
-    })
-    .then(function(team) {
-      var groups = {};
-      var order = [];
-      team.forEach(function(m) {
-        var b = m.bereich || 'Sonstige';
-        if (!groups[b]) { groups[b] = []; order.push(b); }
-        groups[b].push(m);
-      });
-      var html = '';
-      order.forEach(function(g) {
-        groups[g].sort(function(a, b) { return (a.reihenfolge || 99) - (b.reihenfolge || 99); });
-        html += '<h2 class="section-title" style="margin-top:40px;">' + g + '</h2>';
-        html += '<div class="vorstand-grid" style="margin-bottom:20px;">';
-        groups[g].forEach(function(m) {
-          var initials = m.name.split(' ').map(function(w) { return w[0]; }).join('');
-          html += '<div class="vorstand-card">';
-          html += '<div class="vorstand-icon">';
-          if (m.bild) {
-            html += '<img src="' + m.bild + '" alt="' + m.name + '" loading="lazy" onerror="this.parentElement.textContent=\'' + initials + '\'">';
-          } else {
-            html += initials;
-          }
-          html += '</div>';
-          html += '<div class="vorstand-info"><div class="vorstand-name">' + m.name + '</div><div class="vorstand-role">' + (m.rolle || '') + '</div></div>';
-          html += '</div>';
-        });
-        html += '</div>';
-      });
-      document.getElementById('teamContent').innerHTML = html;
-    });
-})();
-</script>
 
 <!-- JAHRESKARTE -->
 <section class="section-divider" id="jahreskarte">
