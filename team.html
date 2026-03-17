@@ -95,17 +95,17 @@
 
   /* ===== TEAM GRID ===== */
   .vorstand-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;
   }
   .vorstand-card {
     background: var(--dark-card); border: 1px solid var(--dark-border);
-    border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+    border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
   }
   .vorstand-icon {
-    width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+    width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
     background: rgba(212,160,32,0.1); border: 2px solid rgba(212,160,32,0.25);
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 700; color: var(--yellow-light); overflow: hidden;
+    font-size: 15px; font-weight: 700; color: var(--yellow-light); overflow: hidden;
   }
   .vorstand-icon img {
     width: 100%; height: 100%; object-fit: cover;
@@ -113,9 +113,9 @@
   .vorstand-info { min-width: 0; }
   .vorstand-name {
     font-family: 'Barlow Condensed', sans-serif;
-    font-size: 20px; font-weight: 700; color: var(--cream); text-transform: uppercase;
+    font-size: 17px; font-weight: 700; color: var(--cream); text-transform: uppercase;
   }
-  .vorstand-role { font-size: 14px; color: var(--yellow-light); font-weight: 600; }
+  .vorstand-role { font-size: 13px; color: var(--yellow-light); font-weight: 600; }
 
   /* ===== FOOTER ===== */
   footer {
@@ -136,7 +136,11 @@
   /* ===== RESPONSIVE ===== */
   @media (max-width: 768px) {
     .nav-links a { font-size: 11px; padding: 5px 8px; }
-    .vorstand-grid { grid-template-columns: 1fr 1fr; }
+    .vorstand-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .vorstand-card { padding: 8px 10px; gap: 8px; }
+    .vorstand-icon { width: 44px; height: 44px; font-size: 13px; }
+    .vorstand-name { font-size: 14px; }
+    .vorstand-role { font-size: 11px; }
   }
 </style>
 </head>
