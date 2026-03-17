@@ -148,7 +148,7 @@
 </nav>
 
 <!-- PAGE HEADER -->
-<div class="page-header" style="margin-top:80px;">
+<div class="page-header" id="pageHeader" style="margin-top:80px;">
   <span class="section-label">Team</span>
   <h2 class="section-title">Unser Team</h2>
 </div>
@@ -201,6 +201,11 @@
       document.getElementById('teamContent').innerHTML = html;
     });
 })();
+// Dynamischer margin-top für page-header
+setTimeout(function() {
+  var nav = document.querySelector('nav');
+  if (nav) document.getElementById('pageHeader').style.marginTop = nav.offsetHeight + 'px';
+}, 50);
 </script>
 
 <!-- FOOTER -->
