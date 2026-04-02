@@ -146,8 +146,14 @@ function todayDe() {
 // ═══════════════════════════════════════════════════
 
 function sendBestaetigungsMail(data, heute, mandatsref, geb) {
+  var introText = getConfigValue('mail_jugendtraining_intro') ||
+    'Vielen Dank für die Anmeldung zum Jugendtraining beim Boulderverein Zugzwang e.V.';
+  var hinweisText = getConfigValue('mail_jugendtraining_hinweis') || '';
+  var signatur = getConfigValue('mail_signatur') ||
+    'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website';
+
   var body = 'Hallo,\n\n' +
-    'vielen Dank für die Anmeldung zum Jugendtraining beim Boulderverein Zugzwang e.V.\n\n' +
+    introText + '\n\n' +
     'Folgende Daten wurden übermittelt:\n\n' +
     '  Name:              ' + data.vorname + ' ' + data.nachname + '\n' +
     '  Geburtsdatum:      ' + geb + '\n' +
@@ -158,12 +164,9 @@ function sendBestaetigungsMail(data, heute, mandatsref, geb) {
     '  Kontoinhaber:      ' + data.kontoinhaber + '\n' +
     '  IBAN:              ' + data.iban + '\n' +
     '  Mandatsreferenz:   ' + mandatsref + '\n\n' +
+    (hinweisText ? hinweisText + '\n\n' : '') +
     'Falls du Fragen hast, erreichst du uns unter ' + (getConfigValue('kontakt_jugendtraining_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
-    'Sportliche Grüße,\n' +
-    'Boulderverein Zugzwang e.V.\n' +
-    'Neuhauser Straße 1\n' +
-    '91275 Auerbach i.d.OPf.\n\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    signatur;
 
   MailApp.sendEmail({
     to: data.email,

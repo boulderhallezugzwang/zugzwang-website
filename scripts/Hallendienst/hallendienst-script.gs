@@ -553,17 +553,20 @@ function sendBestaetigungsMail(data) {
   var zeit = ZEITEN[dow] || { start: '?', end: '?' };
   var wochentag = datum ? WOCHENTAGE_LANG[dow] : '';
 
+  var introText = getConfigValue('mail_hallendienst_intro') ||
+    'Vielen Dank! Du hast dich für folgenden Hallendienst eingetragen:';
+  var hinweisText = getConfigValue('mail_hallendienst_hinweis') ||
+    'Bitte sei pünktlich vor Ort. Bei Verhinderung melde dich bitte rechtzeitig, damit wir einen Ersatz finden können.';
+  var signatur = getConfigValue('mail_signatur') ||
+    'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website';
+
   var body = 'Hallo ' + data.vorname + ',\n\n' +
-    'vielen Dank! Du hast dich für folgenden Hallendienst eingetragen:\n\n' +
+    introText + '\n\n' +
     '  Datum:    ' + wochentag + ', ' + data.datum + '\n' +
     '  Uhrzeit:  ' + zeit.start + ' – ' + zeit.end + ' Uhr\n\n' +
-    'Bitte sei pünktlich vor Ort. Bei Verhinderung melde dich bitte rechtzeitig unter ' +
-    (getConfigValue('kontakt_hallendienst_email') || 'boulderhallezugzwang@gmail.com') + ', damit wir einen Ersatz finden können.\n\n' +
-    'Sportliche Grüße,\n' +
-    'Boulderverein Zugzwang e.V.\n' +
-    'Neuhauser Straße 1\n' +
-    '91275 Auerbach i.d.OPf.\n\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    hinweisText + '\n\n' +
+    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_hallendienst_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
+    signatur;
 
   MailApp.sendEmail({
     to: data.email,

@@ -2888,8 +2888,72 @@ function cfgRender() {
   });
   html += '</div>';
 
+  // ── E-Mail-Texte ──
+  var mailTexte = [
+    { header: 'Mitgliedsantrag' },
+    { key: 'mail_mitglied_intro', label: 'Begrüßungstext', rows: 3,
+      ph: 'Vielen Dank für Deinen Antrag. Du bist jetzt Mitglied beim Boulderverein Zugzwang e.V.!' },
+    { key: 'mail_mitglied_hinweis', label: 'Hinweise (nach den Daten)', rows: 3,
+      ph: 'Zur Übergabe deines Zutrittschips melde dich bitte bei:\n  Detlef Müller, Tel. +49 160 884 3412' },
+    { header: 'Haftungsausschluss Erwachsene' },
+    { key: 'mail_haftung_adult_intro', label: 'Begrüßungstext', rows: 2,
+      ph: 'Vielen Dank! Dein Haftungsausschluss wurde erfolgreich gespeichert.' },
+    { key: 'mail_haftung_adult_hinweis', label: 'Hinweise', rows: 2,
+      ph: 'Im Anhang findest du eine PDF-Kopie des Haftungsausschlusses.' },
+    { header: 'Haftungsausschluss Minderjährige' },
+    { key: 'mail_haftung_minor_intro', label: 'Begrüßungstext', rows: 2,
+      ph: 'Vielen Dank! Der Haftungsausschluss wurde erfolgreich gespeichert.' },
+    { key: 'mail_haftung_minor_hinweis', label: 'Hinweise', rows: 2,
+      ph: 'Im Anhang findest du eine PDF-Kopie des Haftungsausschlusses.' },
+    { header: 'Einverständniserklärung Jugend' },
+    { key: 'mail_haftung_jugend_intro', label: 'Begrüßungstext', rows: 2,
+      ph: 'Vielen Dank! Die Einverständniserklärung wurde erfolgreich gespeichert.' },
+    { key: 'mail_haftung_jugend_hinweis', label: 'Hinweise', rows: 3,
+      ph: 'Die Einverständniserklärung gilt bis auf Widerruf bzw. bis zur Vollendung des 18. Lebensjahres.\nBitte beachte, dass zusätzlich ein Haftungsausschluss vorliegen muss.\nIm Anhang findest du eine PDF-Kopie.' },
+    { header: 'Kündigung' },
+    { key: 'mail_kuendigung_intro', label: 'Begrüßungstext', rows: 2,
+      ph: 'Wir haben Deine Kündigung der Mitgliedschaft beim Boulderverein Zugzwang e.V. erhalten.' },
+    { key: 'mail_kuendigung_hinweis', label: 'Hinweise (Chiprückgabe etc.)', rows: 5,
+      ph: 'Die Mitgliedschaft endet zum 31.12. des laufenden Jahres.\n\nDer Zutrittschip ist zurückzugeben an:\n  Detlef Müller\n  Josefstr. 9\n  91275 Auerbach i.d.OPf.\n\nBitte den Chip auf ein Blatt Papier kleben und nicht lose in ein Kuvert stecken.' },
+    { header: 'Kündigung — Mitglied nicht gefunden' },
+    { key: 'mail_kuendigung_nf_intro', label: 'Text', rows: 3,
+      ph: 'Wir haben Deine Kündigungsanfrage erhalten, konnten jedoch keinen passenden Eintrag in unseren Vereinsdaten finden.' },
+    { key: 'mail_kuendigung_nf_hinweis', label: 'Hinweise', rows: 2,
+      ph: 'Die Kündigung konnte daher nicht durchgeführt werden. Bitte prüfe, ob du den Namen genau so angegeben hast, wie er bei der Anmeldung verwendet wurde.' },
+    { header: 'Jugendtraining' },
+    { key: 'mail_jugendtraining_intro', label: 'Begrüßungstext', rows: 2,
+      ph: 'Vielen Dank für die Anmeldung zum Jugendtraining beim Boulderverein Zugzwang e.V.' },
+    { key: 'mail_jugendtraining_hinweis', label: 'Hinweise', rows: 2, ph: '' },
+    { header: 'Hallendienst' },
+    { key: 'mail_hallendienst_intro', label: 'Begrüßungstext', rows: 2,
+      ph: 'Vielen Dank! Du hast dich für folgenden Hallendienst eingetragen:' },
+    { key: 'mail_hallendienst_hinweis', label: 'Hinweise', rows: 2,
+      ph: 'Bitte sei pünktlich vor Ort. Bei Verhinderung melde dich bitte rechtzeitig, damit wir einen Ersatz finden können.' },
+    { header: 'Signatur (alle Mails)' },
+    { key: 'mail_signatur', label: 'Signatur', rows: 5,
+      ph: 'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website' }
+  ];
+
+  html += '<div style="margin-top:24px;padding-top:16px;border-top:2px solid var(--border);">';
+  html += '<h4 style="margin:0 0 4px;color:var(--primary);">E-Mail-Texte</h4>';
+  html += '<p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Antwort-Texte in Bestätigungsmails. Leer lassen = Standardtext (siehe Platzhalter).</p>';
+  mailTexte.forEach(function(item) {
+    if (item.header) {
+      html += '<div style="margin-top:16px;margin-bottom:6px;font-size:13px;font-weight:700;color:var(--yellow);text-transform:uppercase;letter-spacing:0.5px;">' + item.header + '</div>';
+      return;
+    }
+    var val = cfgGetVal(item.key) || '';
+    html += '<div style="margin-bottom:10px;">';
+    html += '<label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">' + escHtml(item.label) + '</label>';
+    html += '<textarea id="cfg_' + item.key + '" rows="' + item.rows + '" placeholder="' + escHtml(item.ph) + '" style="width:100%;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical;">' + escHtml(val) + '</textarea>';
+    html += '</div>';
+  });
+  html += '</div>';
+
   document.getElementById('cfgContent').innerHTML = html;
 }
+
+var mailTexteKeys = ['mail_mitglied_intro','mail_mitglied_hinweis','mail_haftung_adult_intro','mail_haftung_adult_hinweis','mail_haftung_minor_intro','mail_haftung_minor_hinweis','mail_haftung_jugend_intro','mail_haftung_jugend_hinweis','mail_kuendigung_intro','mail_kuendigung_hinweis','mail_kuendigung_nf_intro','mail_kuendigung_nf_hinweis','mail_jugendtraining_intro','mail_jugendtraining_hinweis','mail_hallendienst_intro','mail_hallendienst_hinweis','mail_signatur'];
 
 function cfgSave() {
   var items = [];
@@ -2904,6 +2968,11 @@ function cfgSave() {
   ['kontakt_mitgliedsantrag_email','kontakt_haftung_email','kontakt_hallendienst_email','kontakt_kuendigung_email','kontakt_jugendtraining_email'].forEach(function(key) {
     var el = document.getElementById('cfg_' + key);
     if (el) items.push({ key: key, value: el.value.trim() });
+  });
+  // E-Mail-Texte
+  mailTexteKeys.forEach(function(key) {
+    var el = document.getElementById('cfg_' + key);
+    if (el) items.push({ key: key, value: el.value });
   });
 
   var result = document.getElementById('cfgResult');

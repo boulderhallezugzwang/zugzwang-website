@@ -147,26 +147,22 @@ function todayDe() {
 // ═══════════════════════════════════════════════════
 
 function sendKuendigungsMail(data, kuendigungsDatum) {
+  var introText = getConfigValue('mail_kuendigung_intro') ||
+    'Wir haben Deine Kündigung der Mitgliedschaft beim Boulderverein Zugzwang e.V. erhalten.';
+  var hinweisText = getConfigValue('mail_kuendigung_hinweis') ||
+    'Die Mitgliedschaft endet zum 31.12.' + new Date().getFullYear() + '.\n\nDer Zutrittschip ist bis zum Ende der Mitgliedschaft zurückzugeben.\nBitte an folgende Adresse senden:\n\n  Detlef Müller\n  Josefstr. 9\n  91275 Auerbach i.d.OPf.\n\nBitte den Chip auf ein Blatt Papier mit Deinen Daten kleben und nicht lose in ein Kuvert stecken.\nEs besteht die Gefahr, dass das Kuvert beschädigt wird und der Chip verloren geht.';
+  var signatur = getConfigValue('mail_signatur') ||
+    'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website';
+
   var body = 'Hallo ' + data.vorname + ',\n\n' +
-    'wir haben Deine Kündigung der Mitgliedschaft beim Boulderverein Zugzwang e.V. erhalten.\n\n' +
+    introText + '\n\n' +
     'Folgende Daten wurden übermittelt:\n\n' +
     '  Name:              ' + data.vorname + ' ' + data.nachname + '\n' +
     '  E-Mail:            ' + data.email + '\n' +
     '  Kündigungsdatum:   ' + kuendigungsDatum + '\n\n' +
-    'Die Mitgliedschaft endet zum 31.12.' + new Date().getFullYear() + '.\n\n' +
-    'Der Zutrittschip ist bis zum Ende der Mitgliedschaft zurückzugeben.\n' +
-    'Bitte an folgende Adresse senden:\n\n' +
-    '  Detlef Müller\n' +
-    '  Josefstr. 9\n' +
-    '  91275 Auerbach i.d.OPf.\n\n' +
-    'Bitte den Chip auf ein Blatt Papier mit Deinen Daten kleben und nicht lose in ein Kuvert stecken.\n' +
-    'Es besteht die Gefahr, dass das Kuvert beschädigt wird und der Chip verloren geht.\n\n' +
+    hinweisText + '\n\n' +
     'Falls du Fragen hast, erreichst du uns unter ' + (getConfigValue('kontakt_kuendigung_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
-    'Sportliche Grüße,\n' +
-    'Boulderverein Zugzwang e.V.\n' +
-    'Neuhauser Straße 1\n' +
-    '91275 Auerbach i.d.OPf.\n\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    signatur;
 
   MailApp.sendEmail({
     to: data.email,
@@ -177,20 +173,21 @@ function sendKuendigungsMail(data, kuendigungsDatum) {
 }
 
 function sendNichtGefundenMail(data) {
+  var introText = getConfigValue('mail_kuendigung_nf_intro') ||
+    'Wir haben Deine Kündigungsanfrage erhalten, konnten jedoch keinen passenden Eintrag in unseren Vereinsdaten finden.';
+  var hinweisText = getConfigValue('mail_kuendigung_nf_hinweis') ||
+    'Die Kündigung konnte daher nicht durchgeführt werden. Bitte prüfe, ob du den Namen genau so angegeben hast, wie er bei der Anmeldung verwendet wurde.';
+  var signatur = getConfigValue('mail_signatur') ||
+    'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website';
+
   var body = 'Hallo ' + data.vorname + ',\n\n' +
-    'wir haben Deine Kündigungsanfrage erhalten, konnten jedoch keinen passenden Eintrag ' +
-    'in unseren Vereinsdaten finden.\n\n' +
+    introText + '\n\n' +
     'Folgende Daten wurden übermittelt:\n\n' +
     '  Name:    ' + data.vorname + ' ' + data.nachname + '\n' +
     '  E-Mail:  ' + data.email + '\n\n' +
-    'Die Kündigung konnte daher nicht durchgeführt werden. Bitte prüfe, ob du den Namen ' +
-    'genau so angegeben hast, wie er bei der Anmeldung verwendet wurde.\n\n' +
+    hinweisText + '\n\n' +
     'Bei Fragen wende dich bitte an ' + (getConfigValue('kontakt_kuendigung_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
-    'Sportliche Grüße,\n' +
-    'Boulderverein Zugzwang e.V.\n' +
-    'Neuhauser Straße 1\n' +
-    '91275 Auerbach i.d.OPf.\n\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    signatur;
 
   MailApp.sendEmail({
     to: data.email,

@@ -577,19 +577,22 @@ function formatDate(isoDate) {
 // ═══════════════════════════════════════════════════
 
 function sendBestaetigungAdult(data, datum, pdfFile) {
+  var introText = getConfigValue('mail_haftung_adult_intro') ||
+    'Vielen Dank! Dein Haftungsausschluss für die Boulderhalle Zugzwang wurde erfolgreich gespeichert.';
+  var hinweisText = getConfigValue('mail_haftung_adult_hinweis') ||
+    'Im Anhang findest du eine PDF-Kopie des Haftungsausschlusses.';
+  var signatur = getConfigValue('mail_signatur') ||
+    'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website';
+
   var body = 'Hallo ' + data.vorname + ',\n\n' +
-    'vielen Dank! Dein Haftungsausschluss für die Boulderhalle Zugzwang wurde erfolgreich gespeichert.\n\n' +
+    introText + '\n\n' +
     'Folgende Daten wurden übermittelt:\n\n' +
     '  Name:           ' + data.vorname + ' ' + data.nachname + '\n' +
     '  Geburtsdatum:   ' + formatDate(data.geburtsdatum) + '\n' +
     '  Datum:          ' + datum + '\n\n' +
-    'Im Anhang findest du eine PDF-Kopie des Haftungsausschlusses.\n\n' +
+    hinweisText + '\n\n' +
     'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_haftung_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
-    'Sportliche Grüße,\n' +
-    'Boulderverein Zugzwang e.V.\n' +
-    'Neuhauser Straße 1\n' +
-    '91275 Auerbach i.d.OPf.\n\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    signatur;
 
   MailApp.sendEmail({
     to: data.email,
@@ -605,20 +608,23 @@ function sendBestaetigungMinor(data, datum, pdfFile) {
     return '  - ' + k.vorname + ' ' + k.nachname + ' (geb. ' + formatDate(k.geburtsdatum) + ')';
   }).join('\n');
 
+  var introText = getConfigValue('mail_haftung_minor_intro') ||
+    'Vielen Dank! Der Haftungsausschluss für die Boulderhalle Zugzwang wurde erfolgreich gespeichert.';
+  var hinweisText = getConfigValue('mail_haftung_minor_hinweis') ||
+    'Im Anhang findest du eine PDF-Kopie des Haftungsausschlusses.';
+  var signatur = getConfigValue('mail_signatur') ||
+    'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website';
+
   var body = 'Hallo ' + data.eVorname + ',\n\n' +
-    'vielen Dank! Der Haftungsausschluss für die Boulderhalle Zugzwang wurde erfolgreich gespeichert.\n\n' +
+    introText + '\n\n' +
     'Erziehungsberechtigte/r:\n' +
     '  ' + data.eVorname + ' ' + data.eNachname + '\n\n' +
     'Der Haftungsausschluss gilt für folgende Kinder:\n' +
     kinderListe + '\n\n' +
     '  Datum:  ' + datum + '\n\n' +
-    'Im Anhang findest du eine PDF-Kopie des Haftungsausschlusses.\n\n' +
+    hinweisText + '\n\n' +
     'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_haftung_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
-    'Sportliche Grüße,\n' +
-    'Boulderverein Zugzwang e.V.\n' +
-    'Neuhauser Straße 1\n' +
-    '91275 Auerbach i.d.OPf.\n\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    signatur;
 
   MailApp.sendEmail({
     to: data.email,
@@ -630,22 +636,23 @@ function sendBestaetigungMinor(data, datum, pdfFile) {
 }
 
 function sendBestaetigungJugend(data, kGeb, datum, pdfFile) {
+  var introText = getConfigValue('mail_haftung_jugend_intro') ||
+    'Vielen Dank! Die Einverständniserklärung für die Boulderhalle Zugzwang wurde erfolgreich gespeichert.';
+  var hinweisText = getConfigValue('mail_haftung_jugend_hinweis') ||
+    'Die Einverständniserklärung gilt bis auf Widerruf bzw. bis zur Vollendung des 18. Lebensjahres.\n\nBitte beachte, dass zusätzlich ein Haftungsausschluss für dein Kind vorliegen muss.\n\nIm Anhang findest du eine PDF-Kopie der Einverständniserklärung.';
+  var signatur = getConfigValue('mail_signatur') ||
+    'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website';
+
   var body = 'Hallo ' + data.eVorname + ',\n\n' +
-    'vielen Dank! Die Einverständniserklärung für die Boulderhalle Zugzwang wurde erfolgreich gespeichert.\n\n' +
+    introText + '\n\n' +
     'Erziehungsberechtigte/r:\n' +
     '  ' + data.eVorname + ' ' + data.eNachname + '\n\n' +
     'Die Einverständniserklärung gilt für:\n' +
     '  ' + data.kVorname + ' ' + data.kNachname + ' (geb. ' + kGeb + ')\n\n' +
     '  Datum:  ' + datum + '\n\n' +
-    'Die Einverständniserklärung gilt bis auf Widerruf bzw. bis zur Vollendung des 18. Lebensjahres.\n\n' +
-    'Bitte beachte, dass zusätzlich ein Haftungsausschluss für dein Kind vorliegen muss.\n\n' +
-    'Im Anhang findest du eine PDF-Kopie der Einverständniserklärung.\n\n' +
+    hinweisText + '\n\n' +
     'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_haftung_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
-    'Sportliche Grüße,\n' +
-    'Boulderverein Zugzwang e.V.\n' +
-    'Neuhauser Straße 1\n' +
-    '91275 Auerbach i.d.OPf.\n\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    signatur;
 
   MailApp.sendEmail({
     to: data.email,
