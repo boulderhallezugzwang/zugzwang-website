@@ -204,6 +204,28 @@
   }
   .schnupper-box p { font-size: 15px; color: var(--text); line-height: 1.7; }
 
+  /* ===== ACTION CARD ===== */
+  .action-card {
+    background: var(--dark-card); border: 2px solid var(--dark-border);
+    border-radius: 12px; padding: 28px; text-decoration: none;
+    display: flex; align-items: center; cursor: pointer;
+    transition: all 0.2s; gap: 8px;
+  }
+  .action-card:hover { transform: translateY(-2px); }
+  .action-icon {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 800; color: #fff;
+  }
+  .action-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px; font-weight: 700; text-transform: uppercase; color: var(--cream);
+  }
+  .action-desc { font-size: 13px; color: var(--text-dim); }
+  .action-green { border-color: rgba(46,204,113,0.3); }
+  .action-green:hover { border-color: #2ecc71; background: rgba(46,204,113,0.06); }
+  .action-green .action-icon { background: #2ecc71; }
+
   /* ===== FORM ===== */
   .form-container { max-width: 680px; margin: 0 auto; }
   .form-section {
@@ -390,11 +412,14 @@
 </div>
 
 <!-- ANMELDEFORMULAR -->
-<section class="section-divider">
-  <span class="section-label">Anmeldung</span>
-  <h2 class="section-title">Antrag Jugendtraining</h2>
+<section class="section-divider" id="anmeldung">
+  <div class="action-card action-green" onclick="document.getElementById('mfWrap').style.display='';this.style.display='none';" id="anmeldungBtn">
+    <span class="action-icon">+</span>
+    <span class="action-label">Antrag Jugendtraining</span>
+    <span class="action-desc">Jetzt zum Jugendtraining anmelden</span>
+  </div>
 
-  <div class="form-container">
+  <div class="form-container" id="mfWrap" style="display:none">
     <div class="msg ok" id="okMsg">
       <h3>Anmeldung erfolgreich gesendet!</h3>
       <p>Vielen Dank für die Anmeldung zum Jugendtraining. Du erhältst in Kürze eine Bestätigung per E-Mail.</p>
