@@ -141,12 +141,9 @@
     flex-wrap: wrap;
   }
   .app-tabs {
-    display: flex; gap: 2px;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
+    display: flex; gap: 2px; flex-wrap: wrap;
     flex-shrink: 1; min-width: 0;
   }
-  .app-tabs::-webkit-scrollbar { display: none; }
   .app-tab {
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 15px; font-weight: 700; color: var(--text-dim);
