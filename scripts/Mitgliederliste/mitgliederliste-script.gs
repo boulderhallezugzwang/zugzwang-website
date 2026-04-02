@@ -354,7 +354,7 @@ function getMemberData(user) {
     var nachname = row[colIdx['Nachname']] || '';
     var vorname = row[colIdx['Vorname']] || '';
     if (nachname || vorname) {
-      members.push({
+      var member = {
         nachname: nachname.toString(),
         vorname: vorname.toString(),
         telefon: (row[colIdx['Telefon Mobil']] || '').toString(),
@@ -364,7 +364,17 @@ function getMemberData(user) {
         chip: (row[colIdx['Chip']] || '').toString(),
         chipnr: (row[colIdx['ChipNr.']] || '').toString(),
         eintritt: row[colIdx['Eintritt']] instanceof Date ? Utilities.formatDate(row[colIdx['Eintritt']], 'Europe/Berlin', 'dd.MM.yyyy') : (row[colIdx['Eintritt']] || '').toString()
-      });
+      };
+      // SEPA-Felder nur für Admins
+      if (user.rolle === 'admin') {
+        member.iban = (row[colIdx['IBAN']] || '').toString();
+        member.bic = (row[colIdx['BIC']] || '').toString();
+        member.mandatsreferenz = (row[colIdx['Mandatsreferenz']] || '').toString();
+        member.kontoinhaber = (row[colIdx['Kontoinhaber']] || '').toString();
+        member.mandatDatum = row[colIdx['Mandat Unterschriftsdatum']] instanceof Date ? Utilities.formatDate(row[colIdx['Mandat Unterschriftsdatum']], 'Europe/Berlin', 'dd.MM.yyyy') : (row[colIdx['Mandat Unterschriftsdatum']] || '').toString();
+        member.zahlungspflichtig = (row[colIdx['Zahlungspflichtiges Mitglied']] || '').toString();
+      }
+      members.push(member);
     }
   });
 

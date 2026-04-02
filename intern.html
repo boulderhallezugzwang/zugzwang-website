@@ -253,6 +253,58 @@
   .no-results .nr-icon { font-size: 36px; margin-bottom: 8px; }
   .loading { text-align: center; padding: 60px 20px; color: var(--text-dim); }
 
+  /* ===== EINZÜGE / SEPA-EXPORT ===== */
+  .ez-btn {
+    font-size: 11px; font-weight: 600; color: var(--cream-dim);
+    background: rgba(255,255,255,0.06); border: 1px solid var(--dark-border);
+    padding: 3px 10px; border-radius: 20px; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .ez-btn:hover { color: var(--yellow); border-color: var(--yellow); }
+  .ez-btn.active { color: var(--yellow); border-color: var(--yellow); background: rgba(212,160,32,0.1); }
+  .ez-panel {
+    max-width: 720px; margin: 0 auto; padding: 0 24px;
+    display: none;
+  }
+  .ez-panel.open { display: block; }
+  .ez-panel-inner {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 16px; margin-top: 12px;
+  }
+  .ez-panel h3 {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 16px;
+    font-weight: 700; color: var(--cream); text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .ez-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+  .ez-group { display: flex; flex-direction: column; gap: 2px; }
+  .ez-group label { font-size: 11px; color: var(--text-dim); font-weight: 600; }
+  .ez-group input {
+    padding: 6px 10px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--dark-border); border-radius: 6px;
+    background: var(--dark); color: var(--cream); outline: none; width: 100px;
+  }
+  .ez-group input:focus { border-color: var(--yellow); }
+  .ez-group input[type="date"] { width: 130px; color-scheme: dark; }
+  .ez-select-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .ez-select-btn {
+    font-size: 12px; font-weight: 600; color: var(--cream-dim);
+    background: var(--dark); border: 1px solid var(--dark-border);
+    padding: 5px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+  }
+  .ez-select-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+  .ez-select-btn.active { background: rgba(212,160,32,0.1); border-color: var(--yellow); color: var(--yellow); }
+  .ez-export-btn {
+    font-size: 13px; font-weight: 700; color: var(--black);
+    background: var(--yellow); border: none;
+    padding: 8px 20px; border-radius: 6px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .ez-export-btn:hover { background: var(--yellow-light); }
+  .ez-export-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ez-info { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  .ez-cb { width: 18px; height: 18px; accent-color: var(--yellow); cursor: pointer; flex-shrink: 0; }
+
   /* ===== HALLENDIENST ===== */
   .hd-tools {
     max-width: 720px; margin: 16px auto 0; padding: 0 24px;
@@ -595,6 +647,40 @@
   <div class="section active" id="sectionMembers">
     <div class="section-header">
       <span class="app-count" id="countBadge">-</span>
+      <button class="ez-btn" id="ezToggle" style="display:none" onclick="ezTogglePanel()">SEPA-Einzüge</button>
+    </div>
+    <!-- EINZÜGE PANEL -->
+    <div class="ez-panel" id="ezPanel">
+      <div class="ez-panel-inner">
+        <h3>SEPA-Lastschrift Export</h3>
+        <div class="ez-row">
+          <div class="ez-group"><label>Mitglied</label><input type="text" id="ezBetragMitglied" value="150" placeholder="€"></div>
+          <div class="ez-group"><label>Mitglied Familie</label><input type="text" id="ezBetragMitgliedFamilie" value="300" placeholder="€"></div>
+          <div class="ez-group"><label>Mitglied ermäßigt</label><input type="text" id="ezBetragMitgliedErm" value="90" placeholder="€"></div>
+        </div>
+        <div class="ez-row">
+          <div class="ez-group"><label>Fördermitglied</label><input type="text" id="ezBetragFoerder" value="20" placeholder="€"></div>
+          <div class="ez-group"><label>Förderm. Familie</label><input type="text" id="ezBetragFoerderFamilie" value="40" placeholder="€"></div>
+          <div class="ez-group"><label>Förderm. ermäßigt</label><input type="text" id="ezBetragFoerderErm" value="16" placeholder="€"></div>
+        </div>
+        <div class="ez-select-row">
+          <button class="ez-select-btn" onclick="ezSelectAll()">Alle</button>
+          <button class="ez-select-btn" onclick="ezSelectNone()">Keine</button>
+          <div class="ez-group" style="flex-direction:row;align-items:center;gap:4px;">
+            <label style="white-space:nowrap">Eintritt von</label>
+            <input type="date" id="ezDateFrom">
+          </div>
+          <div class="ez-group" style="flex-direction:row;align-items:center;gap:4px;">
+            <label>bis</label>
+            <input type="date" id="ezDateTo">
+          </div>
+          <button class="ez-select-btn" onclick="ezSelectByDate()">Filtern</button>
+        </div>
+        <div class="ez-select-row">
+          <button class="ez-export-btn" id="ezExportBtn" onclick="ezExportCSV()">CSV exportieren</button>
+          <span class="ez-info" id="ezSelectedCount">0 Mitglieder ausgewählt</span>
+        </div>
+      </div>
     </div>
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Name, E-Mail oder Telefon suchen..." autocomplete="off">
@@ -1049,6 +1135,7 @@ function enterApp(data) {
   document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
   if (currentUser && currentUser.rolle === 'admin') {
     document.getElementById('tabConfig').style.display = '';
+    document.getElementById('ezToggle').style.display = '';
   }
   document.getElementById('searchInput').focus();
   renderList(allMembers);
@@ -1197,7 +1284,11 @@ function renderList(members, query) {
     const initials = (m.vorname.charAt(0)+m.nachname.charAt(0)).toUpperCase();
     const name = escHtml(m.vorname)+' '+escHtml(m.nachname);
     const displayName = query ? highlightMatch(name, query) : name;
-    html += '<div class="member-card"><div class="member-avatar">'+initials+'</div><div class="member-info"><div class="member-name">'+displayName+'</div><div class="member-meta">';
+    const idx = allMembers.indexOf(m);
+    const showCb = ezModeActive && m.mandatsreferenz;
+    html += '<div class="member-card">';
+    if (showCb) html += '<input type="checkbox" class="ez-cb" data-idx="'+idx+'" '+(ezSelected.has(idx)?'checked':'')+' onchange="ezToggleMember('+idx+',this.checked)">';
+    html += '<div class="member-avatar">'+initials+'</div><div class="member-info"><div class="member-name">'+displayName+'</div><div class="member-meta">';
     if (m.telefon) html += '<span><a href="tel:'+escAttr(m.telefon)+'">'+escHtml(m.telefon)+'</a></span>';
     if (m.email) html += '<span><a href="mailto:'+escAttr(m.email)+'">'+escHtml(m.email)+'</a></span>';
     if (m.ort) html += '<span>'+escHtml(m.ort)+'</span>';
@@ -1258,6 +1349,145 @@ function saveChip(idx) {
   const q=document.getElementById('searchInput').value.trim().toLowerCase();
   if(q){const terms=q.split(/\s+/);const filtered=allMembers.filter(m2=>{const h=(m2.nachname+' '+m2.vorname+' '+m2.email+' '+m2.telefon+' '+m2.ort+' '+m2.chipnr).toLowerCase();return terms.every(t=>h.includes(t));});renderList(filtered,q);}
   else renderList(allMembers);
+}
+
+// ═══════════════════════════════════════════════════
+// SEPA-EINZÜGE EXPORT
+// ═══════════════════════════════════════════════════
+
+var ezModeActive = false;
+var ezSelected = new Set();
+
+function ezTogglePanel() {
+  ezModeActive = !ezModeActive;
+  document.getElementById('ezPanel').classList.toggle('open', ezModeActive);
+  document.getElementById('ezToggle').classList.toggle('active', ezModeActive);
+  if (!ezModeActive) ezSelected.clear();
+  ezUpdateCount();
+  // Re-render to show/hide checkboxes
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (q) {
+    const terms = q.split(/\s+/);
+    const filtered = allMembers.filter(m => {
+      const h = (m.nachname+' '+m.vorname+' '+m.email+' '+m.telefon+' '+m.ort+' '+m.chipnr).toLowerCase();
+      return terms.every(t => h.includes(t));
+    });
+    renderList(filtered, q);
+  } else {
+    renderList(allMembers);
+  }
+}
+
+function ezToggleMember(idx, checked) {
+  if (checked) ezSelected.add(idx);
+  else ezSelected.delete(idx);
+  ezUpdateCount();
+}
+
+function ezSelectAll() {
+  ezSelected.clear();
+  allMembers.forEach(function(m, i) {
+    if (m.mandatsreferenz) ezSelected.add(i);
+  });
+  ezUpdateCount();
+  renderList(allMembers);
+}
+
+function ezSelectNone() {
+  ezSelected.clear();
+  ezUpdateCount();
+  renderList(allMembers);
+}
+
+function ezSelectByDate() {
+  var from = document.getElementById('ezDateFrom').value;
+  var to = document.getElementById('ezDateTo').value;
+  if (!from && !to) { alert('Bitte mindestens ein Datum eingeben'); return; }
+  var fromDate = from ? new Date(from) : new Date('1900-01-01');
+  var toDate = to ? new Date(to) : new Date('2099-12-31');
+  ezSelected.clear();
+  allMembers.forEach(function(m, i) {
+    if (!m.mandatsreferenz) return;
+    if (!m.eintritt) return;
+    // Parse dd.mm.yyyy
+    var parts = m.eintritt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!parts) return;
+    var d = new Date(parseInt(parts[3]), parseInt(parts[2]) - 1, parseInt(parts[1]));
+    if (d >= fromDate && d <= toDate) ezSelected.add(i);
+  });
+  ezUpdateCount();
+  renderList(allMembers);
+}
+
+function ezUpdateCount() {
+  var el = document.getElementById('ezSelectedCount');
+  if (el) el.textContent = ezSelected.size + ' Mitglieder ausgewählt';
+}
+
+function ezGetBetrag(status) {
+  var s = (status || '').toLowerCase().trim();
+  if (s === 'mitglied') return document.getElementById('ezBetragMitglied').value;
+  if (s === 'mitglied familie') return document.getElementById('ezBetragMitgliedFamilie').value;
+  if (s === 'mitglied ermäßigt') return document.getElementById('ezBetragMitgliedErm').value;
+  if (s === 'fördermitglied') return document.getElementById('ezBetragFoerder').value;
+  if (s === 'fördermitglied familie') return document.getElementById('ezBetragFoerderFamilie').value;
+  if (s === 'fördermitglied ermäßigt') return document.getElementById('ezBetragFoerderErm').value;
+  return '0';
+}
+
+function ezVerwendungszweck(status) {
+  var s = (status || '').toLowerCase().trim();
+  if (s.indexOf('förder') === 0) return { vz1: 'Verein', vz2: s.replace('fördermitglied', '').trim() || 'Erwachsen' };
+  var sub = s.replace('mitglied', '').trim();
+  return { vz1: 'Verein und Jahreskarte', vz2: sub || 'Erwachsen' };
+}
+
+function ezExportCSV() {
+  if (ezSelected.size === 0) { alert('Bitte mindestens ein Mitglied auswählen'); return; }
+
+  var header = 'Bezeichnung;Zahlungspflichtiger;;Firma;Zahler-Iban;BIC;Betrag;Verwendungszweck1;Verwendungszweck2;IBAN des Zahlungsempfängers;Zahlungsempfänger;Mandatsreferenz;Unterschrieben am';
+  var empfIban = 'DE28760693690000000566';
+  var empfName = 'Boulderverein Zugzwang e. V.';
+
+  var lines = [header];
+  ezSelected.forEach(function(idx) {
+    var m = allMembers[idx];
+    if (!m || !m.mandatsreferenz) return;
+    var betrag = ezGetBetrag(m.status);
+    var vz = ezVerwendungszweck(m.status);
+    lines.push([
+      escCsvField(m.status),
+      escCsvField(m.nachname),
+      escCsvField(m.vorname),
+      '',
+      escCsvField(m.iban || ''),
+      escCsvField(m.bic || ''),
+      betrag,
+      escCsvField(vz.vz1),
+      escCsvField(vz.vz2),
+      empfIban,
+      empfName,
+      escCsvField(m.mandatsreferenz),
+      escCsvField(m.mandatDatum || '')
+    ].join(';'));
+  });
+
+  var csv = lines.join('\r\n');
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  a.href = url;
+  a.download = today + '_Einzuege.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function escCsvField(s) {
+  if (!s) return '';
+  s = s.toString();
+  if (s.indexOf(';') !== -1 || s.indexOf('"') !== -1) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
 }
 
 // ═══════════════════════════════════════════════════
