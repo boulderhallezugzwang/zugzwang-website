@@ -124,5 +124,12 @@
     "bereich": "Routenbau",
     "reihenfolge": 2,
     "bild": ""
+  },
+  {
+    "name": "Alois Eckert",
+    "rolle": "Beisitzer",
+    "bereich": "Vorstand",
+    "reihenfolge": 7,
+    "bild": ""
   }
 ]
