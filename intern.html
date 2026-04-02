@@ -1402,17 +1402,18 @@ function ezSelectByDate() {
   var from = document.getElementById('ezDateFrom').value;
   var to = document.getElementById('ezDateTo').value;
   if (!from && !to) { alert('Bitte mindestens ein Datum eingeben'); return; }
-  var fromDate = from ? new Date(from) : new Date('1900-01-01');
-  var toDate = to ? new Date(to) : new Date('2099-12-31');
+  // Datumsvergleich nur auf YYYYMMDD-Ebene (keine Zeitzonen-Probleme)
+  var fromNum = from ? parseInt(from.replace(/-/g, ''), 10) : 0;
+  var toNum = to ? parseInt(to.replace(/-/g, ''), 10) : 99999999;
   ezSelected.clear();
   allMembers.forEach(function(m, i) {
     if (!m.mandatsreferenz) return;
     if (!m.eintritt) return;
-    // Parse dd.mm.yyyy
+    // Parse dd.mm.yyyy → YYYYMMDD
     var parts = m.eintritt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
     if (!parts) return;
-    var d = new Date(parseInt(parts[3]), parseInt(parts[2]) - 1, parseInt(parts[1]));
-    if (d >= fromDate && d <= toDate) ezSelected.add(i);
+    var num = parseInt(parts[3] + ('0'+parts[2]).slice(-2) + ('0'+parts[1]).slice(-2), 10);
+    if (num >= fromNum && num <= toNum) ezSelected.add(i);
   });
   ezUpdateCount();
   renderList(allMembers);
