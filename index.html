@@ -963,8 +963,8 @@ function renderCalendar(events) {
   const oezEvents = events.filter(ev => ev.calendar === 'oeffnungszeiten').slice(0, 6);
   const otherEvents = events.filter(ev => ev.calendar !== 'oeffnungszeiten');
 
+  oezEl.style.display = '';
   if (oezEvents.length) {
-    oezEl.style.display = '';
     oezEl.innerHTML = `
       <div class="oez-label" style="grid-column: 1 / -1;">Nächste Öffnungszeiten</div>
       ${oezEvents.map(ev => {
@@ -978,6 +978,8 @@ function renderCalendar(events) {
           </div>`;
       }).join('')}
     `;
+  } else {
+    oezEl.innerHTML = '<div class="oez-label" style="grid-column: 1 / -1;">Öffnungszeiten</div><div style="grid-column:1/-1;padding:16px;color:var(--text-dim);font-size:14px;">Zur Zeit keine Öffnungszeiten eingetragen. Bitte schaut später wieder vorbei.</div>';
   }
 
   // "Termine"-Label einblenden wenn es Öffnungszeiten gibt
