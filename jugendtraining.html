@@ -99,6 +99,62 @@
   section { max-width: 880px; margin: 0 auto; padding: 48px 24px; }
   .section-divider { border-top: 1px solid var(--dark-border); }
 
+  /* ===== IMAGE STRIP ===== */
+  .strip-wrapper {
+    border-radius: 12px; border: 1px solid var(--dark-border);
+    background: var(--dark-card); overflow: hidden; position: relative;
+  }
+  .strip-track-outer {
+    overflow-x: auto; overflow-y: hidden; position: relative;
+    scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .strip-track-outer::-webkit-scrollbar { display: none; }
+  .strip-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    z-index: 5; width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(20,20,20,0.85); border: 1px solid var(--dark-border);
+    color: var(--cream); font-size: 22px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; backdrop-filter: blur(8px);
+  }
+  .strip-arrow:hover { background: rgba(212,160,32,0.25); border-color: var(--yellow); color: var(--yellow); }
+  .strip-arrow-left { left: 12px; }
+  .strip-arrow-right { right: 12px; }
+  .strip-track { display: flex; gap: 6px; width: max-content; padding: 0 48px; }
+  .strip-item {
+    height: 240px; flex-shrink: 0; border-radius: 8px;
+    overflow: hidden; position: relative; cursor: pointer;
+  }
+  .strip-item img { height: 100%; width: auto; display: block; transition: transform 0.4s; }
+  .strip-item:hover img { transform: scale(1.03); }
+  .strip-caption {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
+    padding: 32px 14px 10px; color: var(--cream); font-size: 13px; font-weight: 500;
+    opacity: 0; transition: opacity 0.3s; white-space: nowrap;
+  }
+  .strip-item:hover .strip-caption { opacity: 1; }
+  .strip-empty {
+    height: 160px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 14px; width: 100%;
+  }
+  .lightbox {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.92); backdrop-filter: blur(12px);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px; cursor: zoom-out;
+  }
+  .lightbox.show { display: flex; }
+  .lightbox img { max-width: 95%; max-height: 90vh; object-fit: contain; border-radius: 8px; cursor: default; }
+  .lightbox-close {
+    position: absolute; top: 16px; right: 16px; width: 40px; height: 40px;
+    border-radius: 50%; background: rgba(255,255,255,0.1); border: none;
+    color: var(--cream); font-size: 24px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  @media (max-width: 768px) { .strip-item { height: 180px; } }
+
   /* ===== INFO CARDS ===== */
   .info-grid { display: flex; flex-direction: column; gap: 12px; }
   .fact-card {
@@ -317,6 +373,21 @@
     <p>Euer Kind möchte Bouldern ausprobieren? Kein Problem — kommt einfach freitags zum Training vorbei! Ihr seid herzlich eingeladen, unverbindlich zu schnuppern.</p>
   </div>
 </section>
+
+<!-- BILDER -->
+<section class="section-divider" id="bilder">
+  <span class="section-label">Eindrücke</span>
+  <h2 class="section-title">Aus dem Training</h2>
+  <div id="imageStrip" class="strip-wrapper">
+    <div class="strip-empty">Bilder werden geladen...</div>
+  </div>
+</section>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">&times;</button>
+  <img id="lightboxImg" src="" alt="">
+</div>
 
 <!-- ANMELDEFORMULAR -->
 <section class="section-divider">
@@ -614,6 +685,84 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.cb-group input').forEach(el=>{el.addEventListener('change',checkForm);});
   checkForm();
 });
+
+// ===================== IMAGE STRIP =====================
+fetch('data/jugendtraining-fotos.json').then(r => r.json()).then(images => {
+  if (images && images.length) {
+    images.forEach(img => { if (!img.url) img.url = 'img/jugendtraining/' + img.file; });
+    renderJtStrip(images);
+  } else {
+    document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Noch keine Bilder vorhanden</div>';
+  }
+}).catch(() => {
+  document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Noch keine Bilder vorhanden</div>';
+});
+
+function renderJtStrip(images) {
+  const el = document.getElementById('imageStrip');
+  if (!images.length) { el.innerHTML = '<div class="strip-empty">Noch keine Bilder vorhanden</div>'; return; }
+
+  el.innerHTML = `
+    <button class="strip-arrow strip-arrow-left" id="stripLeft">&#8249;</button>
+    <button class="strip-arrow strip-arrow-right" id="stripRight">&#8250;</button>
+    <div class="strip-track-outer" id="stripScroller">
+      <div class="strip-track" id="stripTrack">${images.map(img => {
+        const src = img.url || '';
+        return `<div class="strip-item">${src ? `<img src="${src}" alt="${img.name||''}" loading="lazy">` : ''}<div class="strip-caption">${img.name||''}</div></div>`;
+      }).join('')}</div>
+    </div>
+  `;
+
+  const scroller = document.getElementById('stripScroller');
+  document.getElementById('stripLeft').addEventListener('click', () => {
+    scroller.scrollBy({ left: -320, behavior: 'smooth' });
+  });
+  document.getElementById('stripRight').addEventListener('click', () => {
+    scroller.scrollBy({ left: 320, behavior: 'smooth' });
+  });
+
+  // Drag to scroll
+  let isDown = false, startX, scrollLeft, dragged = false;
+  scroller.addEventListener('mousedown', (e) => {
+    isDown = true; dragged = false; scroller.style.cursor = 'grabbing';
+    startX = e.pageX - scroller.offsetLeft; scrollLeft = scroller.scrollLeft;
+  });
+  scroller.addEventListener('mouseleave', () => { isDown = false; scroller.style.cursor = ''; });
+  scroller.addEventListener('mouseup', () => { isDown = false; scroller.style.cursor = ''; });
+  scroller.addEventListener('mousemove', (e) => {
+    if (!isDown) return; e.preventDefault();
+    dragged = true;
+    scroller.scrollLeft = scrollLeft - (e.pageX - scroller.offsetLeft - startX);
+  });
+
+  // Click → Lightbox
+  el.addEventListener('click', (e) => {
+    if (dragged) return;
+    const item = e.target.closest('.strip-item');
+    if (!item) return;
+    const img = item.querySelector('img');
+    if (!img) return;
+    openLightbox(img.src);
+  });
+}
+
+// ===================== LIGHTBOX =====================
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+
+function openLightbox(src) {
+  lightboxImg.src = src;
+  lightbox.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  lightbox.classList.remove('show');
+  document.body.style.overflow = '';
+  lightboxImg.src = '';
+}
+lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
 </script>
 </body>
 </html>

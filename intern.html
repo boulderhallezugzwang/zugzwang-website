@@ -305,6 +305,54 @@
   .ez-info { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
   .ez-cb { width: 18px; height: 18px; accent-color: var(--yellow); cursor: pointer; flex-shrink: 0; }
 
+  /* ===== BILDER-VERWALTUNG ===== */
+  .img-mgr { max-width: 720px; margin: 0 auto; padding: 16px 24px; }
+  .img-mgr h3 {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 18px;
+    font-weight: 700; color: var(--cream); text-transform: uppercase;
+    margin-bottom: 12px; margin-top: 24px;
+  }
+  .img-mgr h3:first-child { margin-top: 0; }
+  .img-upload-zone {
+    border: 2px dashed var(--dark-border); border-radius: var(--radius);
+    padding: 24px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s; margin-bottom: 16px;
+  }
+  .img-upload-zone:hover, .img-upload-zone.dragover {
+    border-color: var(--yellow); background: rgba(212,160,32,0.05);
+  }
+  .img-upload-zone input { display: none; }
+  .img-upload-label { color: var(--text-dim); font-size: 14px; }
+  .img-upload-label strong { color: var(--yellow); }
+  .img-upload-progress {
+    margin: 8px 0; height: 4px; background: var(--dark-border); border-radius: 2px; overflow: hidden; display: none;
+  }
+  .img-upload-progress-bar { height: 100%; background: var(--yellow); width: 0%; transition: width 0.3s; }
+  .img-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;
+  }
+  .img-thumb {
+    position: relative; border-radius: 6px; overflow: hidden;
+    aspect-ratio: 4/3; background: var(--dark); cursor: grab;
+  }
+  .img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .img-thumb-del {
+    position: absolute; top: 4px; right: 4px; width: 24px; height: 24px;
+    border-radius: 50%; background: rgba(231,76,60,0.9); border: none;
+    color: white; font-size: 14px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;
+  }
+  .img-thumb:hover .img-thumb-del { opacity: 1; }
+  .img-thumb-caption {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.7); padding: 4px 6px;
+    font-size: 11px; color: var(--cream); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .img-status { font-size: 13px; color: var(--text-dim); margin: 8px 0; }
+  .img-status.ok { color: var(--success); }
+  .img-status.err { color: var(--error); }
+
   /* ===== HALLENDIENST ===== */
   .hd-tools {
     max-width: 720px; margin: 16px auto 0; padding: 0 24px;
@@ -635,6 +683,7 @@
         <button class="app-tab" data-section="news">News</button>
         <button class="app-tab" data-section="newsletter">Newsletter</button>
         <button class="app-tab" data-section="team">Team</button>
+        <button class="app-tab" data-section="bilder" id="tabBilder" style="display:none">Bilder</button>
         <button class="app-tab" data-section="config" id="tabConfig" style="display:none">Config</button>
       </div>
       <div class="app-user-info">
@@ -960,6 +1009,29 @@
     </div>
   </div>
 
+  <!-- Sektion: Bilder -->
+  <div class="section" id="sectionBilder">
+    <div class="img-mgr">
+      <h3>Boulderhalle — Karussell</h3>
+      <div class="img-upload-zone" id="imgZoneCarousel" onclick="document.getElementById('imgFileCarousel').click()">
+        <input type="file" id="imgFileCarousel" accept="image/*" multiple onchange="imgUpload('carousel', this.files)">
+        <div class="img-upload-label"><strong>Bilder auswählen</strong> oder hierher ziehen</div>
+        <div class="img-upload-progress" id="imgProgressCarousel"><div class="img-upload-progress-bar" id="imgBarCarousel"></div></div>
+        <div class="img-status" id="imgStatusCarousel"></div>
+      </div>
+      <div class="img-grid" id="imgGridCarousel"></div>
+
+      <h3>Jugendtraining</h3>
+      <div class="img-upload-zone" id="imgZoneJugend" onclick="document.getElementById('imgFileJugend').click()">
+        <input type="file" id="imgFileJugend" accept="image/*" multiple onchange="imgUpload('jugend', this.files)">
+        <div class="img-upload-label"><strong>Bilder auswählen</strong> oder hierher ziehen</div>
+        <div class="img-upload-progress" id="imgProgressJugend"><div class="img-upload-progress-bar" id="imgBarJugend"></div></div>
+        <div class="img-status" id="imgStatusJugend"></div>
+      </div>
+      <div class="img-grid" id="imgGridJugend"></div>
+    </div>
+  </div>
+
   <!-- Sektion: Config -->
   <div class="section" id="sectionConfig">
     <div class="event-form">
@@ -1178,6 +1250,7 @@ function enterApp(data) {
   document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
   if (currentUser && currentUser.rolle === 'admin') {
     document.getElementById('tabConfig').style.display = '';
+    document.getElementById('tabBilder').style.display = '';
     document.getElementById('ezToggle').style.display = '';
   }
   if (data.jugend) jtInit(data.jugend);
@@ -2857,6 +2930,201 @@ function cfgSave() {
   document.getElementById('hdVon').value = fmt(today);
   document.getElementById('hdBis').value = fmt(in3m);
 })();
+
+// ═══════════════════════════════════════════════════
+// BILDER-VERWALTUNG
+// ═══════════════════════════════════════════════════
+
+var imgData = { carousel: [], jugend: [] };
+var imgShas = { carousel: null, jugend: null };
+var imgConfig = {
+  carousel: { dir: 'img/carousel', json: 'data/carousel.json', maxWidth: 1200, quality: 0.85 },
+  jugend:   { dir: 'img/jugendtraining', json: 'data/jugendtraining-fotos.json', maxWidth: 1200, quality: 0.85 }
+};
+var imgLoaded = { carousel: false, jugend: false };
+
+// Drag & Drop Setup
+['carousel', 'jugend'].forEach(function(cat) {
+  var zone = document.getElementById('imgZone' + (cat === 'carousel' ? 'Carousel' : 'Jugend'));
+  if (!zone) return;
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('dragover'); });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault(); zone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) imgUpload(cat, e.dataTransfer.files);
+  });
+});
+
+function imgLoadGallery(cat) {
+  if (imgLoaded[cat]) return;
+  imgLoaded[cat] = true;
+  var cfg = imgConfig[cat];
+  tmGhGet(cfg.json).then(function(file) {
+    if (file.content) {
+      imgShas[cat] = file.sha;
+      imgData[cat] = JSON.parse(decodeURIComponent(escape(atob(file.content.replace(/\n/g, '')))));
+    }
+    imgRenderGrid(cat);
+  }).catch(function() { imgRenderGrid(cat); });
+}
+
+function imgRenderGrid(cat) {
+  var suffix = cat === 'carousel' ? 'Carousel' : 'Jugend';
+  var grid = document.getElementById('imgGrid' + suffix);
+  if (!imgData[cat].length) { grid.innerHTML = '<div class="img-status">Noch keine Bilder vorhanden</div>'; return; }
+  grid.innerHTML = imgData[cat].map(function(img, i) {
+    var src = img.url || (imgConfig[cat].dir + '/' + img.file);
+    return '<div class="img-thumb" data-idx="' + i + '">' +
+      '<img src="' + src + '" alt="' + (img.name || '') + '" loading="lazy">' +
+      '<button class="img-thumb-del" onclick="imgDelete(\'' + cat + '\',' + i + ')" title="Löschen">&times;</button>' +
+      '<div class="img-thumb-caption">' + (img.name || img.file) + '</div></div>';
+  }).join('');
+}
+
+function imgSetStatus(cat, msg, cls) {
+  var suffix = cat === 'carousel' ? 'Carousel' : 'Jugend';
+  var el = document.getElementById('imgStatus' + suffix);
+  el.textContent = msg;
+  el.className = 'img-status' + (cls ? ' ' + cls : '');
+}
+
+function imgShowProgress(cat, pct) {
+  var suffix = cat === 'carousel' ? 'Carousel' : 'Jugend';
+  var prog = document.getElementById('imgProgress' + suffix);
+  var bar = document.getElementById('imgBar' + suffix);
+  prog.style.display = pct >= 0 ? 'block' : 'none';
+  bar.style.width = pct + '%';
+}
+
+function imgResize(file, maxWidth, quality) {
+  return new Promise(function(resolve) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        // JPEG output
+        var dataUrl = canvas.toDataURL('image/jpeg', quality);
+        var base64 = dataUrl.split(',')[1];
+        resolve({ base64: base64, width: w, height: h });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function imgUpload(cat, files) {
+  if (!files || !files.length) return;
+  var token = tmGetToken();
+  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
+
+  var cfg = imgConfig[cat];
+  var total = files.length;
+  var done = 0;
+  imgSetStatus(cat, 'Lade ' + total + ' Bild(er) hoch...');
+  imgShowProgress(cat, 0);
+
+  // Sequentiell hochladen
+  var queue = Array.from(files).filter(function(f) { return f.type.startsWith('image/'); });
+  if (!queue.length) { imgSetStatus(cat, 'Keine Bilddateien ausgewählt', 'err'); return; }
+  total = queue.length;
+
+  function next(i) {
+    if (i >= total) {
+      // Manifest speichern
+      imgSaveManifest(cat).then(function() {
+        imgShowProgress(cat, -1);
+        imgSetStatus(cat, total + ' Bild(er) hochgeladen', 'ok');
+        imgRenderGrid(cat);
+      });
+      return;
+    }
+    var file = queue[i];
+    var cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
+    // Zeitstempel voranstellen für Eindeutigkeit
+    var ts = Date.now().toString(36);
+    var fileName = ts + '_' + cleanName.replace(/\.[^.]+$/, '.jpg');
+
+    imgResize(file, cfg.maxWidth, cfg.quality).then(function(result) {
+      var path = cfg.dir + '/' + fileName;
+      return tmGhPutBinary(path, result.base64, null, 'Bild: ' + fileName).then(function() {
+        imgData[cat].push({
+          file: fileName,
+          name: file.name.replace(/\.[^.]+$/, ''),
+          date: new Date().toISOString()
+        });
+        done++;
+        imgShowProgress(cat, Math.round(done / total * 100));
+        imgSetStatus(cat, done + ' / ' + total + ' hochgeladen...');
+        next(i + 1);
+      });
+    }).catch(function(err) {
+      imgSetStatus(cat, 'Fehler bei ' + file.name + ': ' + err, 'err');
+      imgShowProgress(cat, -1);
+    });
+  }
+  next(0);
+}
+
+function imgSaveManifest(cat) {
+  var cfg = imgConfig[cat];
+  var json = JSON.stringify(imgData[cat], null, 2);
+  return tmGhPut(cfg.json, json, imgShas[cat], 'Bilder-Manifest aktualisiert').then(function(resp) {
+    if (resp && resp.content) imgShas[cat] = resp.content.sha;
+  });
+}
+
+function imgDelete(cat, idx) {
+  if (!confirm('Bild wirklich löschen?')) return;
+  var token = tmGetToken();
+  if (!token) { alert('Bitte GitHub Token eingeben!'); return; }
+
+  var img = imgData[cat][idx];
+  var cfg = imgConfig[cat];
+  var path = cfg.dir + '/' + img.file;
+
+  imgSetStatus(cat, 'Lösche ' + img.file + '...');
+
+  // Erst SHA der Datei holen
+  tmGhGet(path).then(function(file) {
+    if (!file.sha) throw new Error('Datei nicht gefunden');
+    // Datei löschen
+    return fetch('https://api.github.com/repos/' + TM_REPO + '/contents/' + path, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'token ' + token,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: 'Bild gelöscht: ' + img.file, sha: file.sha, branch: TM_BRANCH })
+    });
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Löschen fehlgeschlagen');
+    imgData[cat].splice(idx, 1);
+    return imgSaveManifest(cat);
+  }).then(function() {
+    imgSetStatus(cat, 'Bild gelöscht', 'ok');
+    imgRenderGrid(cat);
+  }).catch(function(err) {
+    imgSetStatus(cat, 'Fehler: ' + err.message, 'err');
+  });
+}
+
+// Bilder laden wenn Tab gewechselt wird
+document.querySelectorAll('.app-tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    if (tab.dataset.section === 'bilder') {
+      imgLoadGallery('carousel');
+      imgLoadGallery('jugend');
+    }
+  });
+});
 </script>
 
 <!-- FOOTER -->

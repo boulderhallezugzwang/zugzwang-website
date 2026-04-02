@@ -847,11 +847,18 @@ function markLoad(key, success) {
 // ===================== INIT =====================
 // Drei parallele API-Calls statt einem großen — schnellerer Seitenaufbau
 document.addEventListener('DOMContentLoaded', () => {
-  // Alle drei parallel starten — jeder rendert sobald er fertig ist
-  fetchAction('images').then(data => {
-    if (data && data.images) renderImageStrip(data.images);
-    else document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Keine Bilder vorhanden</div>';
-    markLoad('images', !!(data && data.images));
+  // Bilder aus GitHub JSON laden (schneller als Google Drive API)
+  fetch('data/carousel.json').then(r => r.json()).then(images => {
+    if (images && images.length) {
+      images.forEach(img => { if (!img.url) img.url = 'img/carousel/' + img.file; });
+      renderImageStrip(images);
+    } else {
+      document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Keine Bilder vorhanden</div>';
+    }
+    markLoad('images', !!(images && images.length));
+  }).catch(() => {
+    document.getElementById('imageStrip').innerHTML = '<div class="strip-empty">Keine Bilder vorhanden</div>';
+    markLoad('images', false);
   });
 
   fetchAction('calendar').then(data => {
@@ -884,13 +891,11 @@ function renderImageStrip(images) {
   if (!images.length) { el.innerHTML = '<div class="strip-empty">Keine Bilder vorhanden</div>'; return; }
 
   function makeItem(img, i) {
-    const hasUrl = img.url && img.url.length > 10;
-    const fb2 = img.urlExport ? `this.src='${img.urlExport}'` : `this.parentElement.innerHTML='<div style="height:100%;width:300px;display:flex;align-items:center;justify-content:center;font-size:48px;background:${GRADIENTS[i%GRADIENTS.length]}">${EMOJIS[i%EMOJIS.length]}</div>'`;
-    const fb1 = img.urlAlt ? `this.onerror=function(){${fb2}};this.src='${img.urlAlt}'` : fb2;
-    const tag = hasUrl
-      ? `<img src="${img.url}" alt="${img.name}" loading="lazy" referrerpolicy="no-referrer" onerror="${fb1}">`
+    const src = img.url || '';
+    const tag = src
+      ? `<img src="${src}" alt="${img.name || ''}" loading="lazy">`
       : `<div style="height:100%;width:300px;display:flex;align-items:center;justify-content:center;font-size:48px;background:${GRADIENTS[i%GRADIENTS.length]}">${EMOJIS[i%EMOJIS.length]}</div>`;
-    return `<div class="strip-item">${tag}<div class="strip-caption">${img.name}</div></div>`;
+    return `<div class="strip-item">${tag}<div class="strip-caption">${img.name || ''}</div></div>`;
   }
 
   el.innerHTML = `
