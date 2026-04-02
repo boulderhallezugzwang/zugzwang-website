@@ -1260,8 +1260,12 @@ function enterApp(data) {
     document.getElementById('ezToggle').style.display = '';
   }
   if (data.jugend) jtInit(data.jugend);
-  document.getElementById('searchInput').focus();
   renderList(allMembers);
+  // Letzten Tab wiederherstellen
+  var savedTab = sessionStorage.getItem('zz_active_tab');
+  if (savedTab && document.querySelector('.app-tab[data-section="' + savedTab + '"]')) {
+    switchTab(savedTab);
+  }
 }
 
 function doLogout() {
@@ -1347,35 +1351,39 @@ function evUpdateButtonText() {
   }
 }
 
+function switchTab(section) {
+  document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  var tab = document.querySelector('.app-tab[data-section="' + section + '"]');
+  if (tab) tab.classList.add('active');
+  var sectionId = 'section' + section.charAt(0).toUpperCase() + section.slice(1);
+  var el = document.getElementById(sectionId);
+  if (el) el.classList.add('active');
+  sessionStorage.setItem('zz_active_tab', section);
+  if (section === 'hallendienst' && !hdLoaded) {
+    hdLoaded = true;
+    hdLoadTermine();
+  }
+  if (section === 'termine' && !evLoaded) {
+    evLoaded = true;
+    evLoadEvents();
+  }
+  if (section === 'news' && !nwLoaded) {
+    nwLoaded = true;
+    nwLoadNews();
+  }
+  if (section === 'team' && !tmLoaded) {
+    tmLoaded = true;
+    tmLoadTeam();
+  }
+  if (section === 'config' && !cfgLoaded) {
+    cfgLoaded = true;
+    cfgLoad();
+  }
+}
+
 document.querySelectorAll('.app-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    tab.classList.add('active');
-    var section = tab.dataset.section;
-    var sectionId = 'section' + section.charAt(0).toUpperCase() + section.slice(1);
-    document.getElementById(sectionId).classList.add('active');
-    if (section === 'hallendienst' && !hdLoaded) {
-      hdLoaded = true;
-      hdLoadTermine();
-    }
-    if (section === 'termine' && !evLoaded) {
-      evLoaded = true;
-      evLoadEvents();
-    }
-    if (section === 'news' && !nwLoaded) {
-      nwLoaded = true;
-      nwLoadNews();
-    }
-    if (section === 'team' && !tmLoaded) {
-      tmLoaded = true;
-      tmLoadTeam();
-    }
-    if (section === 'config' && !cfgLoaded) {
-      cfgLoaded = true;
-      cfgLoad();
-    }
-  });
+  tab.addEventListener('click', () => { switchTab(tab.dataset.section); });
 });
 
 // ── Suche ──
