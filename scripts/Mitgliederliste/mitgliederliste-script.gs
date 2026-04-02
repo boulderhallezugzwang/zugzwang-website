@@ -532,8 +532,9 @@ function stripTags(desc) {
 function getCalendarEvents() {
   var heute = new Date();
   heute.setHours(0, 0, 0, 0);
+  // Alle zukünftigen Termine: 2 Jahre voraus
   var bis = new Date();
-  bis.setMonth(bis.getMonth() + 6);
+  bis.setFullYear(bis.getFullYear() + 2);
 
   var alleTermine = [];
   var keys = Object.keys(KALENDER);
