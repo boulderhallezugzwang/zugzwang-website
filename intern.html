@@ -629,6 +629,7 @@
     <div class="app-header-inner">
       <div class="app-tabs">
         <button class="app-tab active" data-section="members">Mitgliederliste</button>
+        <button class="app-tab" data-section="jugend" id="tabJugend" style="display:none">Jugendtraining</button>
         <button class="app-tab" data-section="hallendienst">Hallendienst</button>
         <button class="app-tab" data-section="termine">Termine</button>
         <button class="app-tab" data-section="news">News</button>
@@ -689,6 +690,48 @@
       <div class="loading" id="loadingMsg">
         <div class="spinner"></div>
         Mitglieder werden geladen...
+      </div>
+    </div>
+  </div>
+
+  <!-- Sektion: Jugendtraining -->
+  <div class="section" id="sectionJugend">
+    <div class="section-header">
+      <span class="app-count" id="jtCountBadge">-</span>
+      <button class="ez-btn" id="jtEzToggle" style="display:none" onclick="jtEzTogglePanel()">SEPA-Einzüge</button>
+    </div>
+    <div class="ez-panel" id="jtEzPanel">
+      <div class="ez-panel-inner">
+        <h3>Jugendtraining — SEPA-Export</h3>
+        <div class="ez-row">
+          <div class="ez-group"><label>Beitrag Jugendtraining</label><input type="text" id="jtEzBetrag" value="60" placeholder="€"></div>
+        </div>
+        <div class="ez-select-row">
+          <button class="ez-select-btn" onclick="jtEzSelectAll()">Alle</button>
+          <button class="ez-select-btn" onclick="jtEzSelectNone()">Keine</button>
+          <div class="ez-group" style="flex-direction:row;align-items:center;gap:4px;">
+            <label style="white-space:nowrap">Eintritt von</label>
+            <input type="date" id="jtEzDateFrom">
+          </div>
+          <div class="ez-group" style="flex-direction:row;align-items:center;gap:4px;">
+            <label>bis</label>
+            <input type="date" id="jtEzDateTo">
+          </div>
+          <button class="ez-select-btn" onclick="jtEzSelectByDate()">Filtern</button>
+        </div>
+        <div class="ez-select-row">
+          <button class="ez-export-btn" onclick="jtEzExportCSV()">CSV exportieren</button>
+          <span class="ez-info" id="jtEzSelectedCount">0 Teilnehmer ausgewählt</span>
+        </div>
+      </div>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="jtSearchInput" placeholder="Name, E-Mail oder Telefon suchen..." autocomplete="off">
+    </div>
+    <div class="list-container" id="jtListContainer">
+      <div class="loading" id="jtLoadingMsg">
+        <div class="spinner"></div>
+        Jugendtraining wird geladen...
       </div>
     </div>
   </div>
@@ -1135,7 +1178,9 @@ function enterApp(data) {
   document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
   if (currentUser && currentUser.rolle === 'admin') {
     document.getElementById('tabConfig').style.display = '';
+    document.getElementById('tabJugend').style.display = '';
     document.getElementById('ezToggle').style.display = '';
+    if (data.jugend) jtInit(data.jugend);
   }
   document.getElementById('searchInput').focus();
   renderList(allMembers);
@@ -1488,6 +1533,150 @@ function escCsvField(s) {
   s = s.toString();
   if (s.indexOf(';') !== -1 || s.indexOf('"') !== -1) return '"' + s.replace(/"/g, '""') + '"';
   return s;
+}
+
+// ═══════════════════════════════════════════════════
+// JUGENDTRAINING
+// ═══════════════════════════════════════════════════
+
+var jtMembers = [];
+var jtEzMode = false;
+var jtEzSelected = new Set();
+
+function jtInit(data) {
+  jtMembers = data || [];
+  document.getElementById('jtLoadingMsg').style.display = 'none';
+  document.getElementById('jtCountBadge').textContent = jtMembers.length + ' Teilnehmer';
+  if (currentUser && currentUser.rolle === 'admin') {
+    document.getElementById('jtEzToggle').style.display = '';
+  }
+  jtRenderList(jtMembers);
+}
+
+function jtRenderList(members, query) {
+  var container = document.getElementById('jtListContainer');
+  if (members.length === 0) {
+    container.innerHTML = '<div class="no-results"><div class="nr-icon">&#128269;</div>' + (query ? 'Kein Teilnehmer gefunden' : 'Keine Teilnehmer vorhanden') + '</div>';
+    jtUpdateCount(members.length); return;
+  }
+  var html = '';
+  members.forEach(function(m) {
+    var initials = (m.vorname.charAt(0) + m.nachname.charAt(0)).toUpperCase();
+    var name = escHtml(m.vorname) + ' ' + escHtml(m.nachname);
+    var displayName = query ? highlightMatch(name, query) : name;
+    var idx = jtMembers.indexOf(m);
+    var showCb = jtEzMode && m.mandatsreferenz;
+    html += '<div class="member-card">';
+    if (showCb) html += '<input type="checkbox" class="ez-cb" data-idx="' + idx + '" ' + (jtEzSelected.has(idx) ? 'checked' : '') + ' onchange="jtEzToggleMember(' + idx + ',this.checked)">';
+    html += '<div class="member-avatar">' + initials + '</div><div class="member-info"><div class="member-name">' + displayName + '</div><div class="member-meta">';
+    if (m.telefon) html += '<span><a href="tel:' + escAttr(m.telefon) + '">' + escHtml(m.telefon) + '</a></span>';
+    if (m.email) html += '<span><a href="mailto:' + escAttr(m.email) + '">' + escHtml(m.email) + '</a></span>';
+    if (m.ort) html += '<span>' + escHtml(m.ort) + '</span>';
+    if (m.eintritt) html += '<span>' + escHtml(m.eintritt) + '</span>';
+    html += '</div></div><div class="member-badges">';
+    if (m.geburtsdatum) html += '<span class="member-status">' + escHtml(m.geburtsdatum) + '</span>';
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+  jtUpdateCount(members.length);
+}
+
+function jtUpdateCount(n) {
+  var t = jtMembers.length;
+  document.getElementById('jtCountBadge').textContent = n === t ? t + ' Teilnehmer' : n + ' / ' + t;
+}
+
+document.getElementById('jtSearchInput').addEventListener('input', function() {
+  var q = this.value.trim().toLowerCase();
+  if (!q) { jtRenderList(jtMembers); return; }
+  var terms = q.split(/\s+/);
+  var filtered = jtMembers.filter(function(m) {
+    var h = (m.nachname + ' ' + m.vorname + ' ' + m.email + ' ' + m.telefon + ' ' + m.ort).toLowerCase();
+    return terms.every(function(t) { return h.includes(t); });
+  });
+  jtRenderList(filtered, q);
+});
+
+function jtEzTogglePanel() {
+  jtEzMode = !jtEzMode;
+  document.getElementById('jtEzPanel').classList.toggle('open', jtEzMode);
+  document.getElementById('jtEzToggle').classList.toggle('active', jtEzMode);
+  if (!jtEzMode) jtEzSelected.clear();
+  jtEzUpdateCount();
+  jtRenderList(jtMembers);
+}
+
+function jtEzToggleMember(idx, checked) {
+  if (checked) jtEzSelected.add(idx); else jtEzSelected.delete(idx);
+  jtEzUpdateCount();
+}
+
+function jtEzSelectAll() {
+  jtEzSelected.clear();
+  jtMembers.forEach(function(m, i) { if (m.mandatsreferenz) jtEzSelected.add(i); });
+  jtEzUpdateCount(); jtRenderList(jtMembers);
+}
+
+function jtEzSelectNone() {
+  jtEzSelected.clear();
+  jtEzUpdateCount(); jtRenderList(jtMembers);
+}
+
+function jtEzSelectByDate() {
+  var from = document.getElementById('jtEzDateFrom').value;
+  var to = document.getElementById('jtEzDateTo').value;
+  if (!from && !to) { alert('Bitte mindestens ein Datum eingeben'); return; }
+  var fromNum = from ? parseInt(from.replace(/-/g, ''), 10) : 0;
+  var toNum = to ? parseInt(to.replace(/-/g, ''), 10) : 99999999;
+  jtEzSelected.clear();
+  jtMembers.forEach(function(m, i) {
+    if (!m.mandatsreferenz || !m.eintritt) return;
+    var parts = m.eintritt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!parts) return;
+    var num = parseInt(parts[3] + ('0' + parts[2]).slice(-2) + ('0' + parts[1]).slice(-2), 10);
+    if (num >= fromNum && num <= toNum) jtEzSelected.add(i);
+  });
+  jtEzUpdateCount(); jtRenderList(jtMembers);
+}
+
+function jtEzUpdateCount() {
+  var el = document.getElementById('jtEzSelectedCount');
+  if (el) el.textContent = jtEzSelected.size + ' Teilnehmer ausgewählt';
+}
+
+function jtEzExportCSV() {
+  if (jtEzSelected.size === 0) { alert('Bitte mindestens einen Teilnehmer auswählen'); return; }
+  var betrag = document.getElementById('jtEzBetrag').value || '60';
+  var header = 'Bezeichnung;Zahlungspflichtiger;;Firma;Zahler-Iban;BIC;Betrag;Verwendungszweck1;Verwendungszweck2;IBAN des Zahlungsempfängers;Zahlungsempfänger;Mandatsreferenz;Unterschrieben am';
+  var empfIban = 'DE28760693690000000566';
+  var empfName = 'Boulderverein Zugzwang e. V.';
+  var lines = [header];
+  jtEzSelected.forEach(function(idx) {
+    var m = jtMembers[idx];
+    if (!m || !m.mandatsreferenz) return;
+    lines.push([
+      'Jugendtraining',
+      escCsvField(m.nachname),
+      escCsvField(m.vorname),
+      '',
+      escCsvField(m.iban || ''),
+      escCsvField(m.bic || ''),
+      betrag,
+      'Jugendtraining',
+      '',
+      empfIban,
+      empfName,
+      escCsvField(m.mandatsreferenz),
+      escCsvField(m.mandatDatum || '')
+    ].join(';'));
+  });
+  var csv = lines.join('\r\n');
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  a.href = url; a.download = today + '_Jugendtraining_Einzuege.csv';
+  a.click(); URL.revokeObjectURL(url);
 }
 
 // ═══════════════════════════════════════════════════

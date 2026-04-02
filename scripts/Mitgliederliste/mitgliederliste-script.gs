@@ -378,11 +378,62 @@ function getMemberData(user) {
     }
   });
 
-  return {
+  var result = {
     members: members,
     count: members.length,
     user: { displayName: user.anzeigename, rolle: user.rolle }
   };
+
+  // Jugendtraining-Daten hinzufügen
+  if (user.rolle === 'admin') {
+    result.jugend = getJugendtrainingData();
+  }
+
+  return result;
+}
+
+// ── Jugendtraining-Daten laden ──
+
+function getJugendtrainingData() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName('Jugendtraining');
+  if (!sheet) return [];
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+
+  var colIdx = {};
+  headers.forEach(function(h, i) { colIdx[h] = i; });
+
+  var members = [];
+  data.forEach(function(row) {
+    var nachname = row[colIdx['Nachname']] || '';
+    var vorname = row[colIdx['Vorname']] || '';
+    if (!nachname && !vorname) return;
+
+    var eintritt = colIdx['Eintritt'] !== undefined ? row[colIdx['Eintritt']] : '';
+    var mandatDatum = colIdx['Mandat Unterschriftsdatum'] !== undefined ? row[colIdx['Mandat Unterschriftsdatum']] : '';
+
+    members.push({
+      nachname: nachname.toString(),
+      vorname: vorname.toString(),
+      geburtsdatum: (row[colIdx['Geburtsdatum']] || '').toString(),
+      ort: (row[colIdx['Ort']] || '').toString(),
+      email: (row[colIdx['E-Mail']] || '').toString(),
+      telefon: (row[colIdx['Telefon Mobil']] || '').toString(),
+      iban: (row[colIdx['IBAN']] || '').toString(),
+      bic: (row[colIdx['BIC']] || '').toString(),
+      kontoinhaber: (row[colIdx['Kontoinhaber']] || '').toString(),
+      mandatsreferenz: (row[colIdx['Mandatsreferenz']] || '').toString(),
+      mandatDatum: mandatDatum instanceof Date ? Utilities.formatDate(mandatDatum, 'Europe/Berlin', 'dd.MM.yyyy') : (mandatDatum || '').toString(),
+      eintritt: eintritt instanceof Date ? Utilities.formatDate(eintritt, 'Europe/Berlin', 'dd.MM.yyyy') : (eintritt || '').toString()
+    });
+  });
+
+  return members;
 }
 
 // ── Chip-Daten im Sheet aktualisieren ──
