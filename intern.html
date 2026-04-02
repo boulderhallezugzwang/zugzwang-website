@@ -1297,7 +1297,6 @@ function renderList(members, query) {
     if (m.status) html += '<span class="member-status">'+escHtml(m.status)+'</span>';
     const chipClass = m.chip==='Ja'?'has-chip':'no-chip';
     const chipLabel = m.chip==='Ja'?'Chip: '+escHtml(m.chipnr||'-'):'Kein Chip';
-    const idx = allMembers.indexOf(m);
     const isAdmin = currentUser && currentUser.rolle === 'admin';
     if (isAdmin) {
       html += '<span class="chip-badge '+chipClass+'" onclick="editChip('+idx+')" title="Klicken zum Bearbeiten">'+chipLabel+'</span>';
