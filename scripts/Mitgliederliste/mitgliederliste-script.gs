@@ -385,16 +385,14 @@ function getMemberData(user) {
   };
 
   // Jugendtraining-Daten hinzufügen
-  if (user.rolle === 'admin') {
-    result.jugend = getJugendtrainingData();
-  }
+  result.jugend = getJugendtrainingData(user);
 
   return result;
 }
 
 // ── Jugendtraining-Daten laden ──
 
-function getJugendtrainingData() {
+function getJugendtrainingData(user) {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sheet = ss.getSheetByName('Jugendtraining');
   if (!sheet) return [];
@@ -417,20 +415,24 @@ function getJugendtrainingData() {
     var eintritt = colIdx['Eintritt'] !== undefined ? row[colIdx['Eintritt']] : '';
     var mandatDatum = colIdx['Mandat Unterschriftsdatum'] !== undefined ? row[colIdx['Mandat Unterschriftsdatum']] : '';
 
-    members.push({
+    var member = {
       nachname: nachname.toString(),
       vorname: vorname.toString(),
       geburtsdatum: (row[colIdx['Geburtsdatum']] || '').toString(),
       ort: (row[colIdx['Ort']] || '').toString(),
       email: (row[colIdx['E-Mail']] || '').toString(),
       telefon: (row[colIdx['Telefon Mobil']] || '').toString(),
-      iban: (row[colIdx['IBAN']] || '').toString(),
-      bic: (row[colIdx['BIC']] || '').toString(),
-      kontoinhaber: (row[colIdx['Kontoinhaber']] || '').toString(),
-      mandatsreferenz: (row[colIdx['Mandatsreferenz']] || '').toString(),
-      mandatDatum: mandatDatum instanceof Date ? Utilities.formatDate(mandatDatum, 'Europe/Berlin', 'dd.MM.yyyy') : (mandatDatum || '').toString(),
       eintritt: eintritt instanceof Date ? Utilities.formatDate(eintritt, 'Europe/Berlin', 'dd.MM.yyyy') : (eintritt || '').toString()
-    });
+    };
+    // SEPA-Felder nur für Admins
+    if (user && user.rolle === 'admin') {
+      member.iban = (row[colIdx['IBAN']] || '').toString();
+      member.bic = (row[colIdx['BIC']] || '').toString();
+      member.kontoinhaber = (row[colIdx['Kontoinhaber']] || '').toString();
+      member.mandatsreferenz = (row[colIdx['Mandatsreferenz']] || '').toString();
+      member.mandatDatum = mandatDatum instanceof Date ? Utilities.formatDate(mandatDatum, 'Europe/Berlin', 'dd.MM.yyyy') : (mandatDatum || '').toString();
+    }
+    members.push(member);
   });
 
   return members;

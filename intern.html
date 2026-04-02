@@ -629,7 +629,7 @@
     <div class="app-header-inner">
       <div class="app-tabs">
         <button class="app-tab active" data-section="members">Mitgliederliste</button>
-        <button class="app-tab" data-section="jugend" id="tabJugend" style="display:none">Jugendtraining</button>
+        <button class="app-tab" data-section="jugend">Jugendtraining</button>
         <button class="app-tab" data-section="hallendienst">Hallendienst</button>
         <button class="app-tab" data-section="termine">Termine</button>
         <button class="app-tab" data-section="news">News</button>
@@ -1178,10 +1178,9 @@ function enterApp(data) {
   document.getElementById('countBadge').textContent = allMembers.length + ' Mitglieder';
   if (currentUser && currentUser.rolle === 'admin') {
     document.getElementById('tabConfig').style.display = '';
-    document.getElementById('tabJugend').style.display = '';
     document.getElementById('ezToggle').style.display = '';
-    if (data.jugend) jtInit(data.jugend);
   }
+  if (data.jugend) jtInit(data.jugend);
   document.getElementById('searchInput').focus();
   renderList(allMembers);
 }
