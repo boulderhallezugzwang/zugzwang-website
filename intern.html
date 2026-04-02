@@ -332,23 +332,32 @@
     display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;
   }
   .img-thumb {
-    position: relative; border-radius: 6px; overflow: hidden;
-    aspect-ratio: 4/3; background: var(--dark); cursor: grab;
+    position: relative; border-radius: 6px;
+    aspect-ratio: 4/3; background: var(--dark);
   }
-  .img-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .img-thumb-del {
-    position: absolute; top: 4px; right: 4px; width: 24px; height: 24px;
-    border-radius: 50%; background: rgba(231,76,60,0.9); border: none;
+  .img-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+  .img-thumb-actions {
+    position: absolute; top: 4px; right: 4px; display: flex; gap: 3px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .img-thumb:hover .img-thumb-actions { opacity: 1; }
+  .img-thumb-btn {
+    width: 26px; height: 26px; border-radius: 50%; border: none;
     color: white; font-size: 14px; cursor: pointer; display: flex;
-    align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
   }
-  .img-thumb:hover .img-thumb-del { opacity: 1; }
+  .img-thumb-btn.del { background: rgba(231,76,60,0.9); }
+  .img-thumb-btn.move { background: rgba(0,0,0,0.7); font-size: 12px; }
+  .img-thumb-btn:hover { transform: scale(1.1); }
   .img-thumb-caption {
     position: absolute; bottom: 0; left: 0; right: 0;
     background: rgba(0,0,0,0.7); padding: 4px 6px;
     font-size: 11px; color: var(--cream); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
+    overflow: hidden; text-overflow: ellipsis; border-radius: 0 0 6px 6px;
   }
+  .img-thumb.dragging { opacity: 0.4; }
+  .img-thumb.drag-over { outline: 2px solid var(--yellow); outline-offset: 2px; }
   .img-status { font-size: 13px; color: var(--text-dim); margin: 8px 0; }
   .img-status.ok { color: var(--success); }
   .img-status.err { color: var(--error); }
@@ -2972,13 +2981,57 @@ function imgRenderGrid(cat) {
   var suffix = cat === 'carousel' ? 'Carousel' : 'Jugend';
   var grid = document.getElementById('imgGrid' + suffix);
   if (!imgData[cat].length) { grid.innerHTML = '<div class="img-status">Noch keine Bilder vorhanden</div>'; return; }
+  var len = imgData[cat].length;
   grid.innerHTML = imgData[cat].map(function(img, i) {
     var src = img.url || (imgConfig[cat].dir + '/' + img.file);
-    return '<div class="img-thumb" data-idx="' + i + '">' +
+    return '<div class="img-thumb" data-idx="' + i + '" draggable="true">' +
       '<img src="' + src + '" alt="' + (img.name || '') + '" loading="lazy">' +
-      '<button class="img-thumb-del" onclick="imgDelete(\'' + cat + '\',' + i + ')" title="Löschen">&times;</button>' +
+      '<div class="img-thumb-actions">' +
+        (i > 0 ? '<button class="img-thumb-btn move" onclick="imgMove(\'' + cat + '\',' + i + ',-1)" title="Nach links">&#8249;</button>' : '') +
+        (i < len - 1 ? '<button class="img-thumb-btn move" onclick="imgMove(\'' + cat + '\',' + i + ',1)" title="Nach rechts">&#8250;</button>' : '') +
+        '<button class="img-thumb-btn del" onclick="imgDelete(\'' + cat + '\',' + i + ')" title="Löschen">&times;</button>' +
+      '</div>' +
       '<div class="img-thumb-caption">' + (img.name || img.file) + '</div></div>';
   }).join('');
+
+  // Drag & drop reorder
+  var thumbs = grid.querySelectorAll('.img-thumb');
+  var dragIdx = null;
+  thumbs.forEach(function(thumb) {
+    thumb.addEventListener('dragstart', function(e) {
+      dragIdx = parseInt(thumb.dataset.idx);
+      thumb.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    thumb.addEventListener('dragend', function() {
+      thumb.classList.remove('dragging');
+      grid.querySelectorAll('.img-thumb').forEach(function(t) { t.classList.remove('drag-over'); });
+      dragIdx = null;
+    });
+    thumb.addEventListener('dragover', function(e) {
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      thumb.classList.add('drag-over');
+    });
+    thumb.addEventListener('dragleave', function() { thumb.classList.remove('drag-over'); });
+    thumb.addEventListener('drop', function(e) {
+      e.preventDefault();
+      thumb.classList.remove('drag-over');
+      var dropIdx = parseInt(thumb.dataset.idx);
+      if (dragIdx !== null && dragIdx !== dropIdx) {
+        var item = imgData[cat].splice(dragIdx, 1)[0];
+        imgData[cat].splice(dropIdx, 0, item);
+        imgSaveManifest(cat).then(function() { imgRenderGrid(cat); });
+      }
+    });
+  });
+}
+
+function imgMove(cat, idx, dir) {
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= imgData[cat].length) return;
+  var item = imgData[cat].splice(idx, 1)[0];
+  imgData[cat].splice(newIdx, 0, item);
+  imgSaveManifest(cat).then(function() { imgRenderGrid(cat); });
 }
 
 function imgSetStatus(cat, msg, cls) {
