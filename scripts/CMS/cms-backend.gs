@@ -326,7 +326,7 @@ function getCalendarEvents() {
 
         allEvents.push({
           title: ev.getTitle(),
-          description: ev.getDescription() || '',
+          description: (ev.getDescription() || '').replace(/\n?\[ZZ-[^\]]*\]/g, '').trim(),
           location: ev.getLocation() || '',
           start: start.toISOString(),
           end: end.toISOString(),
