@@ -1019,7 +1019,7 @@
         <div class="form-group full">
           <label>GitHub Token <span style="color:var(--text-dim);font-weight:normal;">(wird lokal gespeichert, einmal eingeben)</span></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input type="text" id="tmGhToken" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <input type="password" id="tmGhToken" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
             <button class="submit-btn" onclick="tmSaveToken()" style="padding:8px 16px;white-space:nowrap;">Token speichern</button>
           </div>
         </div>
@@ -2521,7 +2521,8 @@ var tmImageCache = {}; // bild-path → base64 data-URL für sofortige Anzeige
 
 // Unsichtbare Zeichen entfernen (Mobile-Keyboard fügt oft Zero-Width-Spaces ein)
 function tmCleanToken(s) {
-  return s.replace(/[^\x20-\x7E]/g, '').trim();
+  // Alles außer ASCII-Buchstaben, Zahlen und _ entfernen, Whitespace/Zeilenumbrüche weg
+  return s.replace(/\s+/g, '').replace(/[^a-zA-Z0-9_]/g, '').trim();
 }
 
 // GitHub Token aus localStorage
