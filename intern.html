@@ -927,34 +927,42 @@
 
   <!-- Sektion: Newsletter -->
   <div class="section" id="sectionNewsletter">
-    <div class="event-form">
-      <h3>Newsletter senden</h3>
-      <div class="form-row">
-        <div class="form-group full">
-          <label>Betreff</label>
-          <input type="text" id="nlBetreff" placeholder="z.B. Neuigkeiten aus der Boulderhalle">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group full">
-          <label>Nachricht</label>
-          <div id="nlEditor"></div>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group full">
-          <label>Empfänger</label>
-          <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:6px;">
-            <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="nlMailMode" value="all" checked> An alle Mitglieder</label>
-            <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="nlMailMode" value="custom"> An bestimmte Adressen</label>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+      <!-- Editor -->
+      <div class="event-form" style="flex:1;min-width:320px;">
+        <h3>Newsletter senden</h3>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Betreff</label>
+            <input type="text" id="nlBetreff" placeholder="z.B. Neuigkeiten aus der Boulderhalle" oninput="nlUpdatePreview()">
           </div>
-          <input type="text" id="nlMailTo" placeholder="E-Mail-Adressen (kommagetrennt)" style="display:none;">
         </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Nachricht</label>
+            <div id="nlEditor"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Empfänger</label>
+            <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:6px;">
+              <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="nlMailMode" value="all" checked> An alle Mitglieder</label>
+              <label style="font-weight:normal; cursor:pointer;"><input type="radio" name="nlMailMode" value="custom"> An bestimmte Adressen</label>
+            </div>
+            <input type="text" id="nlMailTo" placeholder="E-Mail-Adressen (kommagetrennt)" style="display:none;">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="submit-btn" id="nlSendBtn" onclick="nlSend()">Newsletter senden</button>
+        </div>
+        <div class="event-result" id="nlResult"></div>
       </div>
-      <div class="form-actions">
-        <button class="submit-btn" id="nlSendBtn" onclick="nlSend()">Newsletter senden</button>
+      <!-- Vorschau -->
+      <div style="flex:1;min-width:320px;">
+        <h3 style="margin-bottom:12px;">Vorschau</h3>
+        <div id="nlPreview" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.3);"></div>
       </div>
-      <div class="event-result" id="nlResult"></div>
     </div>
   </div>
 
@@ -2025,6 +2033,30 @@ var nlQuill = new Quill('#nlEditor', {
     ]
   }
 });
+nlQuill.on('text-change', nlUpdatePreview);
+
+function nlUpdatePreview() {
+  var betreff = document.getElementById('nlBetreff').value || 'Betreff...';
+  var inhalt = nlQuill.root.innerHTML || '<p style="color:#999;">Nachricht eingeben...</p>';
+  var signatur = cfgGetVal('mail_signatur') || 'Sportliche Grüße,\nBoulderverein Zugzwang e.V.';
+  var sigHtml = signatur.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+  document.getElementById('nlPreview').innerHTML =
+    '<div style="background:#1a1a1a;padding:24px 20px;text-align:center;">' +
+      '<img src="img/logo.png" alt="Zugzwang" style="height:60px;margin-bottom:8px;">' +
+      '<div style="font-family:Barlow Condensed,Arial,sans-serif;font-size:14px;color:#d4a020;text-transform:uppercase;letter-spacing:2px;">Boulderverein Zugzwang e.V.</div>' +
+    '</div>' +
+    '<div style="background:#d4a020;height:3px;"></div>' +
+    '<div style="padding:28px 24px;font-family:Arial,sans-serif;color:#333;">' +
+      '<div style="font-size:20px;font-weight:700;color:#1a1a1a;margin-bottom:20px;">' + betreff.replace(/</g,'&lt;') + '</div>' +
+      '<div style="font-size:15px;line-height:1.7;color:#333;">' + inhalt + '</div>' +
+      '<div style="margin-top:28px;padding-top:20px;border-top:1px solid #e0e0e0;font-size:14px;color:#666;line-height:1.6;">' + sigHtml + '</div>' +
+    '</div>' +
+    '<div style="background:#1a1a1a;padding:16px 20px;text-align:center;">' +
+      '<div style="font-size:12px;color:#888;">Boulderverein Zugzwang e.V. · Neuhauser Straße 1 · 91275 Auerbach i.d.OPf.</div>' +
+      '<a href="https://zugzwang-auerbach.de" style="font-size:12px;color:#d4a020;text-decoration:none;">zugzwang-auerbach.de</a>' +
+    '</div>';
+}
+setTimeout(nlUpdatePreview, 500);
 
 document.querySelectorAll('input[name="nlMailMode"]').forEach(function(radio) {
   radio.addEventListener('change', function() {

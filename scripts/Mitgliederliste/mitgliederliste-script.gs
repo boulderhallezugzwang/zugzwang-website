@@ -1223,11 +1223,11 @@ function sendNewsletter(betreff, inhalt, htmlInhalt, mailMode, mailTo) {
     var recipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : getEmailRecipients(null);
     if (recipients.length === 0) return { error: 'Keine Empfänger gefunden' };
 
+    // Signatur aus Config oder Fallback
+    var signatur = getConfigValue('mail_signatur') || 'Sportliche Grüße,\nBoulderverein Zugzwang e.V.';
+
     // Plaintext-Fallback
-    var plainBody = 'Hallo,\n\n' + inhalt + '\n\n' +
-      'Sportliche Grüße,\n' +
-      'Boulderverein Zugzwang e.V.\n' +
-      'https://boulderhallezugzwang.github.io/zugzwang-website';
+    var plainBody = 'Hallo,\n\n' + inhalt + '\n\n' + signatur + '\nhttps://zugzwang-auerbach.de';
 
     // Base64-Bilder aus HTML extrahieren und als CID-Inline-Images vorbereiten
     var inlineImages = {};
@@ -1249,12 +1249,24 @@ function sendNewsletter(betreff, inhalt, htmlInhalt, mailMode, mailTo) {
       imgIndex++;
     }
 
-    // HTML-Version
-    var htmlBody = '<div style="font-family:Arial,sans-serif;font-size:15px;color:#333;max-width:600px;">' +
-      processedHtml +
-      '<p style="margin-top:24px;">Sportliche Gr&uuml;&szlig;e,<br>' +
-      '<strong>Boulderverein Zugzwang e.V.</strong><br>' +
-      '<a href="https://boulderhallezugzwang.github.io/zugzwang-website" style="color:#d4a020;">boulderhallezugzwang.github.io</a></p>' +
+    // Signatur als HTML
+    var sigHtml = signatur.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+
+    // HTML-Version mit Logo-Layout
+    var htmlBody = '<div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;">' +
+      '<div style="background:#1a1a1a;padding:24px 20px;text-align:center;">' +
+        '<img src="https://zugzwang-auerbach.de/img/logo.png" alt="Zugzwang" style="height:60px;margin-bottom:8px;">' +
+        '<div style="font-size:14px;color:#d4a020;text-transform:uppercase;letter-spacing:2px;">Boulderverein Zugzwang e.V.</div>' +
+      '</div>' +
+      '<div style="background:#d4a020;height:3px;"></div>' +
+      '<div style="padding:28px 24px;font-size:15px;color:#333;line-height:1.7;">' +
+        processedHtml +
+        '<div style="margin-top:28px;padding-top:20px;border-top:1px solid #e0e0e0;font-size:14px;color:#666;line-height:1.6;">' + sigHtml + '</div>' +
+      '</div>' +
+      '<div style="background:#1a1a1a;padding:16px 20px;text-align:center;">' +
+        '<div style="font-size:12px;color:#888;">Boulderverein Zugzwang e.V. &middot; Neuhauser Stra&szlig;e 1 &middot; 91275 Auerbach i.d.OPf.</div>' +
+        '<a href="https://zugzwang-auerbach.de" style="font-size:12px;color:#d4a020;text-decoration:none;">zugzwang-auerbach.de</a>' +
+      '</div>' +
       '</div>';
 
     var count = 0;
