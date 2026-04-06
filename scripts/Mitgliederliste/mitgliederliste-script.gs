@@ -1255,7 +1255,7 @@ function sendNewsletter(betreff, inhalt, htmlInhalt, mailMode, mailTo) {
     // HTML-Version mit Logo-Layout
     var htmlBody = '<div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;">' +
       '<div style="background:#1a1a1a;padding:24px 20px;text-align:center;">' +
-        '<img src="https://zugzwang-auerbach.de/img/logo.png" alt="Zugzwang" style="height:60px;margin-bottom:8px;">' +
+        '<img src="https://zugzwang-auerbach.de/img/logo.png" alt="Zugzwang" style="height:60px;width:auto;max-width:200px;margin-bottom:8px;">' +
         '<div style="font-size:14px;color:#d4a020;text-transform:uppercase;letter-spacing:2px;">Boulderverein Zugzwang e.V.</div>' +
       '</div>' +
       '<div style="background:#d4a020;height:3px;"></div>' +
