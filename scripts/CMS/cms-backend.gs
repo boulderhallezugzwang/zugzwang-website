@@ -90,6 +90,7 @@ function doGet(e) {
         break;
       case 'calendar':
         result = { success: true, events: getCalendarEvents() };
+        try { result.oezHinweis = getPublicConfig('oez_hinweis'); } catch(e) { result.oezHinweis = ''; }
         break;
       case 'all':
         result = { success: true };
@@ -348,4 +349,17 @@ function getCalendarEvents() {
   // Chronologisch sortieren und begrenzen
   allEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
   return allEvents.slice(0, CONFIG.MAX_EVENTS);
+}
+
+// ===================== CONFIG AUS MITGLIEDERLISTE-SHEET =====================
+
+function getPublicConfig(key) {
+  var ss = SpreadsheetApp.openById('1HGhz-q7zWtYYFvLr8hnUZ2Yzz8p_p_e5NPYmwokluN8');
+  var sheet = ss.getSheetByName('Config');
+  if (!sheet) return '';
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === key) return (data[i][1] || '').toString();
+  }
+  return '';
 }

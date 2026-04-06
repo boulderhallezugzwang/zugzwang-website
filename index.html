@@ -862,7 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   fetchAction('calendar').then(data => {
-    if (data && data.events) renderCalendar(data.events);
+    if (data && data.events) renderCalendar(data.events, data.oezHinweis || '');
     else document.getElementById('calFeed').innerHTML = '<div class="cal-empty">Keine Termine verfügbar</div>';
     markLoad('calendar', !!(data && data.events));
   });
@@ -954,7 +954,7 @@ const CAL_CONFIG = {
 // ===================== KALENDER-FEED =====================
 let activeFilter = 'alle';
 
-function renderCalendar(events) {
+function renderCalendar(events, oezHinweis) {
   const el = document.getElementById('calFeed');
   const oezEl = document.getElementById('oeffnungszeiten');
   if (!events.length) { el.innerHTML = '<div class="cal-empty">Keine anstehenden Termine</div>'; return; }
@@ -979,7 +979,8 @@ function renderCalendar(events) {
       }).join('')}
     `;
   } else {
-    oezEl.innerHTML = '<div class="oez-label" style="grid-column: 1 / -1;">Öffnungszeiten</div><div style="grid-column:1/-1;padding:16px;color:var(--text-dim);font-size:14px;">Zur Zeit keine Öffnungszeiten eingetragen. Bitte schaut später wieder vorbei.</div>';
+    var hinweis = oezHinweis || 'Zur Zeit keine Öffnungszeiten eingetragen. Bitte schaut später wieder vorbei.';
+    oezEl.innerHTML = '<div class="oez-label" style="grid-column: 1 / -1;">Öffnungszeiten</div><div style="grid-column:1/-1;padding:16px;color:var(--text-dim);font-size:14px;white-space:pre-line;">' + hinweis.replace(/</g,'&lt;') + '</div>';
   }
 
   // "Termine"-Label einblenden wenn es Öffnungszeiten gibt

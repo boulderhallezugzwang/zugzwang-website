@@ -2896,6 +2896,17 @@ function cfgRender() {
   });
   html += '</div>';
 
+  // ── Website-Hinweise ──
+  html += '<div style="margin-top:20px;padding-top:16px;border-top:2px solid var(--border);">';
+  html += '<h4 style="margin:0 0 4px;color:var(--primary);">Website-Hinweise</h4>';
+  html += '<p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Texte die auf der Startseite angezeigt werden.</p>';
+  html += '<div style="margin-bottom:10px;">';
+  html += '<label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">Hinweis wenn keine Öffnungszeiten vorhanden</label>';
+  var oezVal = cfgGetVal('oez_hinweis') || '';
+  html += '<textarea id="cfg_oez_hinweis" rows="3" placeholder="Zur Zeit keine Öffnungszeiten eingetragen. Bitte schaut später wieder vorbei." style="width:100%;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical;">' + escHtml(oezVal) + '</textarea>';
+  html += '</div>';
+  html += '</div>';
+
   // ── E-Mail-Texte ──
   var mailTexte = [
     { header: 'Mitgliedsantrag' },
@@ -2977,6 +2988,9 @@ function cfgSave() {
     var el = document.getElementById('cfg_' + key);
     if (el) items.push({ key: key, value: el.value.trim() });
   });
+  // Website-Hinweise
+  var oezEl = document.getElementById('cfg_oez_hinweis');
+  if (oezEl) items.push({ key: 'oez_hinweis', value: oezEl.value });
   // E-Mail-Texte
   mailTexteKeys.forEach(function(key) {
     var el = document.getElementById('cfg_' + key);
