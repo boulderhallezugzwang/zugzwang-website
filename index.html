@@ -908,12 +908,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data && data.events) renderCalendar(data.events, data.oezHinweis || '');
     else document.getElementById('calFeed').innerHTML = '<div class="cal-empty">Keine Termine verfügbar</div>';
     markLoad('calendar', !!(data && data.events));
-    // Ticker laeuft mit der Calendar-Antwort huckepack mit (Apps Script
-    // serialisiert Requests pro User — ein eigener Call wuerde hinter
-    // calendar+news anstehen)
-    if (data && data.ticker && data.ticker.aktiv && data.ticker.text) {
-      renderTicker(data.ticker.text);
-    }
   });
 
   fetchAction('news').then(data => {
@@ -921,6 +915,16 @@ document.addEventListener('DOMContentLoaded', () => {
     else document.getElementById('newsList').innerHTML = '<div class="news-empty">Keine News vorhanden</div>';
     markLoad('news', !!(data && data.news));
   });
+
+  // Aktuell-Banner aus statischer JSON (GitHub Pages — sofort verfuegbar,
+  // kein Warten auf Apps Script). Wird vom Admin-Bereich beim Speichern
+  // ueberschrieben (data/ticker.json).
+  fetch('data/ticker.json?t=' + Date.now())
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (data && data.aktiv && data.text) renderTicker(data.text);
+    })
+    .catch(() => {});
 });
 
 function renderTicker(text) {

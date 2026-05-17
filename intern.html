@@ -3060,13 +3060,48 @@ function cfgSave() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.error) throw new Error(data.error);
-      result.textContent = 'Gespeichert!';
-      result.className = 'event-result success';
+      // Ticker zusaetzlich als statische data/ticker.json ins Repo schreiben,
+      // damit die Startseite ihn ohne Apps-Script-Latenz lesen kann.
+      return cfgSyncTickerJson().then(function(tickerNote) {
+        result.textContent = 'Gespeichert!' + (tickerNote ? ' ' + tickerNote : '');
+        result.className = 'event-result success';
+      });
     })
     .catch(function(err) {
       result.textContent = 'Fehler: ' + err.message;
       result.className = 'event-result error';
     });
+}
+
+// Schreibt den aktuellen Ticker-Stand als statische JSON nach GitHub.
+// Gibt einen Hinweis-String zurueck (oder leeren String), wird nie geworfen.
+function cfgSyncTickerJson() {
+  var tickerAktivEl = document.getElementById('cfg_ticker_aktiv');
+  var tickerTextEl = document.getElementById('cfg_ticker_text');
+  if (!tickerAktivEl || !tickerTextEl) return Promise.resolve('');
+  var token = tmGetToken();
+  if (!token) return Promise.resolve('(Hinweis: GitHub Token fehlt, Banner aktualisiert sich verzoegert)');
+
+  var payload = {
+    aktiv: !!tickerAktivEl.checked,
+    text: tickerTextEl.value.trim()
+  };
+  var content = JSON.stringify(payload, null, 2) + '\n';
+
+  return tmGhGet('data/ticker.json').then(function(existing) {
+    var sha = existing && existing.sha ? existing.sha : null;
+    return tmGhPut('data/ticker.json', content, sha, 'Aktuell-Banner aktualisiert');
+  }).then(function() {
+    return '(Banner live in ca. 30-60 Sek.)';
+  }).catch(function(err) {
+    // Falls Datei noch nicht existiert: ohne SHA erstellen
+    if (err && /not.*found|404/i.test(err.message || '')) {
+      return tmGhPut('data/ticker.json', content, null, 'Aktuell-Banner erstellt')
+        .then(function() { return '(Banner live in ca. 30-60 Sek.)'; })
+        .catch(function(e2) { return '(Banner-Sync fehlgeschlagen: ' + e2.message + ')'; });
+    }
+    return '(Banner-Sync fehlgeschlagen: ' + (err && err.message ? err.message : err) + ')';
+  });
 }
 
 // Datepicker Defaults setzen
