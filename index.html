@@ -31,7 +31,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ===== AKTUELL-BANNER (Laufschrift ueber dem Hero-Bild) ===== */
+  /* ===== AKTUELL-BANNER (nahtlose Laufschrift ueber dem Hero-Bild) ===== */
   .news-ticker {
     position: absolute;
     top: 16px; left: 0; right: 0;
@@ -40,29 +40,32 @@
     margin: 0 auto;
     padding: 0 48px;
     overflow: hidden;
-    height: 30px;
+    height: 44px;
     pointer-events: none;
   }
   .news-ticker[hidden] { display: none !important; }
   .news-ticker-track {
-    display: inline-block;
-    white-space: nowrap;
-    padding-left: 100%;
+    display: flex;
+    width: max-content;
     animation: ticker-scroll linear infinite;
+  }
+  .ticker-segment {
+    white-space: nowrap;
+    padding-right: 80px;
     color: var(--yellow-light);
     font-weight: 700;
-    font-size: 16px;
+    font-size: 27px;
     letter-spacing: 0.6px;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 0 2px rgba(0,0,0,0.5);
-    line-height: 30px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.75), 0 0 2px rgba(0,0,0,0.55);
+    line-height: 44px;
   }
   @keyframes ticker-scroll {
     0%   { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
+    100% { transform: translateX(-50%); }
   }
   @media (max-width: 600px) {
-    .news-ticker { padding: 0 16px; top: 10px; height: 26px; }
-    .news-ticker-track { font-size: 14px; line-height: 26px; }
+    .news-ticker { padding: 0 16px; top: 10px; height: 38px; }
+    .ticker-segment { font-size: 23px; line-height: 38px; padding-right: 60px; }
   }
 
   /* ===== NAV ===== */
@@ -680,7 +683,10 @@
 <section class="hero" style="margin-top:118px;">
   <div class="hero-bg"><img src="img/hero.jpg" alt="Boulderhalle Zugzwang"></div>
   <div id="newsTicker" class="news-ticker" hidden aria-label="Aktuelle Meldung">
-    <div id="newsTickerTrack" class="news-ticker-track"></div>
+    <div id="newsTickerTrack" class="news-ticker-track">
+      <span class="ticker-segment"></span>
+      <span class="ticker-segment" aria-hidden="true"></span>
+    </div>
   </div>
   <div class="hero-content">
     <img id="heroLogo" src="img/logo.png" alt="Zugzwang Boulderhalle" style="max-width:210px; width:40%; margin-bottom:2px;">
@@ -922,7 +928,9 @@ function renderTicker(text) {
   var bar = document.getElementById('newsTicker');
   var track = document.getElementById('newsTickerTrack');
   if (!bar || !track) return;
-  track.textContent = text;
+  // Beide Segmente befuellen -> nahtlose Endlosschleife (Animation -50%)
+  var segments = track.querySelectorAll('.ticker-segment');
+  segments.forEach(function(seg) { seg.textContent = text; });
   // Geschwindigkeit an Textlaenge koppeln (kuerzer = schneller)
   var dur = Math.max(15, Math.min(60, Math.round(text.length / 4)));
   track.style.animationDuration = dur + 's';
