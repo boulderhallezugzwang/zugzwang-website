@@ -591,8 +591,8 @@ function deleteCalEvent(kalender, eventId, mailMode, mailTo) {
 
     if (mailMode !== 'none') {
       var recipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
-      var emailCount = sendCancelMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, KALENDER_NAMEN[kalender], recipients);
-      msg += ' ' + emailCount + ' Absagemail(s) gesendet.';
+      var result = sendCancelMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, KALENDER_NAMEN[kalender], recipients);
+      msg += ' ' + formatChunkedSendMessage(result, result.total);
     }
 
     return { ok: true, message: msg };
@@ -622,7 +622,7 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
     ev.setTitle(titel);
     ev.setTime(startDate, endDate);
 
-    var emailCount = 0;
+    var mailResult = { sent: 0, queued: 0, failed: 0, total: 0 };
     var actualRecipients = [];
 
     if (mailMode !== 'none') {
@@ -631,15 +631,15 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
       var icsContent = generateICS(titel, startDate, endDate, beschreibung, remindHours);
       var customRecipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
       actualRecipients = customRecipients || getEmailRecipients(null);
-      emailCount = sendUpdateMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, beschreibung, KALENDER_NAMEN[kalender], icsContent, customRecipients);
+      mailResult = sendUpdateMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, beschreibung, KALENDER_NAMEN[kalender], icsContent, customRecipients);
     }
 
-    // Mail-Status + Erinnerung in Beschreibung aktualisieren
-    var descWithTag = (beschreibung || '') + buildMailTag(mailMode, emailCount, mailMode === 'custom' ? actualRecipients : null) + buildRemindTag(remindHours);
+    // Mail-Status + Erinnerung in Beschreibung aktualisieren (Total-Empfaengerzahl, nicht "sent")
+    var descWithTag = (beschreibung || '') + buildMailTag(mailMode, mailResult.total, mailMode === 'custom' ? actualRecipients : null) + buildRemindTag(remindHours);
     ev.setDescription(descWithTag);
 
     var msg = 'Termin aktualisiert.';
-    if (emailCount > 0) msg += ' ' + emailCount + ' Änderungsmail(s) gesendet.';
+    if (mailResult.total > 0) msg += ' ' + formatChunkedSendMessage(mailResult, mailResult.total);
     if (remindHours && remindHours !== '0') msg += ' Erinnerung ' + remindHours + 'h vorher aktiv.';
 
     return { ok: true, message: msg };
@@ -664,7 +664,7 @@ function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschrei
   var cal = CalendarApp.getCalendarById(calId);
   if (!cal) return { error: 'Kalender nicht gefunden' };
 
-  var emailCount = 0;
+  var mailResult = { sent: 0, queued: 0, failed: 0, total: 0 };
   var actualRecipients = [];
 
   if (mailMode !== 'none') {
@@ -675,18 +675,18 @@ function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschrei
 
     var customRecipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
     actualRecipients = customRecipients || getEmailRecipients(null);
-    emailCount = sendEventMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis,
+    mailResult = sendEventMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis,
       beschreibung, KALENDER_NAMEN[kalenderKey], icsContent, customRecipients);
   }
 
-  // Mail-Status + Erinnerung in Beschreibung speichern
-  var descWithTag = (beschreibung || '') + buildMailTag(mailMode, emailCount, mailMode === 'custom' ? actualRecipients : null) + buildRemindTag(remindHours);
+  // Mail-Status + Erinnerung in Beschreibung speichern (Total-Empfaengerzahl, nicht "sent")
+  var descWithTag = (beschreibung || '') + buildMailTag(mailMode, mailResult.total, mailMode === 'custom' ? actualRecipients : null) + buildRemindTag(remindHours);
 
   var eventOptions = { description: descWithTag };
   cal.createEvent(titel, startDate, endDate, eventOptions);
 
   var msg = 'Termin "' + titel + '" erstellt.';
-  if (emailCount > 0) msg += ' ' + emailCount + ' E-Mail(s) gesendet.';
+  if (mailResult.total > 0) msg += ' ' + formatChunkedSendMessage(mailResult, mailResult.total);
   if (remindHours && remindHours !== '0') msg += ' Erinnerung ' + remindHours + 'h vorher aktiv.';
 
   return { ok: true, message: msg };
@@ -823,6 +823,252 @@ function checkMailQuota() {
   };
 }
 
+// ═══════════════════════════════════════════════════
+// MAIL-QUEUE: Versand über mehrere Tage (Quota-Workaround)
+// ═══════════════════════════════════════════════════
+//
+// Hintergrund: MailApp.sendEmail hat ein Tageskontingent (Consumer-Gmail:
+// 100/Tag, Workspace: 1500/Tag). Bei vielen Empfaengern wird der erste
+// Schwung sofort versandt, der Rest landet in einem versteckten Sheet
+// "MailQueue" und wird taeglich um 10 Uhr (Berlin) automatisch nachgesendet.
+// Wenn die Queue leer ist, schickt der Versand eine Bilanzmail an den
+// ausfuehrenden Account (= Skripteigentuemer).
+
+var MAIL_QUEUE_SHEET = 'MailQueue';
+var MAIL_QUOTA_BUFFER = 5;   // Reserve fuer Reminder & Notfallmails
+var MAIL_QUEUE_TRIGGER_HOUR = 10; // 10 Uhr Berlin = sicher nach Reset (Mitternacht PT)
+
+function getMailQueueSheet() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sh = ss.getSheetByName(MAIL_QUEUE_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(MAIL_QUEUE_SHEET);
+    sh.appendRow([
+      'id', 'createdAt', 'type', 'subject', 'plainBody', 'htmlBody',
+      'icsContent', 'inlineImagesFolderId', 'remainingEmails', 'failedEmails',
+      'totalRecipients', 'status'
+    ]);
+    try { sh.hideSheet(); } catch (e) {}
+  }
+  return sh;
+}
+
+function enqueueMail(entry) {
+  var sh = getMailQueueSheet();
+  sh.appendRow([
+    Utilities.getUuid(),
+    new Date(),
+    entry.type || 'event',
+    entry.subject || '',
+    entry.plainBody || '',
+    entry.htmlBody || '',
+    entry.icsContent || '',
+    entry.inlineImagesFolderId || '',
+    (entry.remainingEmails || []).join(','),
+    (entry.failedEmails || []).join(','),
+    entry.totalRecipients || (entry.remainingEmails || []).length,
+    'pending'
+  ]);
+}
+
+function setupMailQueueTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'processMailQueue') return;
+  }
+  ScriptApp.newTrigger('processMailQueue')
+    .timeBased()
+    .everyDays(1)
+    .atHour(MAIL_QUEUE_TRIGGER_HOUR)
+    .inTimezone('Europe/Berlin')
+    .create();
+}
+
+// Sendet so viele Mails wie das verbleibende Tageskontingent erlaubt.
+// Gibt zurueck: { sent, remaining: [], failed: [] }
+function sendMailChunk(opts, recipients) {
+  var quota = MailApp.getRemainingDailyQuota();
+  var maxNow = Math.max(0, quota - MAIL_QUOTA_BUFFER);
+  var sendNow = recipients.slice(0, maxNow);
+  var remaining = recipients.slice(maxNow);
+  var sent = 0;
+  var failed = [];
+
+  for (var i = 0; i < sendNow.length; i++) {
+    try {
+      var msg = {};
+      for (var k in opts) msg[k] = opts[k];
+      msg.to = sendNow[i];
+      MailApp.sendEmail(msg);
+      sent++;
+    } catch (e) {
+      failed.push(sendNow[i]);
+      Logger.log('Mail-Fehler an ' + sendNow[i] + ': ' + e.toString());
+    }
+  }
+
+  return { sent: sent, remaining: remaining, failed: failed };
+}
+
+// Inline-Bilder (Newsletter) als Drive-Dateien persistieren, damit sie der
+// Trigger spaeter wieder laden kann. Gibt Ordner-ID zurueck (oder '').
+function persistInlineImages(inlineImages) {
+  var keys = Object.keys(inlineImages || {});
+  if (keys.length === 0) return '';
+  try {
+    var folder = DriveApp.getRootFolder().createFolder(
+      'ZZ_MailQueue_Temp_' + new Date().getTime() + '_' + Math.floor(Math.random() * 10000)
+    );
+    for (var i = 0; i < keys.length; i++) {
+      var blob = inlineImages[keys[i]];
+      folder.createFile(blob).setName(keys[i]);
+    }
+    return folder.getId();
+  } catch (e) {
+    Logger.log('persistInlineImages Fehler: ' + e.toString());
+    return '';
+  }
+}
+
+function loadInlineImagesFromFolder(folderId) {
+  var imgs = {};
+  if (!folderId) return imgs;
+  try {
+    var folder = DriveApp.getFolderById(folderId);
+    var files = folder.getFiles();
+    while (files.hasNext()) {
+      var f = files.next();
+      var blob = f.getBlob();
+      blob.setName(f.getName());
+      imgs[f.getName()] = blob;
+    }
+  } catch (e) {
+    Logger.log('loadInlineImagesFromFolder Fehler: ' + e.toString());
+  }
+  return imgs;
+}
+
+function cleanupInlineImageFolder(folderId) {
+  if (!folderId) return;
+  try { DriveApp.getFolderById(folderId).setTrashed(true); } catch (e) {}
+}
+
+// Daily Trigger: arbeitet die Queue ab, sendet eine Bilanzmail pro
+// fertiggestelltem Eintrag an den Skripteigentuemer.
+function processMailQueue() {
+  var sh = getMailQueueSheet();
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return 0;
+
+  var data = sh.getRange(2, 1, lastRow - 1, 12).getValues();
+  var totalSent = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    if (row[11] !== 'pending') continue;
+    if (MailApp.getRemainingDailyQuota() <= MAIL_QUOTA_BUFFER) break;
+
+    var emails = row[8] ? row[8].split(',').filter(function(e) { return e; }) : [];
+    if (emails.length === 0) {
+      sh.getRange(i + 2, 12).setValue('done');
+      continue;
+    }
+
+    var opts = {
+      subject: row[3],
+      body: row[4],
+      name: 'Boulderverein Zugzwang e.V.'
+    };
+    if (row[5]) opts.htmlBody = row[5];
+    if (row[6]) opts.attachments = [Utilities.newBlob(row[6], 'text/calendar', 'termin.ics')];
+    if (row[7]) {
+      var imgs = loadInlineImagesFromFolder(row[7]);
+      if (Object.keys(imgs).length > 0) opts.inlineImages = imgs;
+    }
+
+    var result = sendMailChunk(opts, emails);
+    totalSent += result.sent;
+
+    var oldFailed = row[9] ? row[9].split(',').filter(function(e) { return e; }) : [];
+    var newFailed = oldFailed.concat(result.failed);
+
+    if (result.remaining.length === 0) {
+      sh.getRange(i + 2, 9).setValue('');
+      sh.getRange(i + 2, 10).setValue(newFailed.join(','));
+      sh.getRange(i + 2, 12).setValue('done');
+      cleanupInlineImageFolder(row[7]);
+      try { sendAdminQueueReport(row[3], row[10], newFailed); } catch (e) {}
+    } else {
+      sh.getRange(i + 2, 9).setValue(result.remaining.join(','));
+      sh.getRange(i + 2, 10).setValue(newFailed.join(','));
+    }
+  }
+
+  Logger.log('processMailQueue: ' + totalSent + ' Mail(s) versandt');
+  return totalSent;
+}
+
+function getAdminMailAddress() {
+  try {
+    var e = Session.getEffectiveUser().getEmail();
+    if (e) return e;
+  } catch (err) {}
+  try {
+    var e2 = Session.getActiveUser().getEmail();
+    if (e2) return e2;
+  } catch (err) {}
+  try {
+    var cfg = getConfigValue('admin_mail');
+    if (cfg) return cfg;
+  } catch (err) {}
+  return 'boulderhallezugzwang@gmail.com';
+}
+
+function sendAdminQueueReport(subject, totalRecipients, failed) {
+  var adminMail = getAdminMailAddress();
+  if (!adminMail) return;
+
+  var ok = totalRecipients - failed.length;
+  var body = 'Versand abgeschlossen.\n\n' +
+    'Betreff: ' + subject + '\n' +
+    'Empfaenger gesamt:  ' + totalRecipients + '\n' +
+    'Erfolgreich:        ' + ok + '\n' +
+    'Fehlgeschlagen:     ' + failed.length + '\n';
+  if (failed.length > 0) {
+    body += '\nFehlerhafte Adressen:\n' +
+      failed.map(function(e) { return '  - ' + e; }).join('\n') +
+      '\n\nTipp: Adressen im Mitglieder-Sheet pruefen (Tippfehler, ungueltige Domain).';
+  }
+
+  try {
+    MailApp.sendEmail({
+      to: adminMail,
+      subject: '[Zugzwang] Versand-Bilanz: ' + subject,
+      body: body,
+      name: 'Boulderverein Zugzwang e.V.'
+    });
+  } catch (e) {
+    Logger.log('Adminreport-Fehler: ' + e.toString());
+  }
+}
+
+// Hilfsfunktion fuer die UI-Rueckmeldung: "X von Y versandt, Z folgen ..."
+function formatChunkedSendMessage(result, total) {
+  if (total === 0) return '';
+  if (result.queued === 0 && result.failed === 0) {
+    return result.sent + ' E-Mail(s) gesendet.';
+  }
+  var msg = result.sent + ' von ' + total + ' E-Mail(s) sofort versandt';
+  if (result.queued > 0) {
+    msg += '; ' + result.queued + ' folgen in den naechsten Tagen automatisch';
+  }
+  if (result.failed > 0) {
+    msg += '; ' + result.failed + ' fehlgeschlagen (Adresse pruefen)';
+  }
+  msg += '.';
+  return msg;
+}
+
 // ── E-Mail-Empfänger ermitteln (alle Mitglieder oder custom) ──
 
 function getEmailRecipients(customRecipients) {
@@ -851,49 +1097,61 @@ function getEmailRecipients(customRecipients) {
 }
 
 // ── Mail-Versand: Neuer Termin ──
+// Gibt { sent, queued, failed, total } zurueck.
 
 function sendEventMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients) {
   var recipients = getEmailRecipients(customRecipients);
-  if (recipients.length === 0) return 0;
-
-  var icsBlob = Utilities.newBlob(icsContent, 'text/calendar', 'termin.ics');
+  if (recipients.length === 0) return { sent: 0, queued: 0, failed: 0, total: 0 };
 
   var body = 'Hallo,\n\n' +
     'es gibt einen neuen Termin im Boulderverein Zugzwang:\n\n' +
     titel + '\n' +
     wochentag + ', ' + datum + '\n' +
     zeitVon + ' – ' + zeitBis + ' Uhr\n';
-
   if (beschreibung) body += '\n' + beschreibung + '\n';
-
   body += '\nIm Anhang findest Du eine Kalenderdatei (.ics) zum Importieren in Deinen Kalender.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'https://boulderhallezugzwang.github.io/zugzwang-website';
 
-  var count = 0;
-  for (var i = 0; i < recipients.length; i++) {
-    try {
-      MailApp.sendEmail({
-        to: recipients[i],
-        subject: kalenderName + ': ' + titel + ' – ' + datum,
-        body: body,
-        name: 'Boulderverein Zugzwang e.V.',
-        attachments: [icsBlob]
-      });
-      count++;
-    } catch (e) {
-      Logger.log('Mail-Fehler an ' + recipients[i] + ': ' + e.toString());
-    }
+  var subject = kalenderName + ': ' + titel + ' – ' + datum;
+  var opts = {
+    subject: subject,
+    body: body,
+    name: 'Boulderverein Zugzwang e.V.',
+    attachments: [Utilities.newBlob(icsContent, 'text/calendar', 'termin.ics')]
+  };
+
+  var result = sendMailChunk(opts, recipients);
+  var retry = result.remaining;
+  if (retry.length > 0) {
+    enqueueMail({
+      type: 'event_new',
+      subject: subject,
+      plainBody: body,
+      icsContent: icsContent,
+      remainingEmails: retry,
+      failedEmails: result.failed,
+      totalRecipients: recipients.length
+    });
+    setupMailQueueTrigger();
+  } else if (result.failed.length > 0) {
+    try { sendAdminQueueReport(subject, recipients.length, result.failed); } catch (e) {}
   }
-  return count;
+
+  return {
+    sent: result.sent,
+    queued: retry.length,
+    failed: result.failed.length,
+    total: recipients.length
+  };
 }
 
 // ── Mail-Versand: Absage ──
 
 function sendCancelMail(titel, datum, wochentag, zeitVon, zeitBis, kalenderName, customRecipients) {
   var recipients = getEmailRecipients(customRecipients);
-  if (recipients.length === 0) return 0;
+  if (recipients.length === 0) return { sent: 0, queued: 0, failed: 0, total: 0 };
 
   var body = 'Hallo,\n\n' +
     'folgender Termin im Boulderverein Zugzwang wurde leider abgesagt:\n\n' +
@@ -905,60 +1163,83 @@ function sendCancelMail(titel, datum, wochentag, zeitVon, zeitBis, kalenderName,
     'Boulderverein Zugzwang e.V.\n' +
     'https://boulderhallezugzwang.github.io/zugzwang-website';
 
-  var count = 0;
-  for (var i = 0; i < recipients.length; i++) {
-    try {
-      MailApp.sendEmail({
-        to: recipients[i],
-        subject: 'ABGESAGT: ' + titel + ' – ' + datum,
-        body: body,
-        name: 'Boulderverein Zugzwang e.V.'
-      });
-      count++;
-    } catch (e) {
-      Logger.log('Mail-Fehler an ' + recipients[i] + ': ' + e.toString());
-    }
+  var subject = 'ABGESAGT: ' + titel + ' – ' + datum;
+  var opts = {
+    subject: subject,
+    body: body,
+    name: 'Boulderverein Zugzwang e.V.'
+  };
+
+  var result = sendMailChunk(opts, recipients);
+  if (result.remaining.length > 0) {
+    enqueueMail({
+      type: 'event_cancel',
+      subject: subject,
+      plainBody: body,
+      remainingEmails: result.remaining,
+      failedEmails: result.failed,
+      totalRecipients: recipients.length
+    });
+    setupMailQueueTrigger();
+  } else if (result.failed.length > 0) {
+    try { sendAdminQueueReport(subject, recipients.length, result.failed); } catch (e) {}
   }
-  return count;
+
+  return {
+    sent: result.sent,
+    queued: result.remaining.length,
+    failed: result.failed.length,
+    total: recipients.length
+  };
 }
 
 // ── Mail-Versand: Änderung ──
 
 function sendUpdateMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients) {
   var recipients = getEmailRecipients(customRecipients);
-  if (recipients.length === 0) return 0;
-
-  var icsBlob = Utilities.newBlob(icsContent, 'text/calendar', 'termin.ics');
+  if (recipients.length === 0) return { sent: 0, queued: 0, failed: 0, total: 0 };
 
   var body = 'Hallo,\n\n' +
     'ein Termin im Boulderverein Zugzwang wurde geändert:\n\n' +
     titel + '\n' +
     wochentag + ', ' + datum + '\n' +
     zeitVon + ' – ' + zeitBis + ' Uhr\n';
-
   if (beschreibung) body += '\n' + beschreibung + '\n';
-
   body += '\nIm Anhang findest Du die aktualisierte Kalenderdatei (.ics).\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
     'https://boulderhallezugzwang.github.io/zugzwang-website';
 
-  var count = 0;
-  for (var i = 0; i < recipients.length; i++) {
-    try {
-      MailApp.sendEmail({
-        to: recipients[i],
-        subject: 'GEÄNDERT: ' + titel + ' – ' + datum,
-        body: body,
-        name: 'Boulderverein Zugzwang e.V.',
-        attachments: [icsBlob]
-      });
-      count++;
-    } catch (e) {
-      Logger.log('Mail-Fehler an ' + recipients[i] + ': ' + e.toString());
-    }
+  var subject = 'GEÄNDERT: ' + titel + ' – ' + datum;
+  var opts = {
+    subject: subject,
+    body: body,
+    name: 'Boulderverein Zugzwang e.V.',
+    attachments: [Utilities.newBlob(icsContent, 'text/calendar', 'termin.ics')]
+  };
+
+  var result = sendMailChunk(opts, recipients);
+  if (result.remaining.length > 0) {
+    enqueueMail({
+      type: 'event_update',
+      subject: subject,
+      plainBody: body,
+      icsContent: icsContent,
+      remainingEmails: result.remaining,
+      failedEmails: result.failed,
+      totalRecipients: recipients.length
+    });
+    setupMailQueueTrigger();
+  } else if (result.failed.length > 0) {
+    try { sendAdminQueueReport(subject, recipients.length, result.failed); } catch (e) {}
   }
-  return count;
+
+  return {
+    sent: result.sent,
+    queued: result.remaining.length,
+    failed: result.failed.length,
+    total: recipients.length
+  };
 }
 
 // ═══════════════════════════════════════════════════
@@ -1347,29 +1628,43 @@ function sendNewsletter(betreff, inhalt, htmlInhalt, mailMode, mailTo) {
       '</div>' +
       '</div>';
 
-    var count = 0;
-    for (var i = 0; i < recipients.length; i++) {
-      try {
-        var mailOptions = {
-          to: recipients[i],
-          subject: betreff,
-          body: plainBody,
-          name: 'Boulderverein Zugzwang e.V.'
-        };
-        if (processedHtml) {
-          mailOptions.htmlBody = htmlBody;
-          if (Object.keys(inlineImages).length > 0) {
-            mailOptions.inlineImages = inlineImages;
-          }
-        }
-        MailApp.sendEmail(mailOptions);
-        count++;
-      } catch (e) {
-        Logger.log('Newsletter-Fehler an ' + recipients[i] + ': ' + e.toString());
-      }
+    var opts = {
+      subject: betreff,
+      body: plainBody,
+      name: 'Boulderverein Zugzwang e.V.'
+    };
+    if (processedHtml) {
+      opts.htmlBody = htmlBody;
+      if (Object.keys(inlineImages).length > 0) opts.inlineImages = inlineImages;
     }
 
-    return { ok: true, message: count + ' E-Mail(s) gesendet.' };
+    var result = sendMailChunk(opts, recipients);
+
+    if (result.remaining.length > 0) {
+      // Inline-Bilder fuer den Queue-Drain auf Drive persistieren
+      var folderId = (processedHtml && Object.keys(inlineImages).length > 0)
+        ? persistInlineImages(inlineImages) : '';
+      enqueueMail({
+        type: 'newsletter',
+        subject: betreff,
+        plainBody: plainBody,
+        htmlBody: processedHtml ? htmlBody : '',
+        inlineImagesFolderId: folderId,
+        remainingEmails: result.remaining,
+        failedEmails: result.failed,
+        totalRecipients: recipients.length
+      });
+      setupMailQueueTrigger();
+    } else if (result.failed.length > 0) {
+      try { sendAdminQueueReport(betreff, recipients.length, result.failed); } catch (e) {}
+    }
+
+    var summary = formatChunkedSendMessage({
+      sent: result.sent,
+      queued: result.remaining.length,
+      failed: result.failed.length
+    }, recipients.length);
+    return { ok: true, message: summary, sent: result.sent, queued: result.remaining.length, failed: result.failed.length, total: recipients.length };
   } catch (e) {
     return { error: 'Fehler beim Senden: ' + e.toString() };
   }
