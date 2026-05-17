@@ -753,6 +753,12 @@ function checkMailQuota() {
   var remaining = MailApp.getRemainingDailyQuota();
   var recipients = getEmailRecipients(null);
 
+  // Account-Identität ermitteln (wichtig: Limit gilt pro ausführendem Account)
+  var activeUser = '';
+  var effectiveUser = '';
+  try { activeUser = Session.getActiveUser().getEmail(); } catch (e) { activeUser = '(nicht verfügbar)'; }
+  try { effectiveUser = Session.getEffectiveUser().getEmail(); } catch (e) { effectiveUser = '(nicht verfügbar)'; }
+
   // Duplikat-Analyse direkt aus dem Sheet (vor Dedupe)
   var sheet = getMitgliederSheet();
   var lastRow = sheet.getLastRow();
@@ -777,6 +783,11 @@ function checkMailQuota() {
   var duplicates = Object.keys(counts).filter(function(e) { return counts[e] > 1; });
 
   Logger.log('═══ MailApp Diagnose ═══');
+  Logger.log('Ausführender Account (effective): ' + effectiveUser);
+  Logger.log('Angemeldeter User (active):       ' + activeUser);
+  Logger.log('  → Wenn das KEIN @zugzwang-auerbach.de Account ist,');
+  Logger.log('     greift das Workspace-Limit NICHT.');
+  Logger.log('');
   Logger.log('Verbleibendes Tageskontingent: ' + remaining);
   Logger.log('  → 100 = normales Gmail-Konto (Consumer)');
   Logger.log('  → 1500 = Google Workspace');
@@ -801,6 +812,8 @@ function checkMailQuota() {
   }
 
   return {
+    effectiveUser: effectiveUser,
+    activeUser: activeUser,
     remainingQuota: remaining,
     uniqueRecipients: recipients.length,
     rawCount: rawCount,
