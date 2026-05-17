@@ -31,14 +31,17 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ===== AKTUELL-BANNER (Laufschrift) ===== */
+  /* ===== AKTUELL-BANNER (Laufschrift ueber dem Hero-Bild) ===== */
   .news-ticker {
-    background: var(--yellow);
-    color: #1a1a1a;
+    position: absolute;
+    top: 16px; left: 0; right: 0;
+    z-index: 3;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 48px;
     overflow: hidden;
-    height: 28px;
-    display: flex; align-items: center;
-    border-bottom: 1px solid rgba(0,0,0,0.15);
+    height: 30px;
+    pointer-events: none;
   }
   .news-ticker[hidden] { display: none !important; }
   .news-ticker-track {
@@ -46,18 +49,20 @@
     white-space: nowrap;
     padding-left: 100%;
     animation: ticker-scroll linear infinite;
+    color: var(--yellow-light);
     font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 0.4px;
+    font-size: 16px;
+    letter-spacing: 0.6px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 0 2px rgba(0,0,0,0.5);
+    line-height: 30px;
   }
   @keyframes ticker-scroll {
     0%   { transform: translateX(0); }
     100% { transform: translateX(-100%); }
   }
-  /* Auf kleinen Bildschirmen kompakter */
   @media (max-width: 600px) {
-    .news-ticker { height: 24px; }
-    .news-ticker-track { font-size: 13px; }
+    .news-ticker { padding: 0 16px; top: 10px; height: 26px; }
+    .news-ticker-track { font-size: 14px; line-height: 26px; }
   }
 
   /* ===== NAV ===== */
@@ -649,9 +654,6 @@
 
 <!-- NAV -->
 <nav>
-  <div id="newsTicker" class="news-ticker" hidden aria-label="Aktuelle Meldung">
-    <div id="newsTickerTrack" class="news-ticker-track"></div>
-  </div>
   <div class="nav-top">
     <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
     <a href="intern.html" class="nav-login" title="Intern"><svg viewBox="0 0 24 24"><path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/></svg></a>
@@ -677,6 +679,9 @@
 <!-- HERO -->
 <section class="hero" style="margin-top:118px;">
   <div class="hero-bg"><img src="img/hero.jpg" alt="Boulderhalle Zugzwang"></div>
+  <div id="newsTicker" class="news-ticker" hidden aria-label="Aktuelle Meldung">
+    <div id="newsTickerTrack" class="news-ticker-track"></div>
+  </div>
   <div class="hero-content">
     <img id="heroLogo" src="img/logo.png" alt="Zugzwang Boulderhalle" style="max-width:210px; width:40%; margin-bottom:2px;">
     <p class="hero-sub"><strong>Bouldern in Auerbach seit 2014.</strong></p>
@@ -918,20 +923,10 @@ function renderTicker(text) {
   var track = document.getElementById('newsTickerTrack');
   if (!bar || !track) return;
   track.textContent = text;
-  // Geschwindigkeit an Textlaenge koppeln: ~80 Zeichen / 20 Sek
+  // Geschwindigkeit an Textlaenge koppeln (kuerzer = schneller)
   var dur = Math.max(15, Math.min(60, Math.round(text.length / 4)));
   track.style.animationDuration = dur + 's';
   bar.hidden = false;
-  // Nav-Hoehe hat sich veraendert -> sub-nav + hero neu positionieren
-  if (typeof positionSubNav === 'function') positionSubNav();
-  setTimeout(function() {
-    var mainNav = document.querySelector('nav');
-    var subNav = document.querySelector('.sub-nav');
-    var total = (mainNav ? mainNav.offsetHeight : 82) + (subNav ? subNav.offsetHeight : 30);
-    var hero = document.querySelector('.hero');
-    if (hero) hero.style.marginTop = total + 'px';
-    document.documentElement.style.scrollPaddingTop = (total + 16) + 'px';
-  }, 30);
 }
 
 async function fetchAction(action) {
