@@ -1065,6 +1065,26 @@
 
   <!-- Sektion: Config -->
   <div class="section" id="sectionConfig">
+    <!-- GitHub-Token (gemeinsam mit Team-Tab, gleicher LocalStorage-Eintrag) -->
+    <div class="event-form" id="cfgGhTokenBox" style="margin-bottom:16px;">
+      <h3>GitHub-Zugriff</h3>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">
+        Wird benötigt, damit Änderungen am Aktuell-Banner und am Team direkt auf die Website übernommen werden. Token einmal eingeben — wird nur lokal in diesem Browser gespeichert.
+        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener" style="color:var(--yellow);">Token erstellen ↗</a>
+      </p>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>GitHub Token</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="password" id="cfgGhToken" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
+            <button class="submit-btn" onclick="cfgSaveToken()" style="padding:8px 16px;white-space:nowrap;">Token speichern</button>
+            <button class="submit-btn" onclick="cfgClearToken()" style="padding:8px 16px;white-space:nowrap;background:#666;" id="cfgGhTokenClearBtn">Löschen</button>
+          </div>
+          <div id="cfgGhTokenStatus" style="margin-top:6px;font-size:12px;"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="event-form">
       <h3>Benachrichtigungen</h3>
       <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">E-Mail-Adressen für interne Benachrichtigungen bei Formular-Eingängen.</p>
@@ -1401,9 +1421,14 @@ function switchTab(section) {
     tmLoaded = true;
     tmLoadTeam();
   }
-  if (section === 'config' && !cfgLoaded) {
-    cfgLoaded = true;
-    cfgLoad();
+  if (section === 'config') {
+    if (!cfgLoaded) {
+      cfgLoaded = true;
+      cfgLoad();
+    }
+    // Token-Status auch bei erneutem Besuch aktualisieren (z. B. nach
+    // Eingabe im Team-Tab muss der Statustext hier ebenfalls passen)
+    if (typeof cfgRefreshTokenStatus === 'function') cfgRefreshTokenStatus();
   }
 }
 
@@ -3071,6 +3096,51 @@ function cfgSave() {
       result.textContent = 'Fehler: ' + err.message;
       result.className = 'event-result error';
     });
+}
+
+// GitHub-Token im Config-Tab (teilt sich denselben LocalStorage-Eintrag
+// 'zz_gh_token' wie das Team-Tab — einmal eingeben gilt ueberall).
+function cfgRefreshTokenStatus() {
+  var token = localStorage.getItem('zz_gh_token') || '';
+  var inp = document.getElementById('cfgGhToken');
+  var status = document.getElementById('cfgGhTokenStatus');
+  var clearBtn = document.getElementById('cfgGhTokenClearBtn');
+  if (!inp || !status) return;
+  if (token) {
+    inp.value = token;
+    status.textContent = '✓ Token gespeichert (' + token.substring(0, 7) + '…' + token.substring(token.length - 4) + ')';
+    status.style.color = '#2ecc71';
+    if (clearBtn) clearBtn.style.display = '';
+  } else {
+    inp.value = '';
+    status.textContent = '⚠ Kein Token hinterlegt — Banner-Aktualisierung erst beim nächsten manuellen Eingreifen';
+    status.style.color = 'var(--text-dim)';
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+}
+
+function cfgSaveToken() {
+  var inp = document.getElementById('cfgGhToken');
+  if (!inp) return;
+  var t = (inp.value || '').trim().replace(/\s+/g, '');
+  if (!t) { alert('Bitte Token eingeben!'); return; }
+  localStorage.setItem('zz_gh_token', t);
+  // Auch das Team-Feld synchron halten
+  var tmInp = document.getElementById('tmGhToken');
+  if (tmInp) tmInp.value = t;
+  var tmRow = document.getElementById('tmGhTokenRow');
+  if (tmRow) tmRow.style.display = 'none';
+  cfgRefreshTokenStatus();
+}
+
+function cfgClearToken() {
+  if (!confirm('Token wirklich aus diesem Browser entfernen?')) return;
+  localStorage.removeItem('zz_gh_token');
+  var tmInp = document.getElementById('tmGhToken');
+  if (tmInp) tmInp.value = '';
+  var tmRow = document.getElementById('tmGhTokenRow');
+  if (tmRow) tmRow.style.display = '';
+  cfgRefreshTokenStatus();
 }
 
 // Schreibt den aktuellen Ticker-Stand als statische JSON nach GitHub.
