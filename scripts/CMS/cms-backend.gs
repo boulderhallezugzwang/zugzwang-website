@@ -91,6 +91,7 @@ function doGet(e) {
       case 'calendar':
         result = { success: true, events: getCalendarEvents() };
         try { result.oezHinweis = getPublicConfig('oez_hinweis'); } catch(e) { result.oezHinweis = ''; }
+        try { result.ticker = getTickerInfo(); } catch(e) { result.ticker = { aktiv: false, text: '' }; }
         break;
       case 'ticker':
         result = { success: true, ticker: getTickerInfo() };

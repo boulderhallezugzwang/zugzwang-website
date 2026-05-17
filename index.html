@@ -908,19 +908,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data && data.events) renderCalendar(data.events, data.oezHinweis || '');
     else document.getElementById('calFeed').innerHTML = '<div class="cal-empty">Keine Termine verfügbar</div>';
     markLoad('calendar', !!(data && data.events));
+    // Ticker laeuft mit der Calendar-Antwort huckepack mit (Apps Script
+    // serialisiert Requests pro User — ein eigener Call wuerde hinter
+    // calendar+news anstehen)
+    if (data && data.ticker && data.ticker.aktiv && data.ticker.text) {
+      renderTicker(data.ticker.text);
+    }
   });
 
   fetchAction('news').then(data => {
     if (data && data.news) renderNews(data.news);
     else document.getElementById('newsList').innerHTML = '<div class="news-empty">Keine News vorhanden</div>';
     markLoad('news', !!(data && data.news));
-  });
-
-  // Aktuell-Banner (Laufschrift). Separater leichter Call — kein Loader-Eintrag noetig.
-  fetchAction('ticker').then(data => {
-    if (data && data.ticker && data.ticker.aktiv && data.ticker.text) {
-      renderTicker(data.ticker.text);
-    }
   });
 });
 
