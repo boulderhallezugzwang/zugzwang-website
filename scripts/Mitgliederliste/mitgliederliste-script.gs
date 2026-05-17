@@ -745,6 +745,71 @@ function parseCustomEmails(str) {
   }).map(function(e) { return e.trim().toLowerCase(); });
 }
 
+// ── Diagnose: MailApp-Tageskontingent + Empfänger-Analyse ──
+// Im Apps Script Editor Funktion "checkMailQuota" auswählen und ausführen.
+// Ergebnis im Ausführungsprotokoll. 100 = Consumer-Gmail, 1500 = Workspace.
+
+function checkMailQuota() {
+  var remaining = MailApp.getRemainingDailyQuota();
+  var recipients = getEmailRecipients(null);
+
+  // Duplikat-Analyse direkt aus dem Sheet (vor Dedupe)
+  var sheet = getMitgliederSheet();
+  var lastRow = sheet.getLastRow();
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var colIdx = {};
+  headers.forEach(function(h, i) { colIdx[h] = i; });
+  var emailCol = colIdx['E-Mail'];
+
+  var rawCount = 0, emptyCount = 0, invalidCount = 0;
+  var counts = {};
+  if (emailCol !== undefined && lastRow >= 2) {
+    var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+    for (var i = 0; i < data.length; i++) {
+      var raw = (data[i][emailCol] || '').toString().trim();
+      if (!raw) { emptyCount++; continue; }
+      if (raw.indexOf('@') === -1) { invalidCount++; continue; }
+      rawCount++;
+      var lc = raw.toLowerCase();
+      counts[lc] = (counts[lc] || 0) + 1;
+    }
+  }
+  var duplicates = Object.keys(counts).filter(function(e) { return counts[e] > 1; });
+
+  Logger.log('═══ MailApp Diagnose ═══');
+  Logger.log('Verbleibendes Tageskontingent: ' + remaining);
+  Logger.log('  → 100 = normales Gmail-Konto (Consumer)');
+  Logger.log('  → 1500 = Google Workspace');
+  Logger.log('');
+  Logger.log('Mitglieder-Sheet:');
+  Logger.log('  Zeilen mit gültiger E-Mail: ' + rawCount);
+  Logger.log('  Leere E-Mail-Zellen: ' + emptyCount);
+  Logger.log('  Ungültig (kein @): ' + invalidCount);
+  Logger.log('  Eindeutige Empfänger (nach Dedupe): ' + recipients.length);
+  Logger.log('  Doppelt im Sheet vorhanden: ' + duplicates.length);
+  if (duplicates.length > 0) {
+    duplicates.forEach(function(e) {
+      Logger.log('    • ' + e + ' (' + counts[e] + '×)');
+    });
+  }
+  Logger.log('');
+  if (recipients.length > remaining) {
+    Logger.log('⚠ WARNUNG: ' + recipients.length + ' Empfänger, aber nur ' + remaining + ' Mails frei.');
+    Logger.log('  → ' + (recipients.length - remaining) + ' Mails würden fehlschlagen!');
+  } else {
+    Logger.log('✓ OK: Kontingent reicht für einen Versand an alle.');
+  }
+
+  return {
+    remainingQuota: remaining,
+    uniqueRecipients: recipients.length,
+    rawCount: rawCount,
+    emptyCount: emptyCount,
+    invalidCount: invalidCount,
+    duplicates: duplicates.map(function(e) { return { email: e, count: counts[e] }; })
+  };
+}
+
 // ── E-Mail-Empfänger ermitteln (alle Mitglieder oder custom) ──
 
 function getEmailRecipients(customRecipients) {
