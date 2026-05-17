@@ -833,9 +833,16 @@ function checkMailQuota() {
 // "MailQueue" und wird taeglich um 10 Uhr (Berlin) automatisch nachgesendet.
 // Wenn die Queue leer ist, schickt der Versand eine Bilanzmail an den
 // ausfuehrenden Account (= Skripteigentuemer).
+//
+// Hinweis zu Erinnerungs-Mails: Diese gehen ebenfalls an alle Mitglieder
+// und sind damit genauso gross wie der Hauptversand. Ein grosser Buffer
+// haette hier wertlos die Versandgeschwindigkeit gebremst. Die 2 reserviert
+// MAIL_QUOTA_BUFFER fuer einen moeglichen Mitgliedsantrag (Bestaetigung +
+// Admin-Benachrichtigung), damit ein Massenversand nie eine Antragstellung
+// blockiert.
 
 var MAIL_QUEUE_SHEET = 'MailQueue';
-var MAIL_QUOTA_BUFFER = 5;   // Reserve fuer Reminder & Notfallmails
+var MAIL_QUOTA_BUFFER = 2;   // Reserve fuer einen Mitgliedsantrag (1 Bestaetigung an Antragsteller + 1 Benachrichtigung an Admin). Reminder-Mails bekommen keinen Puffer (gehen ohnehin an alle).
 var MAIL_QUEUE_TRIGGER_HOUR = 10; // 10 Uhr Berlin = sicher nach Reset (Mitternacht PT)
 
 function getMailQueueSheet() {
