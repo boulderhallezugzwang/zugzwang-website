@@ -92,12 +92,16 @@ function doGet(e) {
         result = { success: true, events: getCalendarEvents() };
         try { result.oezHinweis = getPublicConfig('oez_hinweis'); } catch(e) { result.oezHinweis = ''; }
         break;
+      case 'ticker':
+        result = { success: true, ticker: getTickerInfo() };
+        break;
       case 'all':
         result = { success: true };
         try { result.logo = getLogo(); } catch(e) { result.logo = null; }
         try { result.images = getImages(); } catch(e) { result.images = []; }
         try { result.news = getNews(); } catch(e) { result.news = []; }
         try { result.events = getCalendarEvents(); } catch(e) { result.events = []; }
+        try { result.ticker = getTickerInfo(); } catch(e) { result.ticker = { aktiv: false, text: '' }; }
         break;
       default:
         result = { success: false, error: 'Unbekannte action: ' + action };
@@ -362,4 +366,10 @@ function getPublicConfig(key) {
     if (data[i][0] === key) return (data[i][1] || '').toString();
   }
   return '';
+}
+
+function getTickerInfo() {
+  var aktiv = getPublicConfig('ticker_aktiv') === 'ja';
+  var text = getPublicConfig('ticker_text');
+  return { aktiv: aktiv && !!text, text: text };
 }
