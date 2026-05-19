@@ -896,6 +896,7 @@ function setupMailQueueTrigger() {
 function sendMailChunk(opts, recipients) {
   var quota = MailApp.getRemainingDailyQuota();
   var maxNow = Math.max(0, quota - MAIL_QUOTA_BUFFER);
+  Logger.log('  [sendMailChunk] quota=' + quota + ', buffer=' + MAIL_QUOTA_BUFFER + ', maxNow=' + maxNow + ', recipients=' + recipients.length);
   var sendNow = recipients.slice(0, maxNow);
   var remaining = recipients.slice(maxNow);
   var sent = 0;
@@ -910,10 +911,11 @@ function sendMailChunk(opts, recipients) {
       sent++;
     } catch (e) {
       failed.push(sendNow[i]);
-      Logger.log('Mail-Fehler an ' + sendNow[i] + ': ' + e.toString());
+      Logger.log('  [sendMailChunk] Fehler an ' + sendNow[i] + ': ' + e.toString());
     }
   }
 
+  Logger.log('  [sendMailChunk] fertig: sent=' + sent + ', failed=' + failed.length + ', remaining=' + remaining.length);
   return { sent: sent, remaining: remaining, failed: failed };
 }
 
@@ -963,20 +965,54 @@ function cleanupInlineImageFolder(folderId) {
 // Daily Trigger: arbeitet die Queue ab, sendet eine Bilanzmail pro
 // fertiggestelltem Eintrag an den Skripteigentuemer.
 function processMailQueue() {
+  // Diagnose-Logging: hilft uns zu sehen, warum der Background-Trigger
+  // manchmal "0 versandt" meldet, obwohl die Queue Daten haette
+  Logger.log('=== processMailQueue START ===');
+  try {
+    var effUser = '(n/a)';
+    var actUser = '(n/a)';
+    try { effUser = Session.getEffectiveUser().getEmail() || '(leer)'; } catch (e) {}
+    try { actUser = Session.getActiveUser().getEmail() || '(leer)'; } catch (e) {}
+    Logger.log('Effective user: ' + effUser + ' | Active user: ' + actUser);
+  } catch (e) {
+    Logger.log('Session info: Fehler ' + e);
+  }
+  Logger.log('Initiales Tageskontingent: ' + MailApp.getRemainingDailyQuota());
+
   var sh = getMailQueueSheet();
+  Logger.log('Sheet: ' + (sh ? sh.getName() : 'NULL') + ' | Parent: ' + (sh && sh.getParent() ? sh.getParent().getId() : 'NULL'));
   var lastRow = sh.getLastRow();
-  if (lastRow < 2) return 0;
+  Logger.log('lastRow: ' + lastRow);
+  if (lastRow < 2) {
+    Logger.log('Keine Daten in Queue -> return 0');
+    return 0;
+  }
 
   var data = sh.getRange(2, 1, lastRow - 1, 12).getValues();
+  Logger.log('Anzahl Zeilen geladen: ' + data.length);
   var totalSent = 0;
 
   for (var i = 0; i < data.length; i++) {
     var row = data[i];
-    if (row[11] !== 'pending') continue;
-    if (MailApp.getRemainingDailyQuota() <= MAIL_QUOTA_BUFFER) break;
+    var statusVal = row[11];
+    Logger.log('Zeile ' + (i + 2) + ': status="' + statusVal + '" (typeof ' + typeof statusVal + ', length ' + (statusVal ? String(statusVal).length : 0) + ')');
+    if (statusVal !== 'pending') {
+      Logger.log('  -> skip (status !== "pending")');
+      continue;
+    }
+    var quotaNow = MailApp.getRemainingDailyQuota();
+    Logger.log('  Quota vor Versand: ' + quotaNow + ' (Buffer ' + MAIL_QUOTA_BUFFER + ')');
+    if (quotaNow <= MAIL_QUOTA_BUFFER) {
+      Logger.log('  -> break (Quota erschoepft)');
+      break;
+    }
 
-    var emails = row[8] ? row[8].split(',').filter(function(e) { return e; }) : [];
+    var emailsRaw = row[8];
+    Logger.log('  remainingEmails Laenge im Sheet: ' + (emailsRaw ? String(emailsRaw).length : 0) + ' Zeichen');
+    var emails = emailsRaw ? String(emailsRaw).split(',').filter(function(e) { return e; }) : [];
+    Logger.log('  Anzahl zu versendender Adressen: ' + emails.length);
     if (emails.length === 0) {
+      Logger.log('  -> Markiere als done (keine Adressen)');
       sh.getRange(i + 2, 12).setValue('done');
       continue;
     }
@@ -993,25 +1029,30 @@ function processMailQueue() {
       if (Object.keys(imgs).length > 0) opts.inlineImages = imgs;
     }
 
+    Logger.log('  Rufe sendMailChunk auf mit ' + emails.length + ' Empfaengern, subject="' + row[3] + '"');
     var result = sendMailChunk(opts, emails);
+    Logger.log('  sendMailChunk Ergebnis: sent=' + result.sent + ', remaining=' + result.remaining.length + ', failed=' + result.failed.length);
     totalSent += result.sent;
 
-    var oldFailed = row[9] ? row[9].split(',').filter(function(e) { return e; }) : [];
+    var oldFailed = row[9] ? String(row[9]).split(',').filter(function(e) { return e; }) : [];
     var newFailed = oldFailed.concat(result.failed);
 
     if (result.remaining.length === 0) {
+      Logger.log('  -> Markiere Zeile als done');
       sh.getRange(i + 2, 9).setValue('');
       sh.getRange(i + 2, 10).setValue(newFailed.join(','));
       sh.getRange(i + 2, 12).setValue('done');
       cleanupInlineImageFolder(row[7]);
       try { sendAdminQueueReport(row[3], row[10], newFailed); } catch (e) {}
     } else {
+      Logger.log('  -> Schreibe ' + result.remaining.length + ' verbleibende zurueck ins Sheet');
       sh.getRange(i + 2, 9).setValue(result.remaining.join(','));
       sh.getRange(i + 2, 10).setValue(newFailed.join(','));
     }
   }
 
   Logger.log('processMailQueue: ' + totalSent + ' Mail(s) versandt');
+  Logger.log('=== processMailQueue ENDE ===');
   return totalSent;
 }
 
