@@ -879,14 +879,25 @@ function enqueueMail(entry) {
 }
 
 function setupMailQueueTrigger() {
+  // Alte processMailQueue-Trigger entfernen (so dass wir sauber 2 anlegen koennen)
   var triggers = ScriptApp.getProjectTriggers();
   for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'processMailQueue') return;
+    if (triggers[i].getHandlerFunction() === 'processMailQueue') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
   }
+  // 2x taeglich: 6 Uhr (drain bevor Reminder laeuft) und 18 Uhr (drain nach Reminder)
+  // Doppelte Chance erhoeht Robustheit gegen das rollende 24h-Quota-Fenster.
   ScriptApp.newTrigger('processMailQueue')
     .timeBased()
     .everyDays(1)
-    .atHour(MAIL_QUEUE_TRIGGER_HOUR)
+    .atHour(6)
+    .inTimezone('Europe/Berlin')
+    .create();
+  ScriptApp.newTrigger('processMailQueue')
+    .timeBased()
+    .everyDays(1)
+    .atHour(18)
     .inTimezone('Europe/Berlin')
     .create();
 }
@@ -1734,12 +1745,15 @@ function setupReminderTrigger() {
       ScriptApp.deleteTrigger(triggers[i]);
     }
   }
-  // Neuen täglichen Trigger erstellen (läuft jeden Tag um 8:00 Uhr)
+  // Einmal taeglich um 8:00 Berlin — zwischen processMailQueue 6:00 (drain Queue
+  // damit Quota frei ist) und processMailQueue 18:00 (drain neu eingestellte Reminder).
   ScriptApp.newTrigger('sendEventReminders')
     .timeBased()
-    .everyHours(1)
+    .everyDays(1)
+    .atHour(8)
+    .inTimezone('Europe/Berlin')
     .create();
-  Logger.log('Erinnerungs-Trigger erstellt (stündlich).');
+  Logger.log('Erinnerungs-Trigger erstellt (taeglich 8:00 Berlin).');
 }
 
 /**
@@ -1811,27 +1825,36 @@ function sendEventReminders() {
         'Boulderverein Zugzwang e.V.\n' +
         'https://boulderhallezugzwang.github.io/zugzwang-website';
 
-      var count = 0;
-      for (var r = 0; r < recipients.length; r++) {
-        try {
-          MailApp.sendEmail({
-            to: recipients[r],
-            subject: 'Erinnerung: ' + titel + ' – ' + datumFormatiert,
-            body: body,
-            name: 'Boulderverein Zugzwang e.V.'
-          });
-          count++;
-        } catch (e) {
-          Logger.log('Erinnerungs-Mail-Fehler an ' + recipients[r] + ': ' + e.toString());
-        }
+      var subject = 'Erinnerung: ' + titel + ' – ' + datumFormatiert;
+      var opts = {
+        subject: subject,
+        body: body,
+        name: 'Boulderverein Zugzwang e.V.'
+      };
+
+      // Chunked Versand wie bei Event-Mails: was sofort geht, geht sofort.
+      // Der Rest landet in der Queue und wird ueber die naechsten Tage versandt.
+      var result = sendMailChunk(opts, recipients);
+      if (result.remaining.length > 0) {
+        enqueueMail({
+          type: 'event_reminder',
+          subject: subject,
+          plainBody: body,
+          remainingEmails: result.remaining,
+          failedEmails: result.failed,
+          totalRecipients: recipients.length
+        });
+        setupMailQueueTrigger();
+      } else if (result.failed.length > 0) {
+        try { sendAdminQueueReport(subject, recipients.length, result.failed); } catch (e) {}
       }
 
-      // Als erinnert markieren
+      // Als erinnert markieren (auch wenn nur ein Teil sofort raus ging — der Rest ist in der Queue)
       var newDesc = desc.replace(REMIND_TAG_RE, '') + '\n[ZZ-REMINDED]';
       ev.setDescription(newDesc);
 
-      totalSent += count;
-      Logger.log('Erinnerung gesendet für "' + titel + '": ' + count + ' Mail(s)');
+      totalSent += result.sent;
+      Logger.log('Erinnerung fuer "' + titel + '": ' + result.sent + ' sofort versandt, ' + result.remaining.length + ' in Queue, ' + result.failed.length + ' fehlgeschlagen');
     }
   }
 
