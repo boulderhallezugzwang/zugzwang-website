@@ -92,8 +92,8 @@ const deObj=de=>{const q=de.split('.');return new Date(+q[2],+q[1]-1,+q[0]);};
 function hdCtx(slots){
   const sheets={
     Mitglieder:mkSheet([MH.slice(),
-      ['O\'Neil-Müller','Eva','A','eva@example.org','03.05.1990','','Erwachsene'],
-      ['Maier','Tom','A','fam@example.org',new Date(1980,1,2),'','Mitglied Familie'],
+      ['O\'Neil-Müller','Eva','A','eva@example.org','03.05.1990','','Erwachsene','','','','','+49 160 555 66 77'],
+      ['Maier','Tom','A','fam@example.org',new Date(1980,1,2),'','Mitglied Familie','','','','',1705556677],
       ['Maier','Tim','A','fam@example.org','11.12.2008','','Mitglied Familie'],
       ['Doppelt','Max','A','max@example.org','01.01.1970','','Erwachsene'],
       ['Doppelt','Max','A','max@example.org','02.02.2000','','Erwachsene']]),
@@ -114,7 +114,15 @@ r=post(c,{...E,vorname:'Erika',nachname:'Fremd',email:'x@example.org'});
 ok(r.status==='geburtsdatum'&&hdRow(S1)[2]==='','Unbekannte Person: erst Geburtsdatum nachfragen, Termin bleibt frei');
 r=post(c,{...E,vorname:'Erika',nachname:'Fremd',email:'x@example.org',geburtsdatum:'1990-05-03'});
 ok(r.status==='unbekannt'&&/0160 1234567/.test(r.message)&&hdRow(S1)[2]===''&&!sh.Dienste,'Kein Mitglied: Hinweis mit Telefonnummer, nichts eingetragen');
-r=post(c,{...E,email:'andere@example.org'}); ok(r.status==='geburtsdatum','Mitglied mit anderer E-Mail: Geburtsdatum nachfragen');
+r=post(c,{...E,email:'andere@example.org'}); ok(r.status==='geburtsdatum','Mitglied mit anderer E-Mail und anderer Nummer: Geburtsdatum nachfragen');
+// Mobilnummer als zweite Stufe (ohne Rueckfrage)
+let HM=hdCtx([S1,S2]); r=post(HM.c,{...E,email:'andere@example.org',mobilnr:'0160 / 555 66-77'});
+ok(r.status==='ok'&&HM.sh.Dienste.rows[1][6]==='Eva','andere E-Mail, aber hinterlegte Mobilnummer (+49 vs. 0160): erkannt ohne Rueckfrage');
+r=post(HM.c,{datum:S2,vorname:'Tom',nachname:'Maier',email:'neu@example.org',mobilnr:'0170 5556677'});
+ok(r.status==='ok'&&HM.sh.Dienste.rows[2][6]==='Tom','Nummer in der Tabelle als Zahl ohne fuehrende 0: trotzdem erkannt');
+HM=hdCtx([S1]); r=post(HM.c,{datum:S1,vorname:'Erika',nachname:'Fremd',email:'x@example.org',mobilnr:'0160 5556677'});
+ok(r.status==='geburtsdatum'&&!HM.sh.Dienste,'fremder Name mit Nummer eines Mitglieds: nicht erkannt');
+const nt=vm.runInContext('dienstNormTel',HM.c); ok(nt('+49 (0)160 5556677')===nt('01605556677')&&nt('0049 160 5556677')===nt('01605556677')&&nt('160-555 66 77')===nt('+491605556677')&&nt('12')==='','Telefonnummern werden einheitlich verglichen');
 r=post(c,{...E,email:'andere@example.org',geburtsdatum:'1991-01-01'}); ok(r.status==='unbekannt','falsches Geburtsdatum: nicht erkannt');
 c.mailFail=true; r=post(c,{...E,vorname:' eva ',nachname:'ONeil Mueller',email:'EVA@example.org'}); c.mailFail=false;
 ok(r.status==='ok'&&hdRow(S1)[2]==='Eva'&&hdRow(S1)[3]==="O'Neil-Müller"&&c.__cal===1,'Mitglied erkannt trotz Schreibweise; Name wie in der Liste; ok trotz Mailfehler');

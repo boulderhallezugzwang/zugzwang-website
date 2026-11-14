@@ -2614,6 +2614,17 @@ function dienstNorm(s) {
     .replace(/[^a-z0-9@._]/g, '');
 }
 
+// Telefonnummern vergleichbar machen: nur Ziffern, ohne fuehrende 0 bzw.
+// Laendervorwahl (+49 / 0049). In der Tabelle fehlt die fuehrende 0 oft, weil
+// Sheets die Nummer als Zahl speichert. Zu kurze Nummern gelten als leer.
+function dienstNormTel(v) {
+  var d = String(v === null || v === undefined ? '' : v).replace(/\D/g, '');
+  d = d.replace(/^00/, '');
+  if (d.indexOf('49') === 0 && d.length > 10) d = d.slice(2);
+  d = d.replace(/^0+/, '');
+  return d.length >= 6 ? d : '';
+}
+
 // Datum (Date, "TT.MM.JJJJ" oder "JJJJ-MM-TT") → "TT.MM.JJJJ"; sonst ''
 function dienstDatumDE(v) {
   if (v && typeof v.getDate === 'function') {
@@ -2685,6 +2696,7 @@ function dienstLadeMitglieder() {
       vorname: vor,
       email: String(zelle(data[i], 'E-Mail')).trim(),
       geburtsdatum: dienstDatumDE(zelle(data[i], 'Geburtsdatum')),
+      mobil: dienstNormTel(zelle(data[i], 'Telefon Mobil')),
       status: String(zelle(data[i], 'Status')),
       key: dienstMitgliedKey(nach, vor, zelle(data[i], 'Geburtsdatum'))
     });
@@ -2692,25 +2704,34 @@ function dienstLadeMitglieder() {
   return out;
 }
 
-// Erkennt ein Mitglied an Name + E-Mail; reicht das nicht, an Name + Geburtsdatum.
+// Erkennt ein Mitglied in dieser Reihenfolge:
+//   1. Name + E-Mail
+//   2. Name + Mobilnummer (steht ohnehin im Formular, wird still geprueft)
+//   3. Name + Geburtsdatum (wird erst nachgefragt, wenn 1 und 2 nicht reichen)
+// Ergebnis:
 //   { status: 'ok', mitglied }
 //   { status: 'geburtsdatum' }  → bitte Geburtsdatum nachfragen
 //   { status: 'unbekannt' }     → nicht zuzuordnen (Kontakt anzeigen)
-// Ob es an Name, E-Mail oder Geburtsdatum lag, wird nach aussen nicht verraten.
-function dienstFindeMitglied(vorname, nachname, email, geburtsdatum) {
+// Ob es an Name, E-Mail, Nummer oder Geburtsdatum lag, wird nach aussen nicht verraten.
+function dienstFindeMitglied(vorname, nachname, email, geburtsdatum, mobil) {
   var liste = dienstLadeMitglieder().mitglieder;
   var nv = dienstNorm(vorname), nn = dienstNorm(nachname), ne = dienstNorm(email);
   var gd = dienstDatumDE(geburtsdatum);
+  var nt = dienstNormTel(mobil);
   if (!nv || !nn) return { status: 'unbekannt' };
   var namensgleich = liste.filter(function(m) {
     return dienstNorm(m.vorname) === nv && dienstNorm(m.nachname) === nn;
   });
   var perMail = ne ? namensgleich.filter(function(m) { return dienstNorm(m.email) === ne; }) : [];
   if (perMail.length === 1) return { status: 'ok', mitglied: perMail[0] };
+  // Mehrere Treffer per E-Mail (Namensvettern) → nur unter diesen weitersuchen
+  var auswahl = perMail.length > 1 ? perMail : namensgleich;
+  if (nt) {
+    var perMobil = auswahl.filter(function(m) { return m.mobil && m.mobil === nt; });
+    if (perMobil.length === 1) return { status: 'ok', mitglied: perMobil[0] };
+  }
   if (!gd) return { status: 'geburtsdatum' };
-  var perGeburt = (perMail.length > 1 ? perMail : namensgleich).filter(function(m) {
-    return m.geburtsdatum && m.geburtsdatum === gd;
-  });
+  var perGeburt = auswahl.filter(function(m) { return m.geburtsdatum && m.geburtsdatum === gd; });
   if (perGeburt.length === 1) return { status: 'ok', mitglied: perGeburt[0] };
   return { status: 'unbekannt' };
 }
