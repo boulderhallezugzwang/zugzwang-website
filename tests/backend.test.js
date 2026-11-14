@@ -277,4 +277,89 @@ c=ctx(sh); load(c,'apps-script/mitgliederliste/Mitgliederliste.gs'); Object.assi
 r=post(c,{username:'anna',password:'geheim12',action:'createEvent',kalender:'events',titel:'Fest',datum:zukunft,zeitVon:'18:00',zeitBis:'21:00',beschreibung:'',mailMode:'all',remindHours:'0',rsvpAktiv:true,rsvpEmail:'o@example.org'});
 ok(r.ok&&c.brevo.calls.length===2&&c.mails.length===0&&/<a href="https:\/\/zugzwang-auerbach\.de\/rueckmeldung\.html\?t=[0-9a-f]{40}">/.test(c.brevo.calls[0].p.htmlContent)&&c.brevo.calls[0].p.attachment[0].name==='termin.ics','Termin-Mail mit Rueckmelde-Link und ICS geht ueber Brevo');
 
+// ---- Helferdienste
+const isoIn=n=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+n);return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);};
+function heCtx(){
+  const sheets={
+    Mitglieder:mkSheet([MH.slice(),
+      ['Müller','Eva','A','eva@example.org','03.05.1990','','Erwachsene'],
+      ['Maier','Tom','A','tom@example.org','02.02.1980','','Erwachsene'],
+      ['Maier','Tim','A','tim@example.org','11.12.2008','','Erwachsene'],
+      ['Huber','Ida','A','ida@example.org','01.01.1985','','Erwachsene'],
+      ['Fleißig','Fritz','A','fritz@example.org','04.04.1975','','Erwachsene']]),
+    Config:mkSheet([['Key','Value','B'],['dienste_kontakt_telefon','0160 1234567','']]),
+    Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein']])};
+  const cc=ctx(sheets); load(cc,'apps-script/mitgliederliste/Mitgliederliste.gs'); return {c:cc,sh:sheets};
+}
+let HE=heCtx(); c=HE.c; sh=HE.sh;
+const EV={...A,action:'createEvent',titel:'Umschrauben',datum:isoIn(10),zeitVon:'10:00',zeitBis:'14:00',beschreibung:'Bitte Akkuschrauber mitbringen',mailMode:'all',remindHours:'24'};
+ok(/Arbeitsdienste/.test(post(c,{...EV,kalender:'events',helferAktiv:true,helferPlaetze:2}).error||''),'Helferdienst nur im Kalender Arbeitsdienste');
+ok(/Anzahl der Helfer/.test(post(c,{...EV,kalender:'arbeitsdienst',helferAktiv:true}).error||'')&&!sh.Helferdienste,'Helferdienst ohne Anzahl abgelehnt');
+r=post(c,{...EV,kalender:'arbeitsdienst',helferAktiv:true,helferPlaetze:2});
+ok(r.ok&&/Helferdienst mit 2 Plätzen/.test(r.message)&&sh.Helferdienste.rows.length===2&&/^h[0-9a-f]{39}$/.test(sh.Helferdienste.rows[1][0]),'Helferdienst als Termin angelegt');
+const hid=sh.Helferdienste.rows[1][0];
+ok(c.mails.some(m=>/Umschrauben/.test(m.subject)&&m.body.includes('Wir suchen 2 Helferinnen und Helfer')&&m.body.includes('verein.html#helferdienste')),'Termin-Mail mit Hinweis und Link zur Eintragung');
+r=post(c,{action:'helferListe'});
+ok(r.ok&&r.dienste.length===1&&r.dienste[0].plaetze===2&&r.dienste[0].belegt===0&&r.dienste[0].voll===false&&r.dienste[0].titel==='Umschrauben'&&/10:00 – 14:00/.test(r.dienste[0].zeit),'oeffentliche Liste: Dienst mit Belegung');
+const HEin=(v,n,e,x)=>post(c,{action:'helferEintragen',id:hid,vorname:v,nachname:n,email:e,mobilnr:'0160 1',...(x||{})});
+ok(post(c,{action:'helferEintragen',id:'x',vorname:'Eva',nachname:'Müller',email:'eva@example.org'}).status==='error','ungueltige Dienst-ID abgelehnt');
+ok(HEin('Erika','Fremd','x@example.org').status==='geburtsdatum'&&/0160 1234567/.test(HEin('Erika','Fremd','x@example.org',{geburtsdatum:'1990-01-01'}).message),'Nicht-Mitglied: Geburtsdatum, dann Hinweis mit Telefonnummer');
+let vm0=c.mails.length; r=HEin('Eva','Mueller','eva@example.org');
+const HD=()=>sh.Dienste.rows;
+ok(r.status==='ok'&&HD().length===2&&HD()[1][1]==='helferdienst'&&HD()[1][2]===hid&&HD()[1][8]==='eingetragen','Mitglied eingetragen, Platz belegt');
+ok(c.mails.length===vm0+1&&c.mails[vm0].to==='eva@example.org'&&c.mails[vm0].body.includes('/dienst.html?k=e&c='+HD()[1][0])&&/Umschrauben/.test(c.mails[vm0].body),'Bestaetigungsmail mit Austragen-Link');
+ok(HEin('Eva','Müller','eva@example.org').status==='schon'&&HD().length===2,'doppelte Eintragung abgelehnt');
+ok(HEin('Tom','Maier','tom@example.org').status==='ok','zweiter Platz belegt');
+vm0=c.mails.length; r=HEin('Tim','Maier','tim@example.org');
+ok(r.status==='warteliste'&&HD()[3][8]==='warteliste'&&/Warteliste/.test(c.mails[vm0].subject),'voll: Warteliste mit eigener Mail');
+r=post(c,{action:'helferListe'}).dienste[0];
+ok(r.belegt===2&&r.voll===true&&!JSON.stringify(r).includes('Maier')&&!JSON.stringify(r).includes('@'),'oeffentlich: 2 von 2 belegt, keine Namen oder Adressen');
+const cAn=sh.Mitglieder.rows[0].indexOf('Dienste lfd. Jahr');
+const istDiesesJahr=new Date(isoIn(10)).getFullYear()===new Date().getFullYear();
+ok(sh.Mitglieder.rows[1][cAn]===(istDiesesJahr?1:0)&&sh.Mitglieder.rows[3][cAn]===0,'Warteliste zaehlt nicht, Eintragung zaehlt');
+r=post(c,{...A,action:'getEvents'}).events.find(e=>e.titel==='Umschrauben');
+ok(r.helfer&&r.helfer.plaetze===2&&r.helfer.belegt===2&&r.helfer.warteliste===1&&r.helfer.liste.length===3&&r.helfer.liste.some(h=>h.name==='Tim Maier'&&h.status==='warteliste'),'intern: Belegung und Namensliste');
+const evH=r;
+// fleissiger Helfer: Jahresgrenze erreicht -> darf kommen, belegt keinen Platz
+const fritzKey=vm.runInContext('dienstMitgliedKey',c)('Fleißig','Fritz','04.04.1975'); const dj=new Date(isoIn(10)).getFullYear();
+for(let i=0;i<3;i++) HD().push(['d'+String(i).padStart(39,'9'),'hallendienst','0'+i+'.01.'+dj,new Date(dj,0,5+i),fritzKey,'Fleißig','Fritz','fritz@example.org','eingetragen',new Date(),new Date()]);
+vm0=c.mails.length; r=post(c,{action:'helferEintragen',id:hid,vorname:'Fritz',nachname:'Fleißig',email:'fritz@example.org',mobilnr:'0160 1'});
+ok(r.status==='ohne_platz'&&/fleißig/.test(r.message)&&/keinen der Helferplätze/.test(r.message)&&HD()[HD().length-1][8]==='ohne_platz','ab dem 3. Dienst: Eintragung ohne Platz mit freundlicher Meldung');
+ok(post(c,{action:'helferListe'}).dienste[0].belegt===2&&/herzlich willkommen/.test(c.mails[vm0].body),'… belegt keinen Platz, bekommt eine nette Mail');
+// Austragen -> Warteliste rueckt nach
+const evaId=HD()[1][0];
+r=post(c,{action:'dienstInfo',c:evaId}); ok(r.ok&&r.titel==='Umschrauben'&&r.vorname==='Eva'&&/10:00/.test(r.zeit)&&r.austragenMoeglich===true,'Austragen-Seite: Angaben zum Helferdienst');
+vm0=c.mails.length; r=post(c,{action:'dienstAustragen',c:evaId});
+ok(r.ok&&HD()[1][8]==='ausgetragen'&&HD()[3][8]==='eingetragen','Austragen: Platz geht an die Warteliste');
+ok(c.mails.slice(vm0).some(m=>m.to==='tim@example.org'&&/Platz frei/.test(m.subject)&&/dienst\.html\?k=e&c=/.test(m.body)),'Nachruecker bekommt eine Mail');
+ok(post(c,{action:'dienstAustragen',c:evaId}).schonAusgetragen===true,'zweites Austragen aendert nichts');
+// mehr Plaetze -> Warteliste rueckt nach
+HEin('Ida','Huber','ida@example.org'); ok(HD()[HD().length-1][8]==='warteliste','wieder voll: Ida auf der Warteliste');
+r=post(c,{...A,action:'updateEvent',kalender:'arbeitsdienst',eventId:evH.id,titel:'Umschrauben',datum:isoIn(10),zeitVon:'10:00',zeitBis:'14:00',beschreibung:'',mailMode:'none',remindHours:'24',helferAktiv:true,helferPlaetze:3});
+ok(r.ok&&HD()[HD().length-1][8]==='eingetragen'&&sh.Helferdienste.rows[1][6]===3,'Plaetze erhoeht: Warteliste rueckt nach');
+// Vorstand streicht einen Helfer
+const tomId=HD()[2][0]; ok(post(c,{action:'helferStreichen',dienstId:tomId}).error==='Nicht authentifiziert','Streichen nur mit Anmeldung');
+r=post(c,{...A,action:'helferStreichen',dienstId:tomId}); ok(r.ok&&HD()[2][8]==='gestrichen'&&/Tom Maier gestrichen/.test(r.message),'Vorstand streicht Helfer: zaehlt nicht mehr');
+// Erinnerung
+sh.Helferdienste.rows[1][3]=new Date(Date.now()+20*3600e3); sh.Helferdienste.rows[1][4]=new Date(Date.now()+24*3600e3);
+const morgen=new Date(Date.now()+20*3600e3); HD().forEach((x,i)=>{ if(i>0&&x[1]==='helferdienst') x[3]=new Date(morgen.getFullYear(),morgen.getMonth(),morgen.getDate()); });
+const erin=vm.runInContext('helferErinnerungen',c); vm0=c.mails.length; erin();
+let em=c.mails.slice(vm0);
+ok(em.length===3&&em.every(m=>/Erinnerung Helferdienst/.test(m.subject))&&em.some(m=>m.to==='fritz@example.org')&&!em.some(m=>m.to==='tom@example.org'||m.to==='eva@example.org'),'Erinnerung an alle, die kommen (nicht an Gestrichene/Ausgetragene)');
+vm0=c.mails.length; erin(); ok(c.mails.length===vm0,'Erinnerung nur einmal');
+r=post(c,{action:'dienstAustragen',c:HD()[3][0]}); ok(/3 Tage/.test(r.error||'')&&/0160 1234567/.test(r.error),'kurz vorher: Austragen nur noch per Telefon');
+// Termin loeschen -> Helfer informieren, Eintraege streichen
+sh.Helferdienste.rows[1][3]=new Date(Date.now()+10*86400e3);
+vm0=c.mails.length; r=post(c,{...A,action:'deleteEvent',kalender:'arbeitsdienst',eventId:evH.id,mailMode:'none'});
+ok(r.ok&&/3 eingetragene Helfer wurden benachrichtigt/.test(r.message)&&sh.Helferdienste.rows.length===1&&c.mails.slice(vm0).filter(m=>/Helferdienst entfällt/.test(m.subject)).length===3,'Termin geloescht: Helfer benachrichtigt, Dienst entfernt');
+ok(HD().filter(x=>x[1]==='helferdienst'&&(x[8]==='eingetragen'||x[8]==='ohne_platz'||x[8]==='warteliste')).length===0&&post(c,{action:'helferListe'}).dienste.length===0,'… alle Eintraege gestrichen, Liste leer');
+// Helferdienst ausschalten beim Bearbeiten
+HE=heCtx(); c=HE.c; sh=HE.sh; post(c,{...EV,kalender:'arbeitsdienst',mailMode:'none',helferAktiv:true,helferPlaetze:1});
+post(c,{action:'helferEintragen',id:sh.Helferdienste.rows[1][0],vorname:'Eva',nachname:'Müller',email:'eva@example.org',mobilnr:'0160 1'});
+const ev2=post(c,{...A,action:'getEvents'}).events[0];
+r=post(c,{...A,action:'updateEvent',kalender:'arbeitsdienst',eventId:ev2.id,titel:'Umschrauben',datum:isoIn(10),zeitVon:'10:00',zeitBis:'14:00',beschreibung:'',mailMode:'none',remindHours:'0',helferAktiv:false});
+ok(r.ok&&sh.Helferdienste.rows.length===1&&sh.Dienste.rows[1][8]==='gestrichen','Helferdienst ausgeschaltet: Eintragung gestrichen');
+r=post(c,{...A,action:'createEvent',kalender:'events',titel:'Normal',datum:isoIn(5),zeitVon:'18:00',zeitBis:'19:00',beschreibung:'',mailMode:'none',remindHours:'0'});
+ok(r.ok&&!/Helferdienst/.test(r.message),'normaler Termin unveraendert');
+
 console.log(fails?('\n'+fails+' FEHLGESCHLAGEN'):'\nalle Tests bestanden'); process.exit(fails?1:0);

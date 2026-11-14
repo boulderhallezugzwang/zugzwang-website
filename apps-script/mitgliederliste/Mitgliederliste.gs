@@ -219,6 +219,19 @@ function doPost(e) {
     if (action === 'rsvpInfo') return jsonResponse(rsvpInfo(body.t));
     if (action === 'rsvp') return jsonResponse(rsvpAntwort(body.t, body.antwort, body.vorher));
 
+    // Oeffentlich (ohne Anmeldung): Helferdienste ansehen, eintragen, austragen
+    if (action === 'helferListe') return jsonResponse(helferListeOeffentlich());
+    if (action === 'helferEintragen') return jsonResponse(helferEintragen(body));
+    if (action === 'dienstInfo') return jsonResponse(helferDienstInfo(body.c));
+    if (action === 'dienstAustragen') return jsonResponse(helferDienstAustragen(body.c));
+
+    // Intern: einzelnen Helfer streichen
+    if (action === 'helferStreichen') {
+      var hsUser = authenticateUser(body.username, body.password);
+      if (!hsUser) return jsonResponse({ error: 'Nicht authentifiziert' });
+      return jsonResponse(helferStreichen((body.dienstId || '').toString()));
+    }
+
     if (action === 'login') {
       if (authIsLocked(body.username)) return jsonResponse({ error: 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.' });
       var user = authenticateUser(body.username, body.password, true);
@@ -272,7 +285,9 @@ function doPost(e) {
         var remindHours = (body.remindHours || '0').toString();
         var rsvpOpts = rsvpParseOpts(body);
         if (rsvpOpts.error) return jsonResponse({ error: rsvpOpts.error });
-        var result = createCalEvent(kalender, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts);
+        var helferOpts = helferParseOpts(body, kalender);
+        if (helferOpts.error) return jsonResponse({ error: helferOpts.error });
+        var result = createCalEvent(kalender, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts, helferOpts);
         return jsonResponse(result);
       }
 
@@ -303,7 +318,9 @@ function doPost(e) {
         var remindHours = (body.remindHours || '0').toString();
         var rsvpOpts = rsvpParseOpts(body);
         if (rsvpOpts.error) return jsonResponse({ error: rsvpOpts.error });
-        return jsonResponse(updateCalEvent(kalender, eventId, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts));
+        var helferOpts = helferParseOpts(body, kalender);
+        if (helferOpts.error) return jsonResponse({ error: helferOpts.error });
+        return jsonResponse(updateCalEvent(kalender, eventId, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts, helferOpts));
       }
     }
 
@@ -630,6 +647,7 @@ function getCalendarEvents() {
 
   var alleTermine = [];
   var rsvpMap = rsvpLoadMap();
+  var helferMap = helferLadeMapIntern();
   var keys = Object.keys(KALENDER);
   for (var k = 0; k < keys.length; k++) {
     var key = keys[k];
@@ -653,7 +671,8 @@ function getCalendarEvents() {
         beschreibung: stripTags(ev.getDescription() || ''),
         mailStatus: parseMailTag(ev.getDescription() || ''),
         erinnerung: parseRemindTag(ev.getDescription() || ''),
-        rsvp: rsvpMap[ev.getId()] || null
+        rsvp: rsvpMap[ev.getId()] || null,
+        helfer: helferMap[ev.getId()] || null
       });
     }
   }
@@ -681,8 +700,11 @@ function deleteCalEvent(kalender, eventId, mailMode, mailTo) {
 
     ev.deleteEvent();
     try { rsvpRemove(eventId); } catch (eRsvp) { console.error('Rueckmeldung entfernen fehlgeschlagen: ' + eRsvp); }
+    var helferAbgesagt = 0;
+    try { helferAbgesagt = helferRemove(eventId, true); } catch (eHelfer) { console.error('Helferdienst entfernen fehlgeschlagen: ' + eHelfer); }
 
     var msg = 'Termin "' + titel + '" gelöscht.';
+    if (helferAbgesagt > 0) msg += ' ' + helferAbgesagt + ' eingetragene Helfer wurden benachrichtigt.';
 
     if (mailMode !== 'none') {
       var recipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
@@ -696,7 +718,7 @@ function deleteCalEvent(kalender, eventId, mailMode, mailTo) {
   }
 }
 
-function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts) {
+function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts, helferOpts) {
   var cal = CalendarApp.getCalendarById(KALENDER[kalender]);
   if (!cal) return { error: 'Kalender nicht gefunden' };
 
@@ -725,6 +747,14 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
       rsvpRemove(eventId);
     }
 
+    // Helferdienst: einschalten/aktualisieren oder ausschalten
+    var helferAktiv = !!(helferOpts && helferOpts.aktiv);
+    if (helferAktiv) {
+      helferUpsert(eventId, titel, startDate, endDate, beschreibung, helferOpts.plaetze, remindHours);
+    } else {
+      helferRemove(eventId, true);
+    }
+
     var mailResult = { sent: 0, queued: 0, failed: 0, total: 0 };
     var actualRecipients = [];
 
@@ -734,7 +764,7 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
       var icsContent = generateICS(titel, startDate, endDate, beschreibung, remindHours);
       var customRecipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
       actualRecipients = customRecipients || getEmailRecipients(null);
-      mailResult = sendUpdateMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, beschreibung, KALENDER_NAMEN[kalender], icsContent, customRecipients, rsvpToken);
+      mailResult = sendUpdateMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, beschreibung, KALENDER_NAMEN[kalender], icsContent, customRecipients, rsvpToken, helferAktiv ? helferOpts.plaetze : 0);
     }
 
     // Mail-Status + Erinnerung in Beschreibung aktualisieren (Total-Empfaengerzahl, nicht "sent")
@@ -745,6 +775,7 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
     if (mailResult.total > 0) msg += ' ' + formatChunkedSendMessage(mailResult, mailResult.total);
     if (remindHours && remindHours !== '0') msg += ' Erinnerung ' + remindHours + 'h vorher aktiv.';
     if (rsvpToken) msg += ' Rückmeldung aktiv' + (mailMode === 'none' ? ' (ohne Mail kennt aber niemand den Link).' : '.');
+    if (helferAktiv) msg += ' Helferdienst mit ' + helferOpts.plaetze + ' Plätzen.';
 
     return { ok: true, message: msg };
   } catch (e) {
@@ -752,7 +783,7 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
   }
 }
 
-function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts) {
+function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts, helferOpts) {
   var dateParts = datumISO.split('-');
   var vonParts = zeitVon.split(':');
   var bisParts = zeitBis.split(':');
@@ -775,6 +806,7 @@ function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschrei
   // nach dem Anlegen im Kalender.
   var rsvpAktiv = !!(rsvpOpts && rsvpOpts.aktiv);
   var rsvpToken = rsvpAktiv ? rsvpNewToken() : '';
+  var helferAktiv = !!(helferOpts && helferOpts.aktiv);
 
   if (mailMode !== 'none') {
     var icsContent = generateICS(titel, startDate, endDate, beschreibung, remindHours);
@@ -785,7 +817,7 @@ function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschrei
     var customRecipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
     actualRecipients = customRecipients || getEmailRecipients(null);
     mailResult = sendEventMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis,
-      beschreibung, KALENDER_NAMEN[kalenderKey], icsContent, customRecipients, rsvpToken);
+      beschreibung, KALENDER_NAMEN[kalenderKey], icsContent, customRecipients, rsvpToken, helferAktiv ? helferOpts.plaetze : 0);
   }
 
   // Mail-Status + Erinnerung in Beschreibung speichern (Total-Empfaengerzahl, nicht "sent")
@@ -794,11 +826,13 @@ function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschrei
   var eventOptions = { description: descWithTag };
   var neuerTermin = cal.createEvent(titel, startDate, endDate, eventOptions);
   if (rsvpAktiv) rsvpInsert(rsvpToken, neuerTermin.getId(), kalenderKey, titel, startDate, rsvpOpts.email);
+  if (helferAktiv) helferUpsert(neuerTermin.getId(), titel, startDate, endDate, beschreibung, helferOpts.plaetze, remindHours);
 
   var msg = 'Termin "' + titel + '" erstellt.';
   if (mailResult.total > 0) msg += ' ' + formatChunkedSendMessage(mailResult, mailResult.total);
   if (remindHours && remindHours !== '0') msg += ' Erinnerung ' + remindHours + 'h vorher aktiv.';
   if (rsvpAktiv) msg += ' Rückmeldung aktiv' + (mailMode === 'none' ? ' (ohne Mail kennt aber niemand den Link).' : '.');
+  if (helferAktiv) msg += ' Helferdienst mit ' + helferOpts.plaetze + ' Plätzen – Eintragung auf der Vereinsseite.';
 
   return { ok: true, message: msg };
 }
@@ -1462,7 +1496,7 @@ function getEmailRecipients(customRecipients) {
 // ── Mail-Versand: Neuer Termin ──
 // Gibt { sent, queued, failed, total } zurueck.
 
-function sendEventMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients, rsvpToken) {
+function sendEventMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients, rsvpToken, helferPlaetze) {
   var recipients = getEmailRecipients(customRecipients);
   if (recipients.length === 0) return { sent: 0, queued: 0, failed: 0, total: 0 };
 
@@ -1473,6 +1507,7 @@ function sendEventMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, 
     zeitVon + ' – ' + zeitBis + ' Uhr\n';
   if (beschreibung) body += '\n' + beschreibung + '\n';
   body += rsvpMailBlock(rsvpToken);
+  body += helferMailBlock(helferPlaetze);
   body += '\nIm Anhang findest Du eine Kalenderdatei (.ics) zum Importieren in Deinen Kalender.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
@@ -1559,7 +1594,7 @@ function sendCancelMail(titel, datum, wochentag, zeitVon, zeitBis, kalenderName,
 
 // ── Mail-Versand: Änderung ──
 
-function sendUpdateMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients, rsvpToken) {
+function sendUpdateMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients, rsvpToken, helferPlaetze) {
   var recipients = getEmailRecipients(customRecipients);
   if (recipients.length === 0) return { sent: 0, queued: 0, failed: 0, total: 0 };
 
@@ -1570,6 +1605,7 @@ function sendUpdateMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung,
     zeitVon + ' – ' + zeitBis + ' Uhr\n';
   if (beschreibung) body += '\n' + beschreibung + '\n';
   body += rsvpMailBlock(rsvpToken);
+  body += helferMailBlock(helferPlaetze);
   body += '\nIm Anhang findest Du die aktualisierte Kalenderdatei (.ics).\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
@@ -2306,6 +2342,448 @@ function sendRsvpSummaries() {
 }
 
 // ═══════════════════════════════════════════════════
+// HELFERDIENSTE
+// ═══════════════════════════════════════════════════
+//
+// Ein Helferdienst ist ein Termin im Kalender "Arbeitsdienste" mit einer
+// festen Zahl Helferplaetze. Mitglieder tragen sich auf der Vereinsseite ein;
+// oeffentlich sichtbar ist nur "3 von 5 belegt", nie ein Name.
+//
+// Tab "Helferdienste", eine Zeile je Dienst:
+//   A ID | B Termin-ID | C Titel | D Start | E Ende | F Beschreibung
+//   G Plätze | H Erinnerung (h) | I Erinnert | J Erstellt
+// Wer sich eingetragen hat, steht im Tab "Dienste" (Art "helferdienst",
+// Dienst = ID von hier). Status dort:
+//   eingetragen – belegt einen Platz
+//   warteliste  – Dienst war voll; rueckt nach, sobald ein Platz frei wird
+//   ohne_platz  – hat die Jahresgrenze schon erreicht: darf kommen, belegt
+//                 aber keinen Platz
+
+var HELFER_TAB = 'Helferdienste';
+var HELFER_HEADERS = ['ID', 'Termin-ID', 'Titel', 'Start', 'Ende', 'Beschreibung',
+  'Plätze', 'Erinnerung (h)', 'Erinnert', 'Erstellt'];
+var HELFER_SEITE = DIENST_SITE + '/verein.html#helferdienste';
+
+function helferSheet(nichtAnlegen) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(HELFER_TAB);
+  if (!sheet && !nichtAnlegen) {
+    sheet = ss.insertSheet(HELFER_TAB);
+    sheet.getRange(1, 1, 1, HELFER_HEADERS.length).setValues([HELFER_HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function helferRows(sheet) {
+  if (!sheet) return [];
+  var last = sheet.getLastRow();
+  if (last < 2) return [];
+  return sheet.getRange(2, 1, last - 1, HELFER_HEADERS.length).getValues();
+}
+
+function helferGueltigeId(id) {
+  return typeof id === 'string' && /^h[0-9a-f]{39}$/.test(id);
+}
+
+// Datumswerte aus der Tabelle erkennen (instanceof ist ueber Kontexte hinweg unzuverlaessig)
+function helferIstDatum(v) {
+  return !!v && typeof v.getTime === 'function' && !isNaN(v.getTime());
+}
+
+function helferZeit(d) {
+  return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+
+// Parameter aus dem internen Bereich
+function helferParseOpts(body, kalender) {
+  var aktiv = body.helferAktiv === true || body.helferAktiv === 'true';
+  if (!aktiv) return { aktiv: false, plaetze: 0 };
+  if (kalender !== 'arbeitsdienst') return { error: 'Helferdienste gehören in den Kalender „Arbeitsdienste“' };
+  var n = parseInt(body.helferPlaetze, 10);
+  if (!(n >= 1 && n <= 200)) return { error: 'Bitte die Anzahl der Helfer angeben (1 bis 200)' };
+  return { aktiv: true, plaetze: n };
+}
+
+// Textblock fuer Termin- und Aenderungsmail
+function helferMailBlock(plaetze) {
+  if (!plaetze) return '';
+  return '\nWir suchen ' + plaetze + ' Helferinnen und Helfer. Hier kannst Du Dich eintragen:\n' +
+    '  ' + HELFER_SEITE + '\n';
+}
+
+// Zaehlt die Eintraege eines Helferdienstes (drows = dienstRows)
+function helferStand(drows, helferId) {
+  var st = { belegt: 0, warteliste: 0, ohnePlatz: 0, liste: [] };
+  for (var i = 0; i < drows.length; i++) {
+    var r = drows[i];
+    if (r[1] !== 'helferdienst' || r[2] !== helferId) continue;
+    if (r[8] === 'eingetragen') st.belegt++;
+    else if (r[8] === 'warteliste') st.warteliste++;
+    else if (r[8] === 'ohne_platz') st.ohnePlatz++;
+    else continue;
+    st.liste.push({ dienstId: r[0], name: r[6] + ' ' + r[5], email: String(r[7]), status: r[8], row: i + 2, seit: r[9] });
+  }
+  return st;
+}
+
+// Anlegen oder aktualisieren; werden es mehr Plaetze, rueckt die Warteliste nach.
+function helferUpsert(eventId, titel, start, end, beschreibung, plaetze, remindHours) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sheet = helferSheet();
+    var rows = helferRows(sheet);
+    var rh = parseInt(remindHours, 10) || 0;
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i][1] !== eventId) continue;
+      // Neuer Zeitpunkt → Erinnerung darf erneut gehen
+      var verschoben = !helferIstDatum(rows[i][3]) || rows[i][3].getTime() !== start.getTime();
+      sheet.getRange(i + 2, 3, 1, 7).setValues([[sheetSafe(titel), start, end, sheetSafe(beschreibung || ''), plaetze, rh,
+        verschoben ? '' : rows[i][8]]]);
+      helferDatumNachziehen(rows[i][0], start);
+      helferNachruecken(rows[i][0]);
+      return rows[i][0];
+    }
+    var id = 'h' + (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').slice(0, 39);
+    sheet.appendRow([id, eventId, sheetSafe(titel), start, end, sheetSafe(beschreibung || ''), plaetze, rh, '', new Date()]);
+    return id;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Wird der Dienst verschoben, muss das Datum im Protokoll mit (Jahreszaehlung!).
+function helferDatumNachziehen(helferId, start) {
+  var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+  if (!dsheet) return;
+  var drows = dienstRows(dsheet);
+  var tag = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  for (var i = 0; i < drows.length; i++) {
+    if (drows[i][1] === 'helferdienst' && drows[i][2] === helferId) dsheet.getRange(i + 2, 4).setValue(tag);
+  }
+}
+
+// Dienst entfernen (Termin geloescht oder Helferdienst ausgeschaltet):
+// Eintraege streichen, Eingetragene benachrichtigen. Gibt deren Anzahl zurueck.
+function helferRemove(eventId, benachrichtigen) {
+  var sheet = helferSheet(true);
+  if (!sheet) return 0;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var rows = helferRows(sheet);
+    var n = 0;
+    for (var i = rows.length - 1; i >= 0; i--) {
+      if (rows[i][1] !== eventId) continue;
+      var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+      var liste = dsheet ? helferStand(dienstRows(dsheet), rows[i][0]).liste : [];
+      dienstMarkiereDienst('helferdienst', rows[i][0], 'gestrichen');
+      if (benachrichtigen) {
+        var start = rows[i][3];
+        for (var j = 0; j < liste.length; j++) {
+          helferMail(liste[j].email, 'Helferdienst entfällt: ' + rows[i][2],
+            'Hallo ' + liste[j].name.split(' ')[0] + ',\n\n' +
+            'der Helferdienst „' + rows[i][2] + '“ am ' + dienstDatumDE(start) + ' findet nicht statt bzw. wurde geändert. ' +
+            'Deine Eintragung ist damit hinfällig und zählt nicht.\n\nDanke für Deine Bereitschaft!');
+        }
+      }
+      n += liste.length;
+      sheet.deleteRow(i + 2);
+    }
+    return n;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function helferMail(to, subject, body) {
+  if (!maIsEmail(to)) return;
+  try {
+    var signatur = getConfigValue('mail_signatur') || 'Sportliche Grüße,\nBoulderverein Zugzwang e.V.';
+    MailApp.sendEmail({ to: to, subject: subject, body: body + '\n\n' + signatur + '\n' + DIENST_SITE, name: 'Boulderverein Zugzwang e.V.' });
+  } catch (e) {
+    console.error('Helferdienst-Mail an ' + to + ' fehlgeschlagen: ' + e);
+  }
+}
+
+function helferBeschreibe(v) {
+  var start = v[3];
+  return '  ' + v[2] + '\n  ' + WOCHENTAGE_LANG[start.getDay()] + ', ' + dienstDatumDE(start) + ', ' +
+    helferZeit(start) + ' – ' + helferZeit(v[4]) + ' Uhr\n';
+}
+
+function helferAustragenText(dienstId) {
+  return 'Falls Du doch nicht kannst: Bis ' + dienstAustragenTage() + ' Tage vorher kannst Du Dich hier selbst wieder austragen:\n' +
+    '  ' + DIENST_SITE + '/dienst.html?k=e&c=' + dienstId + '\n';
+}
+
+// Oeffentlich: kommende Helferdienste mit Belegung – ohne Namen
+function helferListeOeffentlich() {
+  var rows = helferRows(helferSheet(true));
+  var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+  var drows = dsheet ? dienstRows(dsheet) : [];
+  var jetzt = Date.now();
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var start = rows[i][3], end = rows[i][4];
+    if (!helferIstDatum(start) || start.getTime() <= jetzt) continue;
+    var st = helferStand(drows, rows[i][0]);
+    var plaetze = parseInt(rows[i][6], 10) || 0;
+    out.push({
+      id: rows[i][0],
+      titel: String(rows[i][2]),
+      beschreibung: String(rows[i][5] || ''),
+      datum: dienstDatumDE(start),
+      wochentag: WOCHENTAGE_LANG[start.getDay()],
+      zeit: helferZeit(start) + ' – ' + helferZeit(end),
+      plaetze: plaetze,
+      belegt: Math.min(st.belegt, plaetze),
+      voll: st.belegt >= plaetze,
+      start: start.getTime()
+    });
+  }
+  out.sort(function(a, b) { return a.start - b.start; });
+  return { ok: true, dienste: out };
+}
+
+// Intern: Termin-ID → Belegung samt Namensliste
+function helferLadeMapIntern() {
+  var map = {};
+  var rows = helferRows(helferSheet(true));
+  if (rows.length === 0) return map;
+  var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+  var drows = dsheet ? dienstRows(dsheet) : [];
+  for (var i = 0; i < rows.length; i++) {
+    var st = helferStand(drows, rows[i][0]);
+    map[rows[i][1]] = {
+      aktiv: true,
+      plaetze: parseInt(rows[i][6], 10) || 0,
+      belegt: st.belegt, warteliste: st.warteliste, ohnePlatz: st.ohnePlatz,
+      liste: st.liste.map(function(e) { return { dienstId: e.dienstId, name: e.name, email: e.email, status: e.status }; })
+    };
+  }
+  return map;
+}
+
+function helferValidate(data) {
+  if (!data || typeof data !== 'object') return 'Ungültige Anfrage.';
+  var namePattern = /^[^<>"=;{}\[\]\\\/\u0000-\u001F]{1,60}$/;
+  if (typeof data.vorname !== 'string' || !namePattern.test(data.vorname.trim())) return 'Bitte einen gültigen Vornamen angeben.';
+  if (typeof data.nachname !== 'string' || !namePattern.test(data.nachname.trim())) return 'Bitte einen gültigen Nachnamen angeben.';
+  if (typeof data.email !== 'string' || data.email.length > 120 || !maIsEmail(data.email.trim())) return 'Bitte eine gültige E-Mail-Adresse angeben.';
+  if (data.mobilnr !== undefined && data.mobilnr !== null && data.mobilnr !== '' &&
+      !/^[0-9 +().\/\-]{4,30}$/.test(String(data.mobilnr).trim())) return 'Bitte eine gültige Mobilnummer angeben.';
+  if (data.geburtsdatum !== undefined && data.geburtsdatum !== null && data.geburtsdatum !== '' &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(data.geburtsdatum))) return 'Ungültiges Geburtsdatum.';
+  if (!helferGueltigeId(data.id)) return 'Ungültiger Dienst.';
+  return '';
+}
+
+// Oeffentlich: Mitglied traegt sich fuer einen Helferdienst ein
+function helferEintragen(data) {
+  var fehler = helferValidate(data);
+  if (fehler) return { status: 'error', message: fehler };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  var antwort, mailText, mailBetreff, mitglied, zeile;
+  try {
+    var rows = helferRows(helferSheet(true));
+    zeile = null;
+    for (var i = 0; i < rows.length; i++) { if (rows[i][0] === data.id) { zeile = rows[i]; break; } }
+    if (!zeile || !helferIstDatum(zeile[3])) return { status: 'error', message: 'Diesen Helferdienst gibt es nicht (mehr).' };
+    if (zeile[3].getTime() <= Date.now()) return { status: 'error', message: 'Dieser Helferdienst hat bereits begonnen.' };
+
+    var fund = dienstFindeMitglied(data.vorname, data.nachname, data.email, data.geburtsdatum, data.mobilnr);
+    if (fund.status === 'geburtsdatum') {
+      return { status: 'geburtsdatum',
+        message: 'Wir konnten dich mit diesen Angaben nicht eindeutig zuordnen. Bitte gib zusätzlich dein Geburtsdatum an.' };
+    }
+    if (fund.status !== 'ok') return { status: 'unbekannt', message: dienstKontaktHinweis() };
+    mitglied = fund.mitglied;
+
+    var dsheet = dienstSheet();
+    var drows = dienstRows(dsheet);
+    for (var k = 0; k < drows.length; k++) {
+      if (drows[k][1] === 'helferdienst' && drows[k][2] === data.id && drows[k][4] === mitglied.key &&
+          (drows[k][8] === 'eingetragen' || drows[k][8] === 'warteliste' || drows[k][8] === 'ohne_platz')) {
+        return { status: 'schon', message: 'Du bist für diesen Dienst bereits eingetragen. Den Link zum Austragen findest du in deiner Bestätigungsmail.' };
+      }
+    }
+
+    var plaetze = parseInt(zeile[6], 10) || 0;
+    var st = helferStand(drows, data.id);
+    var bisher = dienstAnzahl(drows, mitglied.key, zeile[3].getFullYear());
+    var status;
+    if (dienstLimitErreicht(bisher)) status = 'ohne_platz';
+    else if (st.belegt < plaetze) status = 'eingetragen';
+    else status = 'warteliste';
+
+    var tag = new Date(zeile[3].getFullYear(), zeile[3].getMonth(), zeile[3].getDate());
+    var dienstId = dienstEintragen(dsheet, 'helferdienst', data.id, tag,
+      { key: mitglied.key, nachname: mitglied.nachname, vorname: mitglied.vorname, email: data.email.trim() }, status);
+    SpreadsheetApp.flush();
+    try { dienstSyncMitgliederliste(); } catch (eSync) { console.error('Dienst-Zaehler nicht aktualisiert: ' + eSync); }
+
+    var kopf = 'Hallo ' + mitglied.vorname + ',\n\n';
+    if (status === 'eingetragen') {
+      antwort = { status: 'ok', message: 'Du bist eingetragen – danke! Die Bestätigung kommt per E-Mail.' };
+      mailBetreff = 'Helferdienst bestätigt – ' + zeile[2];
+      mailText = kopf + 'danke, dass Du mithilfst! Du bist für folgenden Helferdienst eingetragen:\n\n' +
+        helferBeschreibe(zeile) + '\n' + helferAustragenText(dienstId);
+    } else if (status === 'warteliste') {
+      antwort = { status: 'warteliste', message: 'Alle Plätze sind schon belegt – du stehst auf der Warteliste. Wird ein Platz frei, bekommst du sofort eine E-Mail.' };
+      mailBetreff = 'Warteliste Helferdienst – ' + zeile[2];
+      mailText = kopf + 'für diesen Helferdienst sind im Moment alle Plätze belegt. Du stehst auf der Warteliste:\n\n' +
+        helferBeschreibe(zeile) + '\nSobald ein Platz frei wird, bekommst Du eine E-Mail. Solange zählt der Dienst noch nicht für Dich.\n\n' +
+        helferAustragenText(dienstId);
+    } else {
+      antwort = { status: 'ohne_platz', message: 'Wow – du hast dich dieses Jahr schon ' + bisher + '-mal für einen Dienst gemeldet. Danke, dass du so fleißig mithilfst! ' +
+        'Du darfst sehr gerne kommen. Damit auch andere ihren Dienst leisten können, belegst du diesmal aber keinen der Helferplätze.' };
+      mailBetreff = 'Helferdienst – schön, dass Du dabei bist: ' + zeile[2];
+      mailText = kopf + 'Du hast Dich dieses Jahr schon ' + bisher + '-mal für einen Dienst gemeldet – vielen Dank für Deinen Einsatz!\n\n' +
+        'Du bist beim folgenden Helferdienst herzlich willkommen:\n\n' + helferBeschreibe(zeile) +
+        '\nDamit auch andere Mitglieder ihren Dienst leisten können, belegst Du diesmal keinen der Helferplätze.\n\n' +
+        helferAustragenText(dienstId);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  helferMail(data.email.trim(), mailBetreff, mailText);
+  return antwort;
+}
+
+// Freie Plaetze mit den Aeltesten der Warteliste fuellen (jeweils mit Mail).
+// Der Aufrufer haelt die Sperre.
+function helferNachruecken(helferId) {
+  var hsheet = helferSheet(true);
+  var zeile = null, hrows = helferRows(hsheet);
+  for (var i = 0; i < hrows.length; i++) { if (hrows[i][0] === helferId) { zeile = hrows[i]; break; } }
+  if (!zeile) return 0;
+  var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+  if (!dsheet) return 0;
+  var plaetze = parseInt(zeile[6], 10) || 0;
+  var st = helferStand(dienstRows(dsheet), helferId);
+  var warte = st.liste.filter(function(e) { return e.status === 'warteliste'; })
+    .sort(function(a, b) { return new Date(a.seit).getTime() - new Date(b.seit).getTime(); });
+  var n = 0;
+  while (st.belegt + n < plaetze && n < warte.length) {
+    var w = warte[n];
+    dienstSetStatus(dsheet, w.row, 'eingetragen');
+    helferMail(w.email, 'Platz frei: Du bist beim Helferdienst dabei – ' + zeile[2],
+      'Hallo ' + w.name.split(' ')[0] + ',\n\n' +
+      'beim folgenden Helferdienst ist ein Platz frei geworden – Du bist von der Warteliste nachgerückt und jetzt fest eingetragen:\n\n' +
+      helferBeschreibe(zeile) + '\n' + helferAustragenText(w.dienstId));
+    n++;
+  }
+  if (n > 0) {
+    SpreadsheetApp.flush();
+    try { dienstSyncMitgliederliste(); } catch (e) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e); }
+  }
+  return n;
+}
+
+function helferDienstTreffer(id) {
+  if (!dienstGueltigeId(id)) return null;
+  var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+  if (!dsheet) return null;
+  var hit = dienstFinde(dsheet, id);
+  if (!hit || hit.v[1] !== 'helferdienst') return null;
+  hit.sheet = dsheet;
+  var hrows = helferRows(helferSheet(true));
+  for (var i = 0; i < hrows.length; i++) { if (hrows[i][0] === hit.v[2]) { hit.dienst = hrows[i]; break; } }
+  return hit;
+}
+
+// Oeffentlich: Angaben fuer die Austragen-Seite
+function helferDienstInfo(id) {
+  var hit = helferDienstTreffer(id);
+  if (!hit) return { error: 'Dieser Link ist ungültig.' };
+  var info = dienstInfoBasis(hit);
+  info.titel = hit.dienst ? String(hit.dienst[2]) : 'Helferdienst';
+  if (hit.dienst && helferIstDatum(hit.dienst[3])) {
+    info.wochentag = WOCHENTAGE_LANG[hit.dienst[3].getDay()];
+    info.zeit = helferZeit(hit.dienst[3]) + ' – ' + helferZeit(hit.dienst[4]) + ' Uhr';
+  }
+  return info;
+}
+
+// Oeffentlich: austragen; ein frei gewordener Platz geht an die Warteliste
+function helferDienstAustragen(id) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hit = helferDienstTreffer(id);
+    if (!hit) return { error: 'Dieser Link ist ungültig.' };
+    if (hit.v[8] === 'ausgetragen') return { ok: true, schonAusgetragen: true };
+    var info = dienstInfoBasis(hit);
+    if (!info.austragenMoeglich) {
+      var tel = (getConfigValue('dienste_kontakt_telefon') || '').toString().trim();
+      return { error: info.zuSpaet
+        ? 'Austragen ist nur bis ' + info.fristTage + ' Tage vor dem Dienst möglich. ' +
+          (tel ? 'Bitte melde dich direkt unter ' + tel + '.' : 'Bitte melde dich direkt beim Vorstand.')
+        : 'Dieser Eintrag ist nicht mehr aktiv.' };
+    }
+    var hattePlatz = hit.v[8] === 'eingetragen';
+    dienstSetStatus(hit.sheet, hit.row, 'ausgetragen');
+    SpreadsheetApp.flush();
+    if (hattePlatz) helferNachruecken(hit.v[2]);
+    try { dienstSyncMitgliederliste(); } catch (e) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e); }
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Intern: einen Helfer streichen (z.B. nicht erschienen) – zaehlt dann nicht
+function helferStreichen(dienstId) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var hit = helferDienstTreffer(dienstId);
+    if (!hit) return { error: 'Eintrag nicht gefunden' };
+    if (hit.v[8] !== 'eingetragen' && hit.v[8] !== 'warteliste' && hit.v[8] !== 'ohne_platz') return { error: 'Eintrag ist nicht mehr aktiv' };
+    var hattePlatz = hit.v[8] === 'eingetragen';
+    dienstSetStatus(hit.sheet, hit.row, 'gestrichen');
+    SpreadsheetApp.flush();
+    // Nachruecken nur, solange der Dienst noch bevorsteht
+    var nach = 0;
+    if (hattePlatz && hit.dienst && helferIstDatum(hit.dienst[3]) && hit.dienst[3].getTime() > Date.now()) nach = helferNachruecken(hit.v[2]);
+    try { dienstSyncMitgliederliste(); } catch (e) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e); }
+    return { ok: true, message: hit.v[6] + ' ' + hit.v[5] + ' gestrichen.' + (nach ? ' ' + nach + ' von der Warteliste nachgerückt.' : '') };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Taeglich: Eingetragene vor ihrem Dienst erinnern (Vorlauf wie beim Termin
+// eingestellt, mindestens 24 Stunden).
+function helferErinnerungen() {
+  var sheet = helferSheet(true);
+  var rows = helferRows(sheet);
+  if (rows.length === 0) return;
+  var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+  var drows = dsheet ? dienstRows(dsheet) : [];
+  var jetzt = Date.now();
+  for (var i = rows.length - 1; i >= 0; i--) {
+    var start = rows[i][3];
+    if (!helferIstDatum(start)) continue;
+    if (start.getTime() < jetzt - 60 * 86400000) { sheet.deleteRow(i + 2); continue; }   // alte Dienste aufraeumen
+    if (start.getTime() <= jetzt || rows[i][8]) continue;
+    var vorlauf = Math.max(parseInt(rows[i][7], 10) || 0, 24);
+    if (jetzt < start.getTime() - vorlauf * 3600000) continue;
+    var liste = helferStand(drows, rows[i][0]).liste.filter(function(e) { return e.status !== 'warteliste'; });
+    for (var j = 0; j < liste.length; j++) {
+      helferMail(liste[j].email, 'Erinnerung Helferdienst – ' + rows[i][2],
+        'Hallo ' + liste[j].name.split(' ')[0] + ',\n\nkurze Erinnerung an Deinen Helferdienst:\n\n' + helferBeschreibe(rows[i]) +
+        (rows[i][5] ? '\n' + rows[i][5] + '\n' : '') + '\nDanke, dass Du dabei bist!');
+    }
+    sheet.getRange(i + 2, 9).setValue(new Date());
+  }
+}
+
+// ═══════════════════════════════════════════════════
 // NEWSLETTER: Mail an Mitglieder senden
 // ═══════════════════════════════════════════════════
 
@@ -2438,6 +2916,8 @@ function sendEventReminders() {
   try { sendRsvpSummaries(); } catch (eSum) { console.error('Rueckmelde-Zusammenfassung fehlgeschlagen: ' + eSum); }
   // Dienst-Zaehler in der Mitgliederliste einmal taeglich auffrischen (Jahreswechsel).
   try { dienstSyncMitgliederliste(); } catch (eDienst) { console.error('Dienst-Zaehler nicht aktualisiert: ' + eDienst); }
+  // Eingetragene Helfer vor ihrem Dienst erinnern.
+  try { helferErinnerungen(); } catch (eHelferRem) { console.error('Helfer-Erinnerung fehlgeschlagen: ' + eHelferRem); }
 
   var rsvpMapErinnerung = {};
   try { rsvpMapErinnerung = rsvpLoadMap(true); } catch (eMap) { console.error('Rueckmeldungen nicht lesbar: ' + eMap); }

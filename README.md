@@ -19,7 +19,8 @@ Webseite und Backend-Scripts für den **Boulderverein Zugzwang e.V.** — Boulde
 ├── tests/backend.test.js       ← Tests der Backend-Logik: `node tests/backend.test.js .`
 └── apps-script/                ← Google Apps Scripts, je Ordner ein Script-Projekt (mit clasp verknüpft)
     ├── mitgliederliste/        ← HAUPT-BACKEND, an die Tabelle gebunden (heißt in Google „Mitgliedsantrag“)
-    │   ├── Mitgliederliste.gs  ← doPost/doGet: Anmeldung, Mitglieder, Kalender, News, Newsletter, Mitgliedsantrag
+    │   ├── Mitgliederliste.gs  ← doPost/doGet: Anmeldung, Mitglieder, Kalender, News, Newsletter, Mitgliedsantrag,
+    │   │                         Rückmeldungen, Helferdienste (Tabs „Helferdienste“ und „Dienste“)
     │   ├── Mitgliedsantrag.gs  ← ClubDesk CSV-Export/-Import (Tabellen-Menü)
     │   ├── Menue.gs            ← onOpen + Menüs (ClubDesk, Hallendienst, Verteiler)
     │   └── appsscript.json

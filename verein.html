@@ -333,6 +333,33 @@
     font-size: 24px; cursor: pointer;
   }
   .hd-close:hover { color: var(--cream); }
+  /* ===== HELFERDIENSTE ===== */
+  .he-list { display: grid; gap: 12px; max-width: 760px; }
+  .he-card {
+    background: var(--dark-card); border: 1px solid var(--dark-border); border-radius: var(--radius);
+    padding: 16px 18px; display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center;
+  }
+  .he-titel { font-family: 'Barlow Condensed', sans-serif; font-size: 21px; font-weight: 700; color: var(--cream); line-height: 1.2; overflow-wrap: anywhere; }
+  .he-zeit { color: var(--yellow-light, #E8B930); font-size: 14px; font-weight: 500; margin-top: 2px; }
+  .he-desc { grid-column: 1 / -1; font-size: 14px; color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
+  .he-stand { grid-column: 1 / -1; }
+  .he-stand-text { font-size: 13px; color: var(--cream-dim); margin-bottom: 5px; font-variant-numeric: tabular-nums; }
+  .he-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .he-bar > span { display: block; height: 100%; border-radius: 3px; background: #2ecc71; }
+  .he-card.voll .he-bar > span { background: var(--yellow); }
+  .he-btn {
+    min-height: 44px; padding: 8px 18px; border-radius: var(--radius); cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    background: #2ecc71; color: #10240f; border: none; white-space: nowrap;
+  }
+  .he-btn:hover { background: #27ae60; }
+  .he-btn:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+  .he-card.voll .he-btn { background: transparent; color: var(--yellow); border: 1px solid var(--yellow); }
+  .he-card.voll .he-btn:hover { background: rgba(212,160,32,0.12); }
+  @media (max-width: 520px) {
+    .he-card { grid-template-columns: 1fr; }
+    .he-btn { width: 100%; }
+  }
   .hd-modal-msg {
     margin: 4px 0 12px; padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.45;
     background: rgba(231,76,60,0.1); color: var(--cream); border: 1px solid #e74c3c;
@@ -418,6 +445,7 @@
     <a href="#jahreskarte">Jahreskarte</a>
     <a href="#beitraege">Beiträge</a>
     <a href="#hallendienst">Hallendienst</a>
+    <a href="#helferdienste">Helferdienste</a>
   </div>
 </div>
 
@@ -516,11 +544,24 @@
   </div>
 </section>
 
+<!-- HELFERDIENSTE -->
+<section class="section-divider" id="helferdienste">
+  <span class="section-label">Mitmachen</span>
+  <h2 class="section-title">Helferdienste</h2>
+  <p style="font-size:15px; color:var(--text); margin-bottom:24px; max-width:700px;">
+    Umschrauben, Putzaktion, Sommerfest: Ohne helfende Hände läuft im Verein nichts. Such dir einen Dienst aus und trag dich ein. Wenn alle Plätze belegt sind, kommst du auf die Warteliste und rückst automatisch nach.
+  </p>
+  <div id="heMsg"></div>
+  <div id="heContent">
+    <div class="hd-loading">Helferdienste werden geladen…</div>
+  </div>
+</section>
+
 <!-- HALLENDIENST MODAL -->
 <div class="hd-overlay" id="hdOverlay">
   <div class="hd-modal">
     <button class="hd-close" id="hdClose">&times;</button>
-    <h3>Hallendienst eintragen</h3>
+    <h3 id="hdModalTitel">Hallendienst eintragen</h3>
     <div class="hd-modal-sub" id="hdModalDate"></div>
     <form id="hdForm" novalidate>
       <div class="form-row">
@@ -575,6 +616,11 @@ const HD_URL = 'https://script.google.com/macros/s/AKfycbw2hUXLDIf0fns1e31UFirjg
 
 let hdTermine = [];
 let selectedDatum = null;
+// Der Eintrage-Dialog wird fuer Hallendienst ('hd') und Helferdienste ('helfer') benutzt
+let eintragModus = 'hd';
+let selectedHelferId = null;
+// Haupt-Backend (gleiche Bereitstellung wie intern.html / antrag.html)
+const HELFER_URL = 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec';
 
 // Alle Daten aus Backend/Kalender/Docs sind Fremdtext und werden vor dem
 // Einsetzen in HTML maskiert (sonst kann z.B. ein Terminname Skripte einschleusen).
@@ -598,6 +644,71 @@ async function loadHallendienst() {
     console.error(err);
     container.innerHTML = '<div class="hd-empty">Termine konnten nicht geladen werden.</div>';
   }
+}
+
+// ===== Helferdienste: Liste laden (nur Belegung, keine Namen) =====
+async function loadHelferdienste() {
+  const container = document.getElementById('heContent');
+  try {
+    const resp = await fetch(HELFER_URL, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'helferListe' })
+    });
+    const json = await resp.json();
+    if (!json || !json.ok) throw new Error('Antwort ungültig');
+    renderHelferdienste(json.dienste || []);
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = '<div class="hd-empty">Die Helferdienste konnten nicht geladen werden. Bitte lade die Seite neu.</div>';
+  }
+}
+
+function renderHelferdienste(dienste) {
+  const container = document.getElementById('heContent');
+  if (!dienste.length) {
+    container.innerHTML = '<div class="hd-empty">Aktuell sind keine Helferdienste geplant. Schau bald wieder vorbei!</div>';
+    return;
+  }
+  let html = '<div class="he-list">';
+  dienste.forEach(d => {
+    const plaetze = parseInt(d.plaetze, 10) || 0;
+    const belegt = Math.min(parseInt(d.belegt, 10) || 0, plaetze);
+    const voll = belegt >= plaetze;
+    const frei = plaetze - belegt;
+    const pct = plaetze ? Math.round(belegt / plaetze * 100) : 0;
+    const stand = voll
+      ? `${belegt} von ${plaetze} Plätzen belegt – Warteliste`
+      : `${belegt} von ${plaetze} Plätzen belegt – noch ${frei} frei`;
+    html += `
+      <div class="he-card${voll ? ' voll' : ''}">
+        <div>
+          <div class="he-titel">${esc(d.titel)}</div>
+          <div class="he-zeit">${esc(d.wochentag)}, ${esc(d.datum)} · ${esc(d.zeit)} Uhr</div>
+        </div>
+        <button type="button" class="he-btn" data-id="${esc(d.id)}" data-titel="${esc(d.titel)}" data-label="${esc(d.wochentag)}, ${esc(d.datum)} · ${esc(d.zeit)} Uhr">${voll ? 'Auf die Warteliste' : 'Eintragen'}</button>
+        ${d.beschreibung ? `<div class="he-desc">${esc(d.beschreibung)}</div>` : ''}
+        <div class="he-stand">
+          <div class="he-stand-text">${esc(stand)}</div>
+          <div class="he-bar" role="img" aria-label="${esc(stand)}"><span style="width:${pct}%"></span></div>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+
+  container.querySelectorAll('.he-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      eintragModus = 'helfer';
+      selectedHelferId = btn.dataset.id;
+      document.getElementById('hdModalTitel').textContent = 'Helferdienst: ' + btn.dataset.titel;
+      document.getElementById('hdModalDate').textContent = btn.dataset.label;
+      document.getElementById('hdForm').reset();
+      document.getElementById('hdSubmit').disabled = true;
+      hdResetModal();
+      document.getElementById('hdOverlay').classList.add('show');
+    });
+  });
 }
 
 function renderHallendienst() {
@@ -645,6 +756,8 @@ function renderHallendienst() {
   container.querySelectorAll('.hd-open').forEach(row => {
     row.addEventListener('click', () => {
       selectedDatum = row.dataset.datum;
+      eintragModus = 'hd';
+      document.getElementById('hdModalTitel').textContent = 'Hallendienst eintragen';
       document.getElementById('hdModalDate').textContent = row.dataset.label;
       document.getElementById('hdForm').reset();
       document.getElementById('hdSubmit').disabled = true;
@@ -698,20 +811,22 @@ hdForm.addEventListener('input', checkHdForm);
 // Absenden
 hdForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const helfer = eintragModus === 'helfer';
   const data = {
-    datum: selectedDatum,
     vorname: document.getElementById('hdVorname').value.trim(),
     nachname: document.getElementById('hdNachname').value.trim(),
     email: document.getElementById('hdEmail').value.trim(),
     mobilnr: document.getElementById('hdMobil').value.trim()
   };
+  if (helfer) { data.action = 'helferEintragen'; data.id = selectedHelferId; }
+  else data.datum = selectedDatum;
   if (!document.getElementById('hdGeburtRow').hidden) data.geburtsdatum = document.getElementById('hdGeburt').value;
 
   hdSubmit.disabled = true;
   hdSubmit.classList.add('loading');
 
   try {
-    const resp = await fetch(HD_URL, {
+    const resp = await fetch(helfer ? HELFER_URL : HD_URL, {
       method: 'POST', redirect: 'follow',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(data)
@@ -726,16 +841,20 @@ hdForm.addEventListener('submit', async (e) => {
       return;
     }
     // Kein Mitglied gefunden bzw. Jahresgrenze erreicht → Hinweis im Dialog
-    if (result.status === 'unbekannt' || result.status === 'limit') {
-      hdModalMeldung(result.message || 'Die Eintragung ist nicht möglich.', result.status === 'limit');
+    if (result.status === 'unbekannt' || result.status === 'limit' || result.status === 'schon') {
+      hdModalMeldung(result.message || 'Die Eintragung ist nicht möglich.', result.status !== 'unbekannt');
       return;
     }
 
     // Modal schließen
     document.getElementById('hdOverlay').classList.remove('show');
 
-    const msg = document.getElementById('hdMsg');
-    if (result.status === 'ok') {
+    const msg = document.getElementById(helfer ? 'heMsg' : 'hdMsg');
+    if (helfer && (result.status === 'ok' || result.status === 'warteliste' || result.status === 'ohne_platz')) {
+      // eingetragen / Warteliste / fleissiger Helfer ohne Platz – alles freundliche Meldungen
+      msg.className = 'hd-msg ok';
+      msg.textContent = result.message;
+    } else if (result.status === 'ok') {
       msg.className = 'hd-msg ok';
       msg.textContent = 'Du bist eingetragen! Die Bestätigung kommt per E-Mail – dort findest du auch einen Link, falls du dich wieder austragen musst.';
     } else {
@@ -744,12 +863,12 @@ hdForm.addEventListener('submit', async (e) => {
     }
     msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Termine neu laden nach kurzer Verzögerung
-    setTimeout(loadHallendienst, 2000);
+    // Liste neu laden nach kurzer Verzögerung
+    setTimeout(helfer ? loadHelferdienste : loadHallendienst, 2000);
 
   } catch (err) {
     console.error(err);
-    const msg = document.getElementById('hdMsg');
+    const msg = document.getElementById(helfer ? 'heMsg' : 'hdMsg');
     msg.className = 'hd-msg err';
     msg.textContent = 'Fehler beim Eintragen. Bitte versuche es erneut.';
     hdModalMeldung('Keine Verbindung. Bitte versuche es gleich noch einmal.');
@@ -761,6 +880,7 @@ hdForm.addEventListener('submit', async (e) => {
 
 // Beim Laden starten
 document.addEventListener('DOMContentLoaded', loadHallendienst);
+document.addEventListener('DOMContentLoaded', loadHelferdienste);
 
 // ===== SUB-NAV POSITION (dynamisch unter Hauptnav) =====
 function positionSubNav() {

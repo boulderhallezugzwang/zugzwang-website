@@ -870,6 +870,17 @@
         </div>
         <div class="form-row">
           <div class="form-group full">
+            <label>Helferdienst</label>
+            <label style="font-weight:normal; cursor:pointer;"><input type="checkbox" id="evHelfer"> Helferdienst mit Eintragung auf der Vereinsseite (Kalender „Arbeitsdienste“)</label>
+            <div id="evHelferBox" style="display:none; margin-top:8px;">
+              <label for="evHelferPlaetze" style="font-weight:normal;">Wie viele Helfer werden gebraucht?</label>
+              <input type="number" id="evHelferPlaetze" min="1" max="200" step="1" inputmode="numeric" placeholder="z.B. 5" style="max-width:120px;">
+              <div style="font-size:12px; opacity:0.75; margin-top:4px;">Öffentlich steht nur „3 von 5 belegt“. Wer sich eingetragen hat, siehst du hier in der Terminliste. Sind alle Plätze belegt, gibt es eine Warteliste.</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-row" id="evRsvpRow">
+          <div class="form-group full">
             <label>Rückmeldung</label>
             <label style="font-weight:normal; cursor:pointer;"><input type="checkbox" id="evRsvp"> Zu-/Absage in der Mail anbieten (gezählt wird ohne Namen)</label>
             <div id="evRsvpBox" style="display:none; margin-top:8px;">
@@ -1400,6 +1411,38 @@ document.getElementById('evRsvp').addEventListener('change', function() {
   }
 });
 
+// Helferdienst: Zusatzfeld ein-/ausblenden; Kalender fest auf Arbeitsdienste;
+// Rueckmeldung ausblenden (ein Helferdienst hat seine eigene Eintragung)
+function evHelferUI() {
+  var an = document.getElementById('evHelfer').checked;
+  document.getElementById('evHelferBox').style.display = an ? 'block' : 'none';
+  var kal = document.getElementById('evKalender');
+  if (an) kal.value = 'arbeitsdienst';
+  kal.disabled = an || !!evEditingId;
+  document.getElementById('evRsvpRow').style.display = an ? 'none' : '';
+  if (an) evSetRsvp(null);
+}
+document.getElementById('evHelfer').addEventListener('change', evHelferUI);
+
+// Liest die Helferdienst-Einstellung; gibt null zurueck, wenn die Anzahl fehlt.
+function evGetHelfer() {
+  if (!document.getElementById('evHelfer').checked) return { helferAktiv: false, helferPlaetze: 0 };
+  var n = parseInt(document.getElementById('evHelferPlaetze').value, 10);
+  if (!(n >= 1 && n <= 200)) {
+    evShowResult('Bitte angeben, wie viele Helfer gebraucht werden (1 bis 200)', true);
+    document.getElementById('evHelferPlaetze').focus();
+    return null;
+  }
+  return { helferAktiv: true, helferPlaetze: n };
+}
+
+function evSetHelfer(helfer) {
+  var an = !!(helfer && helfer.aktiv);
+  document.getElementById('evHelfer').checked = an;
+  document.getElementById('evHelferPlaetze').value = an ? helfer.plaetze : '';
+  evHelferUI();
+}
+
 // Liest die Rueckmelde-Einstellung; gibt null zurueck, wenn die E-Mail fehlt/ungueltig ist.
 function evGetRsvp() {
   var aktiv = document.getElementById('evRsvp').checked;
@@ -1924,6 +1967,8 @@ function evCreate() {
   if (!zeitVon || !zeitBis) { evShowResult('Bitte Uhrzeiten angeben', true); return; }
   var rsvp = evGetRsvp();
   if (!rsvp) return;
+  var helfer = evGetHelfer();
+  if (!helfer) return;
 
   var progressMsg = mailMode === 'none' ? 'Termin wird erstellt...' : 'Termin wird erstellt...';
   var progressDetail = mailMode === 'none' ? '' : 'Mails werden gesendet';
@@ -1935,7 +1980,8 @@ function evCreate() {
     kalender: kalender, titel: titel, datum: datum,
     zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung,
     mailMode: mailMode, mailTo: mailTo, remindHours: remindHours,
-    rsvpAktiv: rsvp.rsvpAktiv, rsvpEmail: rsvp.rsvpEmail
+    rsvpAktiv: rsvp.rsvpAktiv, rsvpEmail: rsvp.rsvpEmail,
+    helferAktiv: helfer.helferAktiv, helferPlaetze: helfer.helferPlaetze
   }).then(data => {
     hideProgress();
     if (data.error) { evShowResult(data.error, true); return; }
@@ -1943,6 +1989,7 @@ function evCreate() {
     document.getElementById('evTitel').value = '';
     document.getElementById('evBeschreibung').value = '';
     evSetRsvp(null);
+    evSetHelfer(null);
     evLoaded = false;
     evLoadEvents();
   }).catch(err => {
@@ -1999,7 +2046,7 @@ function delConfirm() {
 
 function evStartEdit(idx) {
   var ev = allEvents[idx];
-  evEditingId = { kalender: ev.kalender, id: ev.id, idx: idx };
+  evEditingId = { kalender: ev.kalender, id: ev.id, idx: idx, hatHelfer: !!(ev.helfer && ev.helfer.aktiv && ev.helfer.liste && ev.helfer.liste.length) };
   document.getElementById('evKalender').value = ev.kalender;
   document.getElementById('evTitel').value = ev.titel;
   document.getElementById('evDatum').value = ev.datum;
@@ -2008,6 +2055,7 @@ function evStartEdit(idx) {
   document.getElementById('evBeschreibung').value = ev.beschreibung;
   document.getElementById('evRemind').value = ev.erinnerung || '0';
   evSetRsvp(ev.rsvp);
+  evSetHelfer(ev.helfer);
   document.getElementById('evCancelBtn').style.display = 'inline-block';
   document.getElementById('evResult').style.display = 'none';
   evUpdateButtonText();
@@ -2020,6 +2068,7 @@ function evCancelEdit() {
   document.getElementById('evBeschreibung').value = '';
   document.getElementById('evRemind').value = '24';
   evSetRsvp(null);
+  evSetHelfer(null);
   document.getElementById('evCancelBtn').style.display = 'none';
   document.getElementById('evResult').style.display = 'none';
   evUpdateButtonText();
@@ -2040,6 +2089,10 @@ function evSubmit() {
     if (!titel || !datum || !zeitVon || !zeitBis) { evShowResult('Alle Felder ausfüllen', true); return; }
     var rsvp = evGetRsvp();
     if (!rsvp) return;
+    var helfer = evGetHelfer();
+    if (!helfer) return;
+    if (!helfer.helferAktiv && evEditingId.hatHelfer &&
+        !confirm('Der Helferdienst wird ausgeschaltet. Alle Eintragungen werden gestrichen und die Eingetragenen per E-Mail informiert. Fortfahren?')) return;
 
     var progressDetail = mailMode === 'none' ? '' : 'Änderungsmails werden gesendet';
     showProgress('Termin wird geändert...', progressDetail);
@@ -2050,7 +2103,8 @@ function evSubmit() {
       kalender: evEditingId.kalender, eventId: evEditingId.id,
       titel: titel, datum: datum, zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung,
       mailMode: mailMode, mailTo: mailTo, remindHours: remindHours,
-      rsvpAktiv: rsvp.rsvpAktiv, rsvpEmail: rsvp.rsvpEmail
+      rsvpAktiv: rsvp.rsvpAktiv, rsvpEmail: rsvp.rsvpEmail,
+      helferAktiv: helfer.helferAktiv, helferPlaetze: helfer.helferPlaetze
     }).then(data => {
       hideProgress();
       if (data.error) { evShowResult(data.error, true); return; }
@@ -2065,6 +2119,22 @@ function evSubmit() {
   } else {
     evCreate();
   }
+}
+
+// Einen Helfer streichen (z.B. nicht erschienen): zaehlt dann nicht fuer das Mitglied
+function evHelferStreichen(dienstId, name) {
+  if (!confirm(name + ' wirklich streichen? Der Dienst zählt dann nicht für das Mitglied. Ein freier Platz geht an die Warteliste.')) return;
+  showProgress('Wird gestrichen...', '');
+  evPost('helferStreichen', { dienstId: dienstId }).then(function(data) {
+    hideProgress();
+    if (data.error) { evShowResult(data.error, true); return; }
+    evShowResult(data.message, false);
+    evLoaded = false;
+    evLoadEvents();
+  }).catch(function(err) {
+    hideProgress();
+    evShowResult('Verbindungsfehler: ' + err.message, true);
+  });
 }
 
 function evShowResult(msg, isError) {
@@ -2109,8 +2179,34 @@ function evRenderList() {
       rsvpBadge = '<span class="ev-mail-badge" style="background:rgba(46,204,113,0.15);color:#2ecc71;" title="R\u00fcckmeldungen gehen an ' + escHtml(ev.rsvp.email) + '">'
         + 'Zusagen: ' + (parseInt(ev.rsvp.ja, 10) || 0) + ' \u00b7 Absagen: ' + (parseInt(ev.rsvp.nein, 10) || 0) + '</span>';
     }
+    var helferBadge = '', helferListe = '';
+    if (ev.helfer && ev.helfer.aktiv) {
+      var hf = ev.helfer;
+      helferBadge = '<span class="ev-mail-badge" style="background:rgba(212,160,32,0.18);color:#E8B930;">Helfer: '
+        + (parseInt(hf.belegt, 10) || 0) + ' von ' + (parseInt(hf.plaetze, 10) || 0)
+        + (hf.warteliste ? ' \u00b7 Warteliste ' + parseInt(hf.warteliste, 10) : '')
+        + (hf.ohnePlatz ? ' \u00b7 zus\u00e4tzlich ' + parseInt(hf.ohnePlatz, 10) : '') + '</span>';
+      var statusText = { eingetragen: 'eingetragen', warteliste: 'Warteliste', ohne_platz: 'kommt zus\u00e4tzlich (ohne Platz)' };
+      helferListe = '<details class="ev-helfer" style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;">Eingetragene Helfer ('
+        + hf.liste.length + ')</summary>';
+      if (hf.liste.length === 0) {
+        helferListe += '<div style="font-size:13px;opacity:0.7;padding:6px 0;">Noch niemand eingetragen.</div>';
+      } else {
+        helferListe += '<ul style="list-style:none;margin:6px 0 0;padding:0;">';
+        hf.liste.forEach(function(h) {
+          helferListe += '<li style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:6px 0;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;">'
+            + '<span><strong>' + escHtml(h.name) + '</strong> \u00b7 ' + escHtml(statusText[h.status] || h.status)
+            + (h.email ? ' \u00b7 <a href="mailto:' + escHtml(h.email) + '" style="color:inherit;">' + escHtml(h.email) + '</a>' : '') + '</span>'
+            // Werte ueber data-Attribute: Namen mit Apostroph (O'Neil) wuerden einen onclick-Text zerbrechen
+            + '<button class="ev-del-btn" data-id="' + escHtml(h.dienstId) + '" data-name="' + escHtml(h.name) + '" onclick="evHelferStreichen(this.dataset.id, this.dataset.name)">Streichen</button></li>';
+        });
+        helferListe += '</ul>';
+      }
+      helferListe += '</details>';
+    }
+    html += helferListe;
     html += '<div class="ev-actions">'
-      + mailBadge + remindBadge + rsvpBadge
+      + mailBadge + remindBadge + rsvpBadge + helferBadge
       + '<button class="ev-edit-btn" onclick="evStartEdit(' + idx + ')">Bearbeiten</button>'
       + '<button class="ev-del-btn" onclick="evDelete(\'' + escAttr(ev.kalender) + '\',\'' + escAttr(ev.id) + '\')">L\u00f6schen</button>'
       + '</div></div>';
