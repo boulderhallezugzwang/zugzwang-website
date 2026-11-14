@@ -3037,6 +3037,21 @@ function cfgRender() {
   var oezVal = cfgGetVal('oez_hinweis') || '';
   html += '<textarea id="cfg_oez_hinweis" rows="3" placeholder="Zur Zeit keine Öffnungszeiten eingetragen. Bitte schaut später wieder vorbei." style="width:100%;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical;">' + escHtml(oezVal) + '</textarea>';
   html += '</div>';
+
+  html += '<div style="margin-bottom:10px;">';
+  html += '<label for="cfg_dienste_kontakt_telefon" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">Hallen-/Helferdienst: Telefonnummer für Rückfragen (wird angezeigt, wenn jemand nicht als Mitglied erkannt wird oder sich zu spät austragen will)</label>';
+  html += '<input type="tel" id="cfg_dienste_kontakt_telefon" value="' + escHtml(cfgGetVal('dienste_kontakt_telefon') || '') + '" placeholder="z.B. 0160 1234567" style="width:100%;max-width:320px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
+  html += '</div>';
+
+  // Regeln fuer Hallen-/Helferdienste (leer = Standardwert)
+  [['dienste_limit', 'Dienste pro Jahr, ab denen die Sonderregel gilt (Hallendienst gesperrt, Helferdienst ohne Platz). 0 = keine Grenze', '3'],
+   ['dienste_hd_sperre_tage', 'Hallendienst: Sperre entfällt so viele Tage vor dem Termin', '5'],
+   ['dienste_austragen_tage', 'Austragen per Link möglich bis so viele Tage vor dem Dienst', '3']].forEach(function(f) {
+    html += '<div style="margin-bottom:10px;">';
+    html += '<label for="cfg_' + f[0] + '" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">' + f[1] + '</label>';
+    html += '<input type="number" min="0" max="365" step="1" inputmode="numeric" id="cfg_' + f[0] + '" value="' + escHtml(cfgGetVal(f[0]) || '') + '" placeholder="' + f[2] + '" style="width:90px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
+    html += '</div>';
+  });
   html += '</div>';
 
   // ── E-Mail-Texte ──
@@ -3127,6 +3142,12 @@ function cfgSave() {
   if (tickerTextEl) items.push({ key: 'ticker_text', value: tickerTextEl.value.trim() });
   var oezEl = document.getElementById('cfg_oez_hinweis');
   if (oezEl) items.push({ key: 'oez_hinweis', value: oezEl.value });
+  var dienstTelEl = document.getElementById('cfg_dienste_kontakt_telefon');
+  if (dienstTelEl) items.push({ key: 'dienste_kontakt_telefon', value: dienstTelEl.value.trim() });
+  ['dienste_limit', 'dienste_hd_sperre_tage', 'dienste_austragen_tage'].forEach(function(key) {
+    var el = document.getElementById('cfg_' + key);
+    if (el) items.push({ key: key, value: el.value.trim() });
+  });
   // E-Mail-Texte
   mailTexteKeys.forEach(function(key) {
     var el = document.getElementById('cfg_' + key);

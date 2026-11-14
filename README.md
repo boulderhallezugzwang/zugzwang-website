@@ -12,6 +12,7 @@ Webseite und Backend-Scripts für den **Boulderverein Zugzwang e.V.** — Boulde
 ├── index.html, verein.html, team.html, jugendtraining.html, info.html
 ├── antrag.html, haftung.html, kuendigung.html, impressum.html
 ├── rueckmeldung.html           ← Zu-/Absage zu einem Termin (Link aus der Termin-Mail, zählt ohne Namen)
+├── dienst.html                 ← Austragen aus einem Hallen-/Helferdienst (Link aus der Bestätigungsmail)
 ├── intern.html                 ← Interner Bereich (Anmeldung, Mitglieder, Termine, News, Newsletter, Team, Bilder, Config)
 ├── data/                       ← ticker.json, team.json, carousel.json (werden aus intern.html per GitHub-API geschrieben)
 ├── img/                        ← Bilder
@@ -22,6 +23,8 @@ Webseite und Backend-Scripts für den **Boulderverein Zugzwang e.V.** — Boulde
     │   ├── Mitgliedsantrag.gs  ← ClubDesk CSV-Export/-Import (Tabellen-Menü)
     │   ├── Menue.gs            ← onOpen + Menüs (ClubDesk, Hallendienst, Verteiler)
     │   └── appsscript.json
+    ├── _gemeinsam/dienste-kern.js  ← Vorlage für den Dienste-Block (Mitglieder erkennen, Tab „Dienste“, Zähler);
+    │                               mit `node tests/sync-dienste-kern.js` in mitgliederliste + hallendienst übernehmen
     ├── hallendienst/Code.gs    ← Hallendienst-Eintragung (eigenständig)
     ├── kuendigung/Code.gs      ← Kündigungsformular
     ├── jugendtraining/Jugendtraining.gs

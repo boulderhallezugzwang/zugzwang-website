@@ -32,7 +32,7 @@ function ctx(sheets){ const mails=[]; const cache={};
   const origSend=c.MailApp.sendEmail; c.MailApp.sendEmail=(m)=>{ origSend(m); c.gmailQuota--; };
   const cals={}; c.cals=cals; let seq=0;
   c.CalendarApp={getCalendarById(id){ if(!cals[id]) cals[id]=[]; const list=cals[id]; const wrap=e=>({getId(){return e.id},getTitle(){return e.titel},getStartTime(){return e.start},getEndTime(){return e.end},getDescription(){return e.desc},setTitle(t){e.titel=t},setTime(a,b){e.start=a;e.end=b},setDescription(d){e.desc=d},deleteEvent(){list.splice(list.indexOf(e),1)}});
-    return { createEvent(t,a,b,o){const e={id:'ev'+(++seq)+'@google.com',titel:t,start:a,end:b,desc:(o&&o.description)||''};list.push(e);return wrap(e);}, getEventById(i){const e=list.find(x=>x.id===i);return e?wrap(e):null;}, getEvents(a,b){return list.filter(e=>e.start>=a&&e.start<=b).map(wrap);} }; }};
+    return { createEvent(t,a,b,o){const e={id:'ev'+(++seq)+'@google.com',titel:t,start:a,end:b,desc:(o&&o.description)||''};list.push(e);return wrap(e);}, getEventById(i){const e=list.find(x=>x.id===i);return e?wrap(e):null;}, getEvents(a,b){return list.filter(e=>e.start>=a&&e.start<=b).map(wrap);}, getEventsForDay(d){return list.filter(e=>e.start.toDateString()===d.toDateString()).map(wrap);} }; }};
   return vm.createContext(c); }
 const load=(c,f)=>vm.runInContext(fs.readFileSync(path.join(repo,f),'utf8').replace(/^const /gm,'var '),c);
 const post=(c,obj)=>JSON.parse(vm.runInContext('doPost',c)({postData:{contents:JSON.stringify(obj)}}).t);
@@ -85,15 +85,93 @@ post(c,{vorname:'Mail',nachname:'Ohne',email:'a@b.de'}); ok(sh.Mitglieder.rows[3
 ok(post(c,{vorname:'<img src=x>',nachname:'H',email:'a@b.de'}).status==='error','HTML im Namen abgelehnt');
 r=post(c,{vorname:'Nie',nachname:'Mand',email:'a@b.de'}); ok(c.mails.some(m=>/nicht gefunden/.test(m.subject)),'nicht gefunden -> Hinweis-Mail');
 
-// ---- Hallendienst oeffentlich
-sh={Hallendienst:mkSheet([['Datum','Status','Vorname','Nachname','E-Mail','Mobil'],['20.11.2026','aktiv','','','','']]),Config:mkSheet([['Key','Value']]),Benutzer:mkSheet([['B']])};
-c=ctx(sh); load(c,'apps-script/hallendienst/Code.gs');
-vm.runInContext('createCalendarEvent=function(){ this.__cal=(this.__cal||0)+1; }; sendBestaetigungsMail=function(d){ MailApp.sendEmail({to:d.email,subject:"HD"}); }; sendNotifyHallendienst=function(){};',c);
-ok(post(c,{datum:'20.11.2026',vorname:'<img src=x onerror=alert(1)>',nachname:'X',email:'a@b.de',mobilnr:'0160 1'}).status==='error','Hallendienst: Skript im Namen abgelehnt');
-ok(post(c,{datum:'20.11.2026',vorname:'',nachname:'',email:'a@b.de'}).status==='error'&&!c.__cal,'Hallendienst: leerer Name -> kein Kalendereintrag');
-c.mailFail=true; r=post(c,{datum:'20.11.2026',vorname:'Eva',nachname:"O'Neil-Müller",email:'eva@example.org',mobilnr:'0160/123.45-6'}); c.mailFail=false;
-ok(r.status==='ok'&&sh.Hallendienst.rows[1][2]==='Eva'&&sh.Hallendienst.rows[1][3]==="O'Neil-Müller",'Hallendienst: Eintragung trotz Mailfehler ok');
-ok(post(c,{datum:'20.11.2026',vorname:'Zwei',nachname:'Ter',email:'z@example.org',mobilnr:'0160 1234'}).status==='error','belegter Termin abgelehnt');
+// ---- Hallendienst: nur Mitglieder, Dienste-Protokoll, Dreier-Sperre, Austragen
+const tagDE=n=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+n);return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear();};
+const jahrVon=de=>parseInt(de.split('.')[2],10);
+const deObj=de=>{const q=de.split('.');return new Date(+q[2],+q[1]-1,+q[0]);};
+function hdCtx(slots){
+  const sheets={
+    Mitglieder:mkSheet([MH.slice(),
+      ['O\'Neil-Müller','Eva','A','eva@example.org','03.05.1990','','Erwachsene'],
+      ['Maier','Tom','A','fam@example.org',new Date(1980,1,2),'','Mitglied Familie'],
+      ['Maier','Tim','A','fam@example.org','11.12.2008','','Mitglied Familie'],
+      ['Doppelt','Max','A','max@example.org','01.01.1970','','Erwachsene'],
+      ['Doppelt','Max','A','max@example.org','02.02.2000','','Erwachsene']]),
+    Hallendienst:mkSheet([['Datum','Status','Vorname','Nachname','E-Mail','Mobil']].concat(slots.map(d=>[d,'aktiv','','','','']))),
+    Config:mkSheet([['Key','Value'],['dienste_kontakt_telefon','0160 1234567']]),
+    Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein']])};
+  const cc=ctx(sheets); load(cc,'apps-script/hallendienst/Code.gs');
+  vm.runInContext('createCalendarEvent=function(){ this.__cal=(this.__cal||0)+1; }; deleteCalendarEvent=function(){ this.__del=(this.__del||0)+1; };',cc);
+  return {c:cc,sh:sheets};
+}
+const S1=tagDE(20), S2=tagDE(27), S3=tagDE(4), S4=tagDE(2);
+let H=hdCtx([S1,S2,S3,S4]); c=H.c; sh=H.sh;
+const hdRow=d=>sh.Hallendienst.rows.find(r=>r[0]===d);
+const E={datum:S1,vorname:'Eva',nachname:"O'Neil-Müller",email:'eva@example.org',mobilnr:'0160/123.45-6'};
+ok(post(c,{...E,vorname:'<img src=x onerror=alert(1)>'}).status==='error','Hallendienst: Skript im Namen abgelehnt');
+ok(post(c,{...E,vorname:'',nachname:''}).status==='error'&&!c.__cal,'Hallendienst: leerer Name -> kein Kalendereintrag');
+r=post(c,{...E,vorname:'Erika',nachname:'Fremd',email:'x@example.org'});
+ok(r.status==='geburtsdatum'&&hdRow(S1)[2]==='','Unbekannte Person: erst Geburtsdatum nachfragen, Termin bleibt frei');
+r=post(c,{...E,vorname:'Erika',nachname:'Fremd',email:'x@example.org',geburtsdatum:'1990-05-03'});
+ok(r.status==='unbekannt'&&/0160 1234567/.test(r.message)&&hdRow(S1)[2]===''&&!sh.Dienste,'Kein Mitglied: Hinweis mit Telefonnummer, nichts eingetragen');
+r=post(c,{...E,email:'andere@example.org'}); ok(r.status==='geburtsdatum','Mitglied mit anderer E-Mail: Geburtsdatum nachfragen');
+r=post(c,{...E,email:'andere@example.org',geburtsdatum:'1991-01-01'}); ok(r.status==='unbekannt','falsches Geburtsdatum: nicht erkannt');
+c.mailFail=true; r=post(c,{...E,vorname:' eva ',nachname:'ONeil Mueller',email:'EVA@example.org'}); c.mailFail=false;
+ok(r.status==='ok'&&hdRow(S1)[2]==='Eva'&&hdRow(S1)[3]==="O'Neil-Müller"&&c.__cal===1,'Mitglied erkannt trotz Schreibweise; Name wie in der Liste; ok trotz Mailfehler');
+const DR=()=>sh.Dienste.rows;
+ok(DR().length===2&&DR()[1][1]==='hallendienst'&&DR()[1][2]===S1&&DR()[1][8]==='eingetragen'&&/^d[0-9a-f]{39}$/.test(DR()[1][0]),'Eintrag im Tab Dienste mit ID');
+const MHd=sh.Mitglieder.rows[0], cA=MHd.indexOf('Dienste lfd. Jahr'), cL=MHd.indexOf('Letzter Dienst');
+ok(cA>=21&&cL===cA+1&&sh.Mitglieder.rows[1][cA]===(jahrVon(S1)===new Date().getFullYear()?1:0)&&sh.Mitglieder.rows[2][cA]===0,'Mitgliederliste: Spalten angelegt, Zaehler gesetzt');
+ok(post(c,{...E,vorname:'Zwei',nachname:'Ter',email:'z@example.org'}).status==='error','belegter Termin abgelehnt');
+r=post(c,{datum:S2,vorname:'Tim',nachname:'Maier',email:'fam@example.org',mobilnr:'0160 1'});
+ok(r.status==='ok'&&DR()[2][6]==='Tim'&&DR()[2][4]!==DR()[1][4],'Familie mit gemeinsamer E-Mail: richtige Person ueber den Namen');
+H=hdCtx([S1]); c=H.c; sh=H.sh;
+r=post(c,{datum:S1,vorname:'Max',nachname:'Doppelt',email:'max@example.org',mobilnr:'0160 1'}); ok(r.status==='geburtsdatum','Namensvetter mit gleicher E-Mail: Geburtsdatum noetig');
+r=post(c,{datum:S1,vorname:'Max',nachname:'Doppelt',email:'max@example.org',mobilnr:'0160 1',geburtsdatum:'2000-02-02'}); ok(r.status==='ok'&&/02\.02\.2000$/.test(sh.Dienste.rows[1][4]),'… und damit eindeutig');
+// Bestaetigungsmail mit Austragen-Link
+H=hdCtx([S1,S3,S4]); c=H.c; sh=H.sh; r=post(c,E);
+const bm=c.mails.find(m=>/Hallendienst bestätigt/.test(m.subject));
+ok(r.status==='ok'&&bm&&bm.body.includes('/dienst.html?k=h&c='+sh.Dienste.rows[1][0])&&!bm.body.includes('github.io'),'Bestaetigungsmail enthaelt Austragen-Link');
+// Dreier-Sperre
+const evaKey=sh.Dienste.rows[1][4];
+const vorbelegen=(jahr,n)=>{for(let i=0;i<n;i++) sh.Dienste.rows.push(['d'+String(i).padStart(39,'0'),'helferdienst','x'+i,new Date(jahr,0,10+i),evaKey,"O'Neil-Müller",'Eva','eva@example.org','eingetragen',new Date(),new Date()]);};
+H=hdCtx([S1,S3]); c=H.c; sh=H.sh; post(c,{...E,datum:S3}); sh.Dienste.rows.length=1; vorbelegen(jahrVon(S1)-1,3);
+ok(post(c,E).status==='ok','drei Dienste im VORJAHR sperren nicht');
+H=hdCtx([S1,S3]); c=H.c; sh=H.sh; sh.Dienste=mkSheet([['ID']]); vorbelegen(jahrVon(S1),3);
+r=post(c,E); ok(r.status==='limit'&&/fleißig/.test(r.message)&&sh.Hallendienst.rows[1][2]==='','ab dem 3. Dienst (Hallen- und Helferdienste zusammen): Hallendienst gesperrt');
+sh.Dienste.rows[1][8]='ausgetragen'; ok(post(c,E).status==='ok','ausgetragene Dienste zaehlen nicht');
+H=hdCtx([S1,S3]); c=H.c; sh=H.sh; sh.Dienste=mkSheet([['ID']]); vorbelegen(jahrVon(S3),3);
+ok(post(c,{...E,datum:S3}).status==='ok','… ausser in den letzten 5 Tagen vor dem Termin');
+// Grenze und Fristen sind im Config-Tab einstellbar
+H=hdCtx([S1,S3]); c=H.c; sh=H.sh; sh.Dienste=mkSheet([['ID']]); vorbelegen(jahrVon(S1),3); sh.Config.rows.push(['dienste_limit','5']);
+ok(post(c,E).status==='ok','Grenze auf 5 gesetzt: dritter Dienst sperrt nicht');
+H=hdCtx([S1,S3]); c=H.c; sh=H.sh; sh.Dienste=mkSheet([['ID']]); vorbelegen(jahrVon(S1),1); sh.Config.rows.push(['dienste_limit','1']);
+ok(post(c,E).status==='limit','Grenze auf 1 gesetzt: schon der erste Dienst sperrt');
+H=hdCtx([S1,S3]); c=H.c; sh=H.sh; sh.Dienste=mkSheet([['ID']]); vorbelegen(jahrVon(S1),9); sh.Config.rows.push(['dienste_limit','0']);
+ok(post(c,E).status==='ok','Grenze 0: abgeschaltet');
+H=hdCtx([S1,S3]); c=H.c; sh=H.sh; sh.Dienste=mkSheet([['ID']]); vorbelegen(jahrVon(S1),3); sh.Config.rows.push(['dienste_hd_sperre_tage','30']);
+ok(post(c,E).status==='ok','Sperrfrist auf 30 Tage gesetzt: Termin in 20 Tagen wieder frei');
+H=hdCtx([S4]); c=H.c; sh=H.sh; sh.Config.rows.push(['dienste_austragen_tage','1'],['dienste_limit','abc']); post(c,{...E,datum:S4});
+r=post(c,{action:'dienstInfo',c:sh.Dienste.rows[1][0]}); ok(r.austragenMoeglich===true&&r.fristTage===1,'Austragen-Frist auf 1 Tag gesetzt; ungueltiger Wert faellt auf Standard zurueck');
+// Austragen
+H=hdCtx([S1,S4]); c=H.c; sh=H.sh; post(c,E); post(c,{...E,datum:S4});
+const id1=sh.Dienste.rows[1][0], id2=sh.Dienste.rows[2][0];
+r=post(c,{action:'dienstInfo',c:id1}); ok(r.ok&&r.titel==='Hallendienst'&&r.vorname==='Eva'&&r.datum===S1&&r.austragenMoeglich===true&&!('email' in r)&&!JSON.stringify(r).includes('Neil'),'dienstInfo: Termin und Vorname, keine weiteren Personendaten');
+ok(post(c,{action:'dienstInfo',c:'x'}).error&&post(c,{action:'dienstAustragen',c:'d'+'0'.repeat(39)}).error,'ungueltige ID abgelehnt');
+r=post(c,{action:'dienstInfo',c:id2}); ok(r.ok&&r.austragenMoeglich===false&&r.zuSpaet===true,'2 Tage vorher: Austragen nicht mehr moeglich');
+r=post(c,{action:'dienstAustragen',c:id2}); ok(/3 Tage/.test(r.error||'')&&/0160 1234567/.test(r.error)&&sh.Hallendienst.rows[2][2]==='Eva','zu spaet: Fehlermeldung mit Telefonnummer, Termin bleibt belegt');
+let vorMails=c.mails.length; r=post(c,{action:'dienstAustragen',c:id1});
+ok(r.ok&&sh.Hallendienst.rows[1][2]===''&&sh.Hallendienst.rows[1][4]===''&&sh.Dienste.rows[1][8]==='ausgetragen'&&c.__del===1,'Austragen: Termin wieder frei, Kalendereintrag weg, Protokoll aktualisiert');
+ok(c.mails.length===vorMails+1&&/wieder frei/.test(c.mails[c.mails.length-1].subject),'Vorstand wird informiert');
+ok(post(c,{action:'dienstAustragen',c:id1}).schonAusgetragen===true&&post(c,{action:'dienstInfo',c:id1}).status==='ausgetragen','zweiter Klick aendert nichts');
+// Vorstand entfernt Person -> gestrichen
+H=hdCtx([S1]); c=H.c; sh=H.sh; post(c,E);
+r=post(c,{action:'clearPerson',username:'anna',password:'geheim12',datum:S1});
+ok(!r.error&&sh.Dienste.rows[1][8]==='gestrichen'&&sh.Mitglieder.rows[1][sh.Mitglieder.rows[0].indexOf('Dienste lfd. Jahr')]===0,'Vorstand entfernt Person: Dienst gestrichen, Zaehler zurueck');
+// Gemeinsamer Block ist in beiden Projekten identisch
+const kernRe=/\/\/ >>> DIENSTE-KERN[\s\S]*?\/\/ <<< DIENSTE-KERN/, lies=f=>fs.readFileSync(path.join(repo,f),'utf8');
+const kern=lies('apps-script/_gemeinsam/dienste-kern.js').trim();
+ok((lies('apps-script/mitgliederliste/Mitgliederliste.gs').match(kernRe)||[])[0]===kern&&(lies('apps-script/hallendienst/Code.gs').match(kernRe)||[])[0]===kern,'Dienste-Kern in beiden Projekten identisch mit der Vorlage');
 
 // ---- Jugendtraining + Haftung Validierung
 sh={Config:mkSheet([['Key','Value']])}; c=ctx(sh); load(c,'apps-script/jugendtraining/Jugendtraining.gs');

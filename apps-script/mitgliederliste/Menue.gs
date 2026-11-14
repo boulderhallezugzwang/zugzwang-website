@@ -302,6 +302,8 @@ function hdAbsagenAusfuehren() {
     }
 
     hdLoescheKalenderEintrag(termin.datum);
+    // Abgesagter Dienst zaehlt fuer das Mitglied nicht.
+    try { dienstMarkiereDienst('hallendienst', termin.datum, 'gestrichen'); } catch (eD) { console.error('Dienste-Protokoll: ' + eD); }
   }
 
   PropertiesService.getScriptProperties().deleteProperty('hdAbsagen');

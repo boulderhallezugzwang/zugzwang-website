@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Dienst austragen — Boulderverein Zugzwang e.V.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #141414;
+    --dark: #1c1c1c;
+    --dark-card: #232323;
+    --dark-border: #333;
+    --yellow: #D4A020;
+    --yellow-light: #E8B930;
+    --cream: #E8DCC8;
+    --cream-dim: #c4b9a6;
+    --text: #d4d0c8;
+    --text-dim: #8a8680;
+    --error: #e74c3c;
+    --error-bg: rgba(231,76,60,0.1);
+    --success: #2ecc71;
+    --success-bg: rgba(46,204,113,0.1);
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; line-height: 1.55;
+    color: var(--text); background: var(--black);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  nav {
+    background: rgba(20,20,20,0.92);
+    border-bottom: 1px solid var(--dark-border);
+    text-align: center; padding: 12px 24px;
+  }
+  .nav-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 22px;
+    letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+  }
+  .nav-logo .zug { color: var(--cream); }
+  .nav-logo .zwang { color: var(--yellow); }
+
+  main { flex: 1; width: 100%; max-width: 520px; margin: 0 auto; padding: 36px 20px 40px; }
+  h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 30px; font-weight: 800; color: var(--cream);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding-bottom: 14px; margin-bottom: 22px;
+    border-bottom: 2px solid var(--yellow);
+  }
+  .card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 22px; margin-bottom: 20px;
+  }
+  .ev-titel {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px; font-weight: 700; color: var(--cream); line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .ev-zeit { color: var(--yellow-light); margin-top: 6px; font-weight: 500; }
+  .frage { color: var(--cream-dim); margin-bottom: 14px; }
+  .buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+  button {
+    flex: 1 1 160px; min-height: 52px; padding: 12px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 19px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    border-radius: var(--radius); cursor: pointer;
+    border: 2px solid var(--dark-border); background: var(--dark); color: var(--cream);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  button:hover:not(:disabled) { border-color: var(--cream-dim); }
+  button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+  button:disabled { opacity: 0.55; cursor: default; }
+  #btnAus { border-color: var(--error); }
+  #btnAus:hover:not(:disabled) { background: var(--error-bg); }
+  .msg { border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px; }
+  .msg.ok  { background: var(--success-bg); border: 1px solid var(--success); color: var(--cream); }
+  .msg.err { background: var(--error-bg); border: 1px solid var(--error); color: var(--cream); }
+  .hinweis { font-size: 13px; color: var(--text-dim); }
+  [hidden] { display: none !important; }
+  footer { text-align: center; padding: 20px; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--dark-border); }
+  footer a { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+</nav>
+
+<main>
+  <h1>Dienst austragen</h1>
+
+  <div class="msg err" id="fehler" role="alert" hidden></div>
+  <div class="msg ok" id="erfolg" role="status" hidden></div>
+
+  <div class="card" id="dienstCard" hidden>
+    <div class="ev-titel" id="dTitel"></div>
+    <div class="ev-zeit" id="dZeit"></div>
+  </div>
+
+  <div class="card" id="aktionCard" hidden>
+    <p class="frage" id="frage"></p>
+    <div class="buttons">
+      <button type="button" id="btnAus">Ja, austragen</button>
+    </div>
+  </div>
+
+  <p class="hinweis" id="laden">Eintrag wird geladen …</p>
+</main>
+
+<footer>
+  Boulderverein Zugzwang e.V. · <a href="verein.html">Zur Vereinsseite</a> · <a href="impressum.html">Impressum</a>
+</footer>
+
+<script>
+// k=h → Hallendienst-Backend, k=e → Haupt-Backend (Helferdienste)
+const BACKENDS = {
+  h: 'https://script.google.com/macros/s/AKfycbw2hUXLDIf0fns1e31UFirjgM0KlQtx0w-l7oE4KjDNquKCOsr6cgOmhOYDXOefA4hK/exec',
+  e: 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec'
+};
+const params = new URLSearchParams(location.search);
+const id = params.get('c') || '';
+const API_URL = BACKENDS[params.get('k')] || '';
+const $ = i => document.getElementById(i);
+
+function zeigeFehler(text) {
+  $('laden').hidden = true;
+  $('fehler').textContent = text;
+  $('fehler').hidden = false;
+}
+
+async function post(body) {
+  const resp = await fetch(API_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body)
+  });
+  return resp.json();
+}
+
+function ausgetragen() {
+  $('aktionCard').hidden = true;
+  $('fehler').hidden = true;
+  $('erfolg').textContent = 'Du bist ausgetragen. Danke, dass du Bescheid gegeben hast!';
+  $('erfolg').hidden = false;
+}
+
+$('btnAus').addEventListener('click', async () => {
+  $('btnAus').disabled = true;
+  $('fehler').hidden = true;
+  try {
+    const r = await post({ action: 'dienstAustragen', c: id });
+    if (!r || !r.ok) throw new Error((r && r.error) || 'Das Austragen hat nicht geklappt.');
+    ausgetragen();
+  } catch (e) {
+    $('fehler').textContent = e.message && e.message !== 'Failed to fetch'
+      ? e.message : 'Keine Verbindung. Bitte versuche es gleich noch einmal.';
+    $('fehler').hidden = false;
+    $('btnAus').disabled = false;
+  }
+});
+
+(async function start() {
+  if (!API_URL || !/^d[0-9a-f]{39}$/.test(id)) { zeigeFehler('Dieser Link ist ungültig oder unvollständig.'); return; }
+  try {
+    const info = await post({ action: 'dienstInfo', c: id });
+    if (!info || !info.ok) { zeigeFehler((info && info.error) || 'Der Eintrag konnte nicht geladen werden.'); return; }
+    $('laden').hidden = true;
+    $('dTitel').textContent = info.titel || 'Dienst';
+    $('dZeit').textContent = [info.wochentag, info.datum].filter(Boolean).join(', ') + (info.zeit ? ' · ' + info.zeit : '');
+    $('dienstCard').hidden = false;
+    if (info.status === 'ausgetragen') { ausgetragen(); return; }
+    if (info.status === 'gestrichen') { zeigeFehler('Dieser Dienst wurde vom Verein abgesagt – du musst nichts weiter tun.'); return; }
+    if (!info.austragenMoeglich) {
+      zeigeFehler(info.zuSpaet
+        ? 'Austragen per Link ist nur bis ' + info.fristTage + ' Tage vor dem Dienst möglich. Bitte melde dich direkt beim Verein.'
+        : 'Dieser Eintrag ist nicht mehr aktiv.');
+      return;
+    }
+    $('frage').textContent = 'Hallo ' + info.vorname + ', möchtest du dich von diesem Dienst austragen?';
+    $('aktionCard').hidden = false;
+  } catch (e) {
+    zeigeFehler('Keine Verbindung. Bitte lade die Seite neu.');
+  }
+})();
+</script>
+</body>
+</html>

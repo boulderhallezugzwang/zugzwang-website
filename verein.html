@@ -319,7 +319,7 @@
   .hd-modal .form-group { flex: 1; display: flex; flex-direction: column; }
   .hd-modal label { font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--cream-dim); }
   .hd-modal label .req { color: #e74c3c; margin-left: 2px; }
-  .hd-modal input[type="text"], .hd-modal input[type="email"], .hd-modal input[type="tel"] {
+  .hd-modal input[type="text"], .hd-modal input[type="email"], .hd-modal input[type="tel"], .hd-modal input[type="date"] {
     width: 100%; padding: 10px 12px; font-size: 16px;
     font-family: 'DM Sans', sans-serif;
     border: 1px solid var(--dark-border); border-radius: 8px;
@@ -333,6 +333,14 @@
     font-size: 24px; cursor: pointer;
   }
   .hd-close:hover { color: var(--cream); }
+  .hd-modal-msg {
+    margin: 4px 0 12px; padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.45;
+    background: rgba(231,76,60,0.1); color: var(--cream); border: 1px solid #e74c3c;
+  }
+  .hd-modal-msg.info { background: rgba(212,160,32,0.1); border-color: var(--yellow); }
+  .hd-modal-hint { font-size: 12px; color: var(--text-dim); margin: 0 0 12px; }
+  .hd-modal [hidden] { display: none !important; }
+  .hd-modal input[type="date"] { color-scheme: dark; min-height: 44px; }
   .hd-submit {
     display: block; width: 100%; padding: 12px 24px; margin-top: 8px;
     font-size: 15px; font-weight: 700;
@@ -537,6 +545,14 @@
           <input type="tel" id="hdMobil" autocomplete="tel">
         </div>
       </div>
+      <div class="form-row" id="hdGeburtRow" hidden>
+        <div class="form-group">
+          <label for="hdGeburt">Geburtsdatum <span class="req">*</span></label>
+          <input type="date" id="hdGeburt" autocomplete="bday">
+        </div>
+      </div>
+      <div class="hd-modal-msg" id="hdModalMsg" role="alert" hidden></div>
+      <p class="hd-modal-hint">Nur für Vereinsmitglieder. Bitte Name und E-Mail so angeben, wie sie bei uns hinterlegt sind.</p>
       <button type="submit" class="hd-submit" id="hdSubmit" disabled>Eintragen</button>
     </form>
   </div>
@@ -632,6 +648,7 @@ function renderHallendienst() {
       document.getElementById('hdModalDate').textContent = row.dataset.label;
       document.getElementById('hdForm').reset();
       document.getElementById('hdSubmit').disabled = true;
+      hdResetModal();
       document.getElementById('hdOverlay').classList.add('show');
     });
   });
@@ -652,8 +669,23 @@ const hdForm = document.getElementById('hdForm');
 const hdSubmit = document.getElementById('hdSubmit');
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Zusatzfeld Geburtsdatum + Meldung im Dialog zuruecksetzen
+function hdResetModal() {
+  document.getElementById('hdGeburtRow').hidden = true;
+  document.getElementById('hdGeburt').value = '';
+  const m = document.getElementById('hdModalMsg');
+  m.hidden = true; m.textContent = ''; m.className = 'hd-modal-msg';
+}
+function hdModalMeldung(text, info) {
+  const m = document.getElementById('hdModalMsg');
+  m.textContent = text;
+  m.className = 'hd-modal-msg' + (info ? ' info' : '');
+  m.hidden = false;
+}
+
 function checkHdForm() {
   let ok = true;
+  if (!document.getElementById('hdGeburtRow').hidden && !document.getElementById('hdGeburt').value) ok = false;
   if (!document.getElementById('hdVorname').value.trim()) ok = false;
   if (!document.getElementById('hdNachname').value.trim()) ok = false;
   const email = document.getElementById('hdEmail').value.trim();
@@ -673,6 +705,7 @@ hdForm.addEventListener('submit', async (e) => {
     email: document.getElementById('hdEmail').value.trim(),
     mobilnr: document.getElementById('hdMobil').value.trim()
   };
+  if (!document.getElementById('hdGeburtRow').hidden) data.geburtsdatum = document.getElementById('hdGeburt').value;
 
   hdSubmit.disabled = true;
   hdSubmit.classList.add('loading');
@@ -685,13 +718,26 @@ hdForm.addEventListener('submit', async (e) => {
     });
     const result = await resp.json();
 
+    // Nicht erkannt → Geburtsdatum nachfragen; der Dialog bleibt offen
+    if (result.status === 'geburtsdatum') {
+      document.getElementById('hdGeburtRow').hidden = false;
+      hdModalMeldung(result.message || 'Bitte gib zusätzlich dein Geburtsdatum an.', true);
+      document.getElementById('hdGeburt').focus();
+      return;
+    }
+    // Kein Mitglied gefunden bzw. Jahresgrenze erreicht → Hinweis im Dialog
+    if (result.status === 'unbekannt' || result.status === 'limit') {
+      hdModalMeldung(result.message || 'Die Eintragung ist nicht möglich.', result.status === 'limit');
+      return;
+    }
+
     // Modal schließen
     document.getElementById('hdOverlay').classList.remove('show');
 
     const msg = document.getElementById('hdMsg');
     if (result.status === 'ok') {
       msg.className = 'hd-msg ok';
-      msg.textContent = 'Du bist eingetragen! Bestätigung kommt per E-Mail.';
+      msg.textContent = 'Du bist eingetragen! Die Bestätigung kommt per E-Mail – dort findest du auch einen Link, falls du dich wieder austragen musst.';
     } else {
       msg.className = 'hd-msg err';
       msg.textContent = result.message || 'Fehler beim Eintragen.';
@@ -706,8 +752,10 @@ hdForm.addEventListener('submit', async (e) => {
     const msg = document.getElementById('hdMsg');
     msg.className = 'hd-msg err';
     msg.textContent = 'Fehler beim Eintragen. Bitte versuche es erneut.';
+    hdModalMeldung('Keine Verbindung. Bitte versuche es gleich noch einmal.');
   } finally {
     hdSubmit.classList.remove('loading');
+    checkHdForm();   // Knopf wieder freigeben (bleibt sonst nach einem Fehler gesperrt)
   }
 });
 
