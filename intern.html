@@ -682,7 +682,7 @@
       <input type="password" id="newPw1" placeholder="Neues Passwort" autocomplete="new-password">
       <input type="password" id="newPw2" placeholder="Passwort wiederholen" autocomplete="new-password">
       <button onclick="setNewPassword()">Passwort festlegen</button>
-      <div class="login-hint">Mindestens 6 Zeichen</div>
+      <div class="login-hint">Mindestens 8 Zeichen</div>
       <div class="login-err" id="setPwErr"></div>
     </div>
   </div>
@@ -1249,8 +1249,8 @@ function setNewPassword() {
   const pw1 = document.getElementById('newPw1').value;
   const pw2 = document.getElementById('newPw2').value;
   if (!pw1) return;
-  if (pw1.length < 6) {
-    showError('setPwErr', 'Passwort muss mindestens 6 Zeichen lang sein');
+  if (pw1.length < 8) {
+    showError('setPwErr', 'Passwort muss mindestens 8 Zeichen lang sein');
     return;
   }
   if (pw1 !== pw2) {
@@ -1512,8 +1512,10 @@ function highlightMatch(text, query) {
   return result;
 }
 
-function escHtml(s) { const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
-function escAttr(s) { return s.replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// Maskiert auch Anfuehrungszeichen, weil escHtml auch in value="…" benutzt wird
+// (sonst wird z.B. ein Ticker-Text mit " abgeschnitten und so gespeichert).
+function escHtml(s) { return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function escAttr(s) { return escHtml(s); }
 
 function editChip(idx) { document.getElementById('chipEdit'+idx).style.display='flex'; }
 function cancelChip(idx) { document.getElementById('chipEdit'+idx).style.display='none'; }
@@ -1524,7 +1526,10 @@ function saveChip(idx) {
   const chipnr=document.getElementById('chipNr'+idx).value.trim();
   if (!sessionCredentials) { alert('Bitte neu anmelden'); return; }
   m.chip=chip; m.chipnr=chipnr;
-  fetch(API_URL+'?username='+encodeURIComponent(sessionCredentials.username)+'&password='+encodeURIComponent(sessionCredentials.password)+'&action=updateChip&nachname='+encodeURIComponent(m.nachname)+'&vorname='+encodeURIComponent(m.vorname)+'&chip='+encodeURIComponent(chip)+'&chipnr='+encodeURIComponent(chipnr))
+  // POST statt GET: Zugangsdaten gehoeren nicht in die URL.
+  fetch(API_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify({action:'updateChip',username:sessionCredentials.username,password:sessionCredentials.password,
+      nachname:m.nachname,vorname:m.vorname,chip:chip,chipnr:chipnr})})
     .then(r=>r.json()).then(d=>{if(d.error)alert('Fehler: '+d.error);}).catch(err=>alert('Speichern fehlgeschlagen: '+err));
   const q=document.getElementById('searchInput').value.trim().toLowerCase();
   if(q){const terms=q.split(/\s+/);const filtered=allMembers.filter(m2=>{const h=(m2.nachname+' '+m2.vorname+' '+m2.email+' '+m2.telefon+' '+m2.ort+' '+m2.chipnr).toLowerCase();return terms.every(t=>h.includes(t));});renderList(filtered,q);}

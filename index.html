@@ -854,6 +854,25 @@
 
 <script>
 // ===================== CONFIG =====================
+// Alle Daten aus Backend/Kalender/Docs sind Fremdtext und werden vor dem
+// Einsetzen in HTML maskiert (sonst kann z.B. ein Terminname Skripte einschleusen).
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Kalender-Beschreibungen koennen HTML aus der Google-Kalender-Oberflaeche
+// enthalten: auf reinen Text reduzieren (DOMParser fuehrt nichts aus).
+function plainText(html) {
+  const raw = String(html == null ? '' : html);
+  // Reiner Text (z.B. "a<b") bleibt unveraendert; nur echtes HTML wird reduziert.
+  if (!/<\/?(br|p|div|span|b|i|u|a|ul|ol|li|strong|em|h[1-6])\b[^>]*>/i.test(raw)) return raw.trim();
+  const withBreaks = raw.replace(/<br\s*\/?>|<\/p>|<\/li>|<\/div>/gi, '\n');
+  return (new DOMParser().parseFromString(withBreaks, 'text/html').body.textContent || '').trim();
+}
+// Nur unbedenkliche Bildquellen zulassen.
+function safeImgSrc(u, fallback) {
+  u = String(u || '');
+  return /^(https:\/\/|data:image\/(png|jpe?g|gif|webp);base64,|img\/)/i.test(u) ? esc(u) : fallback;
+}
 const API_URL = 'https://script.google.com/macros/s/AKfycbyAJvJGsBQni5D-LvvuskgklAm1MgdxuNr1f0PAO_ITzha72pxWPYsiDMbKdRf_C9LwoA/exec';
 
 const GRADIENTS = [
@@ -957,11 +976,11 @@ function renderImageStrip(images) {
   if (!images.length) { el.innerHTML = '<div class="strip-empty">Keine Bilder vorhanden</div>'; return; }
 
   function makeItem(img, i) {
-    const src = img.url || '';
+    const src = safeImgSrc(img.url, '');
     const tag = src
-      ? `<img src="${src}" alt="${img.name || ''}" loading="lazy">`
+      ? `<img src="${src}" alt="${esc(img.name)}" loading="lazy">`
       : `<div style="height:100%;width:300px;display:flex;align-items:center;justify-content:center;font-size:48px;background:${GRADIENTS[i%GRADIENTS.length]}">${EMOJIS[i%EMOJIS.length]}</div>`;
-    return `<div class="strip-item">${tag}<div class="strip-caption">${img.name || ''}</div></div>`;
+    return `<div class="strip-item">${tag}<div class="strip-caption">${esc(img.name)}</div></div>`;
   }
 
   el.innerHTML = `
@@ -1034,13 +1053,13 @@ function renderCalendar(events, oezHinweis) {
     oezEl.innerHTML = `
       <div class="oez-label" style="grid-column: 1 / -1;">Nächste Öffnungszeiten</div>
       ${oezEvents.map(ev => {
-        const time = ev.allDay ? 'Ganztägig' : `${ev.timeStart} — ${ev.timeEnd}`;
+        const time = ev.allDay ? 'Ganztägig' : `${esc(ev.timeStart)} — ${esc(ev.timeEnd)}`;
         return `
           <div class="oez-card">
-            <div class="oez-day">${ev.dayName}</div>
-            <div class="oez-date">${ev.dayNum}. ${ev.month}</div>
+            <div class="oez-day">${esc(ev.dayName)}</div>
+            <div class="oez-date">${esc(ev.dayNum)}. ${esc(ev.month)}</div>
             <div class="oez-time">${time}</div>
-            ${ev.title !== 'Öffnungszeiten' ? `<div class="oez-title">${ev.title}</div>` : ''}
+            ${ev.title !== 'Öffnungszeiten' ? `<div class="oez-title">${esc(ev.title)}</div>` : ''}
           </div>`;
       }).join('')}
     `;
@@ -1065,8 +1084,8 @@ function renderCalendar(events, oezHinweis) {
       <button class="cal-filter-btn active" data-filter="alle">Alle</button>
       ${calendars.map(cal => {
         const cfg = CAL_CONFIG[cal] || { label: cal, color: '#888' };
-        return `<button class="cal-filter-btn" data-filter="${cal}">
-          <span class="cal-filter-dot" style="background:${cfg.color}"></span>${cfg.label}
+        return `<button class="cal-filter-btn" data-filter="${esc(cal)}">
+          <span class="cal-filter-dot" style="background:${esc(cfg.color)}"></span>${esc(cfg.label)}
         </button>`;
       }).join('')}
     `;
@@ -1092,21 +1111,22 @@ function renderCalendar(events, oezHinweis) {
     const cfg = CAL_CONFIG[cal];
     const time = ev.allDay
       ? '<span class="cal-time">Ganztägig</span>'
-      : `<span class="cal-time">${ev.timeStart} — ${ev.timeEnd}</span>`;
-    const loc = ev.location ? `<span class="cal-location">📍 ${ev.location}</span>` : '';
-    const hasDesc = ev.description && ev.description.trim().length > 0;
-    const badge = cfg ? `<span class="cal-badge" data-calendar="${cal}">${cfg.label}</span>` : '';
+      : `<span class="cal-time">${esc(ev.timeStart)} — ${esc(ev.timeEnd)}</span>`;
+    const loc = ev.location ? `<span class="cal-location">📍 ${esc(ev.location)}</span>` : '';
+    const desc = plainText(ev.description);
+    const hasDesc = desc.length > 0;
+    const badge = cfg ? `<span class="cal-badge" data-calendar="${esc(cal)}">${esc(cfg.label)}</span>` : '';
     return `
-      <div class="cal-card${hasDesc ? ' cal-has-desc' : ''}" data-calendar="${cal}"${hasDesc ? ' onclick="this.classList.toggle(\'cal-open\')"' : ''}>
+      <div class="cal-card${hasDesc ? ' cal-has-desc' : ''}" data-calendar="${esc(cal)}"${hasDesc ? ' onclick="this.classList.toggle(\'cal-open\')"' : ''}>
         <div class="cal-date-box">
-          <span class="cal-day-name">${ev.dayName}</span>
-          <span class="cal-day-num">${ev.dayNum}</span>
-          <span class="cal-month">${ev.month}</span>
+          <span class="cal-day-name">${esc(ev.dayName)}</span>
+          <span class="cal-day-num">${esc(ev.dayNum)}</span>
+          <span class="cal-month">${esc(ev.month)}</span>
         </div>
         <div class="cal-body">
-          <div class="cal-title">${ev.title} ${badge}${hasDesc ? ' <span class="cal-toggle">&#9660;</span>' : ''}</div>
+          <div class="cal-title">${esc(ev.title)} ${badge}${hasDesc ? ' <span class="cal-toggle">&#9660;</span>' : ''}</div>
           <div class="cal-meta">${time}${loc}</div>
-          ${hasDesc ? `<div class="cal-desc-full">${ev.description}</div>` : ''}
+          ${hasDesc ? `<div class="cal-desc-full">${esc(desc)}</div>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -1124,18 +1144,18 @@ function renderNews(news) {
   newsData = news;
 
   el.innerHTML = news.map((n, i) => {
-    const imgSrc = n.imageUrl || 'img/news-default.jpg';
+    const imgSrc = safeImgSrc(n.imageUrl, 'img/news-default.jpg');
     const hasContent = n.content && n.content.length > 0;
     return `
       <div class="news-card" ${hasContent ? 'onclick="openNewsModal('+i+')" style="cursor:pointer"' : ''}>
         <div class="news-image"><img src="${imgSrc}" alt="" referrerpolicy="no-referrer"></div>
         <div class="news-body">
-          <h3>${n.title}</h3>
+          <h3>${esc(n.title)}</h3>
           <div class="news-meta">
-            <span class="news-date">${n.dateFormatted}</span>
-            <span class="news-author">${n.author}</span>
+            <span class="news-date">${esc(n.dateFormatted)}</span>
+            <span class="news-author">${esc(n.author)}</span>
           </div>
-          <p class="news-preview">${n.contentPreview || ''}</p>
+          <p class="news-preview">${esc(n.contentPreview)}</p>
           ${hasContent ? '<span class="news-readmore">weiterlesen</span>' : ''}
         </div>
       </div>`;
@@ -1156,11 +1176,11 @@ function renderNews(news) {
 function openNewsModal(idx) {
   const n = newsData[idx];
   if (!n) return;
-  document.getElementById('newsModalImg').src = n.imageUrl || 'img/news-default.jpg';
+  document.getElementById('newsModalImg').src = /^(https:\/\/|data:image\/|img\/)/i.test(n.imageUrl || '') ? n.imageUrl : 'img/news-default.jpg';
   document.getElementById('newsModalTitle').textContent = n.title;
   document.getElementById('newsModalDate').textContent = n.dateFormatted;
   document.getElementById('newsModalAuthor').textContent = n.author;
-  document.getElementById('newsModalText').innerHTML = n.content || '';
+  document.getElementById('newsModalText').textContent = n.content || '';
   document.getElementById('newsModal').classList.add('active');
   document.body.style.overflow = 'hidden';
 }

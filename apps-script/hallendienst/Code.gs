@@ -63,23 +63,94 @@ const WOCHENTAGE_LANG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnersta
 // AUTHENTIFIZIERUNG
 // ═══════════════════════════════════════════════════
 
-function authenticateUser(username, password) {
-  if (!username || !password) return null;
+// ── Passwort-Hashing + Sperre nach Fehlversuchen ──
+// Passwoerter stehen nicht mehr im Klartext im Tab "Benutzer", sondern als
+//   zz1$<Runden>$<Salt>$<Hash>
+// Ein vom Admin im Klartext eingetragenes (Erst-)Passwort funktioniert
+// weiterhin und wird beim ersten erfolgreichen Anmelden automatisch
+// durch den Hash ersetzt. Zuruecksetzen wie bisher: neues Passwort im
+// Klartext in Spalte D eintragen + Erstanmeldung = Ja.
+// WICHTIG: Dieser Block ist identisch in mitgliederliste-script.gs und
+// hallendienst-script.gs – beide Projekte muessen zusammen bereitgestellt werden.
+var PW_ROUNDS = 300;
+var AUTH_MAX_FAILS = 10;        // Fehlversuche pro Benutzername ...
+var AUTH_LOCK_SECONDS = 900;    // ... innerhalb von 15 Minuten
+
+function pwDigest(password, salt, rounds) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + ':' + password, Utilities.Charset.UTF_8);
+  for (var i = 1; i < rounds; i++) {
+    bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes);
+  }
+  return Utilities.base64Encode(bytes);
+}
+
+function pwMake(password) {
+  var salt = Utilities.getUuid().replace(/-/g, '');
+  return 'zz1$' + PW_ROUNDS + '$' + salt + '$' + pwDigest(password, salt, PW_ROUNDS);
+}
+
+function pwIsHashed(stored) {
+  return /^zz1\$\d+\$[0-9a-f]+\$[A-Za-z0-9+\/=]+$/.test(stored);
+}
+
+function pwVerify(stored, password) {
+  if (!stored) return false;
+  if (!pwIsHashed(stored)) return stored === password;   // Altbestand / Erst-Passwort im Klartext
+  var p = stored.split('$');
+  var rounds = parseInt(p[1], 10);
+  if (!(rounds >= 1 && rounds <= 100000)) return false;
+  return pwDigest(password, p[2], rounds) === p[3];
+}
+
+function authFailKey(username) {
+  return 'authfail_' + username.toLowerCase().slice(0, 80);
+}
+
+function authIsLocked(username) {
+  var n = parseInt(CacheService.getScriptCache().get(authFailKey((username || '').toString())) || '0', 10);
+  return n >= AUTH_MAX_FAILS;
+}
+
+function authNoteFail(username) {
+  var cache = CacheService.getScriptCache();
+  var key = authFailKey(username);
+  var n = parseInt(cache.get(key) || '0', 10) + 1;
+  cache.put(key, String(n), AUTH_LOCK_SECONDS);
+}
+
+// Benutzer anhand Username + Passwort prüfen
+// Spalten: A=Benutzername, B=Anzeigename, C=Rolle, D=Passwort(-Hash), E=Erstanmeldung
+// Konten mit Erstanmeldung=Ja duerfen nur anmelden/Passwort setzen
+// (allowErstanmeldung=true), alle anderen Aktionen bleiben gesperrt.
+function authenticateUser(username, password, allowErstanmeldung) {
+  username = (username === null || username === undefined) ? '' : username.toString().trim();
+  password = (password === null || password === undefined) ? '' : password.toString();
+  if (!username || !password || password.length > 200) return null;
+  if (authIsLocked(username)) return null;
   var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(BENUTZER_TAB);
   if (!sheet) return null;
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return null;
   var data = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
   for (var i = 0; i < data.length; i++) {
-    if (data[i][0].toString().toLowerCase() === username.toLowerCase() &&
-        data[i][3].toString() === password) {
-      return {
-        benutzername: data[i][0].toString(),
-        anzeigename: data[i][1].toString(),
-        rolle: data[i][2].toString()
-      };
+    if (data[i][0].toString().trim().toLowerCase() !== username.toLowerCase()) continue;
+    var stored = data[i][3].toString();
+    if (!pwVerify(stored, password)) break;
+    if (!pwIsHashed(stored)) {
+      // Klartext-Altbestand beim ersten erfolgreichen Anmelden ersetzen
+      try { sheet.getRange(i + 2, 4).setValue(pwMake(password)); } catch (e) { console.error('Passwort-Hash konnte nicht gespeichert werden: ' + e); }
     }
+    var erstanmeldung = data[i][4].toString().trim().toLowerCase() === 'ja';
+    if (erstanmeldung && !allowErstanmeldung) return null;
+    return {
+      row: i + 2,
+      benutzername: data[i][0].toString(),
+      anzeigename: data[i][1].toString(),
+      rolle: data[i][2].toString(),
+      erstanmeldung: erstanmeldung
+    };
   }
+  authNoteFail(username);
   return null;
 }
 
@@ -157,6 +228,29 @@ function doGet(e) {
 // POST – Öffentliche Eintragung + Auth-Aktionen
 // ═══════════════════════════════════════════════════
 
+// Text aus dem oeffentlichen Formular sicher in eine Zelle schreiben:
+// ein fuehrendes = + - @ wuerde von Sheets als Formel ausgewertet.
+function sheetSafe(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v !== 'string') return v;
+  var s = v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 2000);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+
+// Oeffentliche Eintragung pruefen; gibt Fehlermeldung oder '' zurueck.
+function hdValidateEintrag(data) {
+  if (!data || typeof data !== 'object') return 'Ungültige Anfrage.';
+  var namePattern = /^[^<>"=;{}\[\]\\\/\u0000-\u001F]{1,60}$/;
+  if (typeof data.vorname !== 'string' || !namePattern.test(data.vorname.trim())) return 'Bitte einen gültigen Vornamen angeben.';
+  if (typeof data.nachname !== 'string' || !namePattern.test(data.nachname.trim())) return 'Bitte einen gültigen Nachnamen angeben.';
+  if (typeof data.email !== 'string' || data.email.length > 120 ||
+      !/^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/.test(data.email.trim())) return 'Bitte eine gültige E-Mail-Adresse angeben.';
+  if (data.mobilnr !== undefined && data.mobilnr !== null && data.mobilnr !== '' &&
+      !/^[0-9 +().\/\-]{4,30}$/.test(data.mobilnr.toString().trim())) return 'Bitte eine gültige Mobilnummer angeben.';
+  if (typeof data.datum !== 'string' || !/^\d{2}\.\d{2}\.\d{4}$/.test(data.datum)) return 'Ungültiges Datum.';
+  return '';
+}
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
   try {
@@ -206,7 +300,19 @@ function doPost(e) {
       }
     }
 
-    // ── Öffentliche Eintragung (wie bisher) ──
+    // ── Öffentliche Eintragung ──
+    // Eingaben pruefen: ohne Namen wuerde der Termin frei bleiben, aber
+    // trotzdem ein Kalender-Eintrag und eine Mail entstehen.
+    var fehler = hdValidateEintrag(data);
+    if (fehler) {
+      lock.releaseLock();
+      return jsonResponse({ status: 'error', message: fehler });
+    }
+    data.vorname = data.vorname.trim();
+    data.nachname = data.nachname.trim();
+    data.email = data.email.trim();
+    data.mobilnr = (data.mobilnr || '').toString().trim();
+
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     var sheet = ss.getSheetByName(SHEET_NAME);
 
@@ -241,16 +347,22 @@ function doPost(e) {
       return jsonResponse({ status: 'error', message: 'Dieser Termin ist leider nicht mehr verfügbar.' });
     }
 
-    sheet.getRange(targetRow, 3).setValue(data.vorname);
-    sheet.getRange(targetRow, 4).setValue(data.nachname);
-    sheet.getRange(targetRow, 5).setValue(data.email);
-    sheet.getRange(targetRow, 6).setValue(data.mobilnr);
+    sheet.getRange(targetRow, 3, 1, 4).setValues([[
+      sheetSafe(data.vorname), sheetSafe(data.nachname), sheetSafe(data.email), sheetSafe(data.mobilnr)
+    ]]);
+    SpreadsheetApp.flush();
 
     lock.releaseLock();
 
-    createCalendarEvent(data.datum, data.vorname, data.nachname);
-    sendBestaetigungsMail(data);
-    sendNotifyHallendienst(data.vorname, data.nachname, data.datum);
+    // Die Eintragung ist gespeichert. Fehler bei Kalender/Mail (z.B. leeres
+    // Mail-Kontingent) duerfen daraus keinen Fehler machen – beim erneuten
+    // Absenden waere der Termin sonst "nicht mehr verfuegbar".
+    try { createCalendarEvent(data.datum, data.vorname, data.nachname); }
+    catch (errCal) { console.error('Hallendienst ' + data.datum + ': Kalender-Eintrag fehlgeschlagen: ' + errCal); }
+    try { sendBestaetigungsMail(data); }
+    catch (errMail) { console.error('Hallendienst ' + data.datum + ': Bestaetigungsmail fehlgeschlagen: ' + errMail); }
+    try { sendNotifyHallendienst(data.vorname, data.nachname, data.datum); }
+    catch (errNotify) { console.error('Hallendienst ' + data.datum + ': Benachrichtigung fehlgeschlagen: ' + errNotify); }
 
     return jsonResponse({ status: 'ok' });
 

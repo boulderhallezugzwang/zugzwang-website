@@ -2,79 +2,51 @@
 
 Webseite und Backend-Scripts für den **Boulderverein Zugzwang e.V.** — Boulderhalle in Auerbach i.d.OPf.
 
-**Webseite:** https://boulderhallezugzwang.github.io/zugzwang-website
+**Webseite:** https://zugzwang-auerbach.de
 
 ---
 
 ## Projektstruktur
 
 ```
-├── index.html                  ← Startseite (Öffnungszeiten, News, Preise, Bilder)
-├── verein.html                 ← Vereinsseite (Vorstand, Beiträge, Hallendienst)
-├── jugendtraining.html         ← Anmeldeformular Jugendtraining
-├── info.html                   ← Satzung, Datenschutz, Haftungsausschluss, Downloads
-├── intern.html                 ← Interner Bereich (Anmeldung, Mitglieder, Termine, News, Newsletter)
-├── antrag.html                 ← Mitgliedsantrag-Formular
-├── haftung.html                ← Haftungsausschluss-Formular
-├── kuendigung.html             ← Kündigungsformular
-├── impressum.html              ← Impressum
-├── img/                        ← Lokale Bilder (Hero, Logo, Vorstand)
-└── scripts/                    ← Google Apps Scripts (Referenzkopien vom Backend)
-    ├── manifest/
-    │   └── appsscript.json     ← OAuth-Berechtigungen + Manifest für gebundenes Projekt
-    ├── CMS/
-    │   └── cms-backend.gs      ← Öffentliche Webseiten-API (Bilder, News, Kalender)
-    ├── Mitgliederliste/
-    │   ├── mitgliederliste-script.gs   ← HAUPT-BACKEND (Anmeldung, Mitglieder, Kalender, News, Newsletter, Antrag)
-    │   └── EINRICHTUNG.md
-    ├── Hallendienst/
-    │   ├── hallendienst-script.gs      ← Hallendienst Web-App (eigenständig)
-    │   ├── hallendienst-menu.gs        ← Hallendienst Menü (eigenständig)
-    │   ├── gebunden_Menue.gs           ← Spreadsheet-Menü (gebunden)
-    │   ├── gebunden_Mitgliedsantrag.gs ← ClubDesk Export/Import (gebunden)
-    │   ├── gebunden_Kuendigungen.gs    ← Kündigungs-Verarbeitung (gebunden)
-    │   └── menue-script.gs            ← Menü-Erstellung (gebunden)
-    ├── Haftungsausschluss/
-    │   └── haftung-script.gs           ← Haftungsausschluss mit PDF-Erstellung
-    ├── Jugendtraining/
-    │   └── jugendtraining-script.gs    ← Jugendtraining-Anmeldung
-    ├── Kündigung/
-    │   └── kuendigung-script-2.gs      ← Kündigungs-Backend
-    └── Mitgliedsantrag/
-        ├── google-apps-script-5.gs     ← Eigenständige Referenz (NICHT im gebundenen Projekt)
-        └── EINRICHTUNG.md
+├── index.html, verein.html, team.html, jugendtraining.html, info.html
+├── antrag.html, haftung.html, kuendigung.html, impressum.html
+├── intern.html                 ← Interner Bereich (Anmeldung, Mitglieder, Termine, News, Newsletter, Team, Bilder, Config)
+├── data/                       ← ticker.json, team.json, carousel.json (werden aus intern.html per GitHub-API geschrieben)
+├── img/                        ← Bilder
+├── tests/backend.test.js       ← Tests der Backend-Logik: `node tests/backend.test.js .`
+└── apps-script/                ← Google Apps Scripts, je Ordner ein Script-Projekt (mit clasp verknüpft)
+    ├── mitgliederliste/        ← HAUPT-BACKEND, an die Tabelle gebunden (heißt in Google „Mitgliedsantrag“)
+    │   ├── Mitgliederliste.gs  ← doPost/doGet: Anmeldung, Mitglieder, Kalender, News, Newsletter, Mitgliedsantrag
+    │   ├── Mitgliedsantrag.gs  ← ClubDesk CSV-Export/-Import (Tabellen-Menü)
+    │   ├── Menue.gs            ← onOpen + Menüs (ClubDesk, Hallendienst, Verteiler)
+    │   └── appsscript.json
+    ├── hallendienst/Code.gs    ← Hallendienst-Eintragung (eigenständig)
+    ├── kuendigung/Code.gs      ← Kündigungsformular
+    ├── jugendtraining/Jugendtraining.gs
+    ├── haftung/haftung-script.gs   ← Haftungsausschluss mit PDF
+    └── cms/google drive cms.gs     ← Öffentliche API der Startseite (Bilder, News, Kalender)
 ```
 
 ---
 
-## Aufbau und Architektur
+## Apps Scripts bereitstellen (clasp)
 
-### Gebundenes Projekt (ans Spreadsheet gebunden)
+Die Ordner unter `apps-script/` entsprechen 1:1 den Projekten in Google. Hochladen und bereitstellen mit
+[clasp](https://github.com/google/clasp) (einmalig `npm install -g @google/clasp`, `clasp login` mit dem Vereinskonto):
 
-Das zentrale Backend läuft als **gebundenes Apps Script** im Vereins-Spreadsheet. Es enthält mehrere `.gs`-Dateien, die zusammen als ein Projekt bereitgestellt werden:
+```bash
+cd apps-script/<projekt>
+clasp push                                   # Code in den Editor laden
+clasp list-deployments                       # ID der Web-App-Bereitstellung ablesen
+clasp update-deployment <deploymentId> -d "Beschreibung"   # neue Version, URL bleibt gleich
+clasp update-deployment <deploymentId> -V <alteVersion>    # zurückstellen
+```
 
-| Datei im Apps Script Editor | Referenz im Repo | Funktion |
-|---|---|---|
-| `mitgliederliste-script.gs` | `scripts/Mitgliederliste/` | **Haupt-Backend**: Anmeldung, Mitgliederliste, Kalender-Verwaltung, News-Verwaltung, Newsletter, Mitgliedsantrag |
-| `gebunden_Mitgliedsantrag.gs` | `scripts/Hallendienst/` | ClubDesk CSV-Export/Import |
-| `gebunden_Menue.gs` | `scripts/Hallendienst/` | Spreadsheet-Menüs (Hallendienst, ClubDesk) |
-| `gebunden_Kuendigungen.gs` | `scripts/Hallendienst/` | Kündigungen im Sheet verarbeiten |
-| `menue-script.gs` | `scripts/Hallendienst/` | onOpen-Menü-Erstellung |
-| `appsscript.json` | `scripts/manifest/` | OAuth-Berechtigungen (Drive, Docs, Kalender, Mail) |
-
-**Eine Bereitstellung** ergibt eine Web-App-URL für alles.
-
-### Eigenständige Web-Apps (separate Projekte)
-
-| Script | Datei | Zweck |
-|---|---|---|
-| CMS Backend | `scripts/CMS/cms-backend.gs` | Öffentliche API für die Webseite (Bilder, News, Kalender) |
-| Hallendienst | `scripts/Hallendienst/hallendienst-script.gs` | Hallendienst-Eintragung |
-| Haftungsausschluss | `scripts/Haftungsausschluss/haftung-script.gs` | PDF-Erstellung |
-| Jugendtraining | `scripts/Jugendtraining/jugendtraining-script.gs` | Anmeldeformular |
-| Kündigung | `scripts/Kündigung/kuendigung-script-2.gs` | Kündigungsformular |
-
-Jedes eigenständige Script hat seine eigene Bereitstellung mit eigener URL.
+- `clasp push` ersetzt **alle** Dateien des Projekts durch den Ordnerinhalt.
+- In einem Projekt darf es jede Funktion nur einmal geben (alle Dateien teilen einen Namensraum).
+- `mitgliederliste` und `hallendienst` enthalten denselben Anmelde-Block (Passwort-Hash) und müssen zusammen bereitgestellt werden.
+- Reihenfolge bei Änderungen an Formularen: erst Backend bereitstellen, dann Website pushen.
 
 ---
 
@@ -98,7 +70,7 @@ Jedes eigenständige Script hat seine eigene Bereitstellung mit eigener URL.
 | A | Benutzername (zum Anmelden) |
 | B | Anzeigename |
 | C | Rolle (`admin` oder `mitglied`) |
-| D | Passwort |
+| D | Passwort (wird nach dem ersten Login automatisch durch einen Hash `zz1$…` ersetzt) |
 | E | Erstanmeldung (`Ja`/`Nein`) |
 
 Der Admin legt neue Benutzer an: Benutzername + Anzeigename + Rolle + ein erstes Passwort + Erstanmeldung=Ja. Beim ersten Anmelden wird der Benutzer aufgefordert, sein Passwort zu ändern.
@@ -194,29 +166,7 @@ Der interne Bereich bietet 5 Bereiche:
 
 ## Anleitung: Bereitstellung
 
-### Gebundenes Projekt (Haupt-Backend)
-
-1. Spreadsheet öffnen → **Erweiterungen → Apps Script**
-2. Folgende Dateien im Editor pflegen:
-   - `mitgliederliste-script.gs` — Hauptlogik
-   - `gebunden_Mitgliedsantrag.gs` — ClubDesk Export/Import
-   - `gebunden_Menue.gs` — Spreadsheet-Menüs
-   - `gebunden_Kuendigungen.gs` — Kündigungen
-   - `menue-script.gs` — onOpen
-3. **appsscript.json** im Editor einschalten: Projekteinstellungen → "appsscript.json-Manifestdatei im Editor anzeigen" → Inhalt aus `scripts/manifest/appsscript.json` einfügen
-4. **Bereitstellen → Neue Bereitstellung → Web-App**
-   - Ausführen als: Ich (dein Google-Konto)
-   - Zugriff: Jeder (auch anonym)
-5. Beim ersten Mal: Autorisierungsdialog bestätigen (Drive, Docs, Kalender, Mail)
-
-**Wichtig:** Bei jeder Code-Änderung eine **neue Bereitstellung** erstellen! Die alte Bereitstellung zeigt weiterhin den alten Code.
-
-### Eigenständige Web-Apps
-
-1. https://script.google.com → **Neues Projekt** erstellen
-2. Code aus der jeweiligen `.gs`-Datei einfügen
-3. **Bereitstellen → Web-App** (Ausführen als: Ich, Zugriff: Jeder)
-4. Web-App-URL in der jeweiligen HTML-Datei eintragen
+Apps Scripts: siehe oben „Apps Scripts bereitstellen (clasp)“.
 
 ### Webseite (GitHub Pages)
 

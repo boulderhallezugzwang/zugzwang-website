@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// Google Apps Script – Mitgliedsantrag Backend
+// Google Apps Script – ClubDesk CSV-Export/-Import (Tabellen-Menü)
 // Boulderverein Zugzwang e.V.
+//
+// Der Mitgliedsantrag selbst wird in Mitgliederliste.gs verarbeitet
+// (handleMitgliedsantrag). Die frueher hier liegende zweite doPost-/onOpen-
+// Kopie wurde entfernt: zwei gleichnamige Funktionen in einem Projekt
+// ueberschreiben sich je nach Dateireihenfolge gegenseitig.
 //
 // Sheet-Format: Exakt passend für ClubDesk CSV-Import
 // Semikolon-getrennt, deutsches Datumsformat
@@ -67,198 +72,17 @@ function generateMandatsreferenz(sheet) {
 // HAUPTFUNKTION
 // ═══════════════════════════════════════════════════
 
-function doPost(e) {
-  try {
-    var data = JSON.parse(e.postData.contents);
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-
-    // Header anlegen (falls Sheet leer)
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(HEADERS);
-      sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
-      sheet.setFrozenRows(1);
-    }
-
-    var eintrittDe = todayDe();
-    var geburtsDe = toDe(data.geburtsdatum);
-    var mandatsRef = generateMandatsreferenz(sheet);
-    var fullName = data.vorname + ' ' + data.nachname;
-
-    // ── Zeile 1: Hauptmitglied (zahlendes Mitglied) ──
-    sheet.appendRow([
-      data.nachname,                         // Nachname
-      data.vorname,                          // Vorname
-      data.ort,                              // Ort
-      data.email,                            // E-Mail
-      geburtsDe,                             // Geburtsdatum (DD.MM.YYYY)
-      mandatsRef,                            // Mandatsreferenz
-      data.kategorie,                        // Status
-      eintrittDe,                            // Eintritt (DD.MM.YYYY)
-      '',                                    // Zahlungspflichtiges Mitglied (leer = selbst)
-      data.strasse,                          // Adresse
-      data.plz,                              // PLZ
-      data.telefon || '',                    // Telefon Mobil
-      data.kommentar || '',                  // Bemerkungen
-      data.iban,                             // IBAN
-      data.bic || '',                        // BIC
-      data.kontoinhaber,                     // Kontoinhaber
-      'Ja',                                  // SEPA-Lastschrift erlauben
-      eintrittDe,                            // Mandat Unterschriftsdatum
-      'Erst-Lastschrift',                    // Lastschriftart
-      '',                                    // Chip
-      ''                                     // ChipNr.
-    ]);
-
-    // ── Weitere Zeilen: Familienmitglieder ──
-    if (data.familienmitglieder && data.familienmitglieder.length > 0) {
-      data.familienmitglieder.forEach(function(fm) {
-        sheet.appendRow([
-          fm.nachname,                         // Nachname
-          fm.vorname,                          // Vorname
-          data.ort,                            // Ort (gleich)
-          data.email,                          // E-Mail (gleich)
-          toDe(fm.geburtsdatum),               // Geburtsdatum (DD.MM.YYYY)
-          '',                                  // Mandatsreferenz (keine)
-          data.kategorie,                      // Status (gleich)
-          eintrittDe,                          // Eintritt (gleich)
-          fullName,                            // Zahlungspflichtiges Mitglied
-          data.strasse,                        // Adresse (gleich)
-          data.plz,                            // PLZ (gleich)
-          '',                                  // Telefon Mobil
-          '',                                  // Bemerkungen
-          '',                                  // IBAN (keine)
-          '',                                  // BIC (keine)
-          '',                                  // Kontoinhaber (kein)
-          '',                                  // SEPA-Lastschrift
-          '',                                  // Mandat Unterschriftsdatum
-          'Erst-Lastschrift',                  // Lastschriftart
-          '',                                  // Chip
-          ''                                   // ChipNr.
-        ]);
-      });
-    }
-
-    // ── E-Mails ──
-    if (SEND_CONFIRMATION && data.email) {
-      sendConfirmationEmail(data, eintrittDe, mandatsRef);
-    }
-    sendNotificationEmail(data, eintrittDe, mandatsRef);
-
-    return ContentService.createTextOutput(
-      JSON.stringify({ status: 'ok' })
-    ).setMimeType(ContentService.MimeType.JSON);
-
-  } catch (error) {
-    Logger.log('Fehler: ' + error.toString());
-    return ContentService.createTextOutput(
-      JSON.stringify({ status: 'error', message: error.toString() })
-    ).setMimeType(ContentService.MimeType.JSON);
-  }
-}
 
 // ═══════════════════════════════════════════════════
 // E-MAILS
 // ═══════════════════════════════════════════════════
 
-function sendConfirmationEmail(data, eintrittDe, mandatsRef) {
-  var geburtsDe = toDe(data.geburtsdatum);
 
-  var familyText = '';
-  if (data.familienmitglieder && data.familienmitglieder.length > 0) {
-    familyText = '\n\nMitangemeldete Familienmitglieder:\n';
-    data.familienmitglieder.forEach(function(fm) {
-      familyText += '  - ' + fm.vorname + ' ' + fm.nachname + ' (geb. ' + toDe(fm.geburtsdatum) + ')\n';
-    });
-  }
-
-  var introText = getConfigValue('mail_mitglied_intro') ||
-    'Vielen Dank für Deinen Antrag. Du bist jetzt Mitglied beim Boulderverein Zugzwang e.V.!';
-  var hinweisText = getConfigValue('mail_mitglied_hinweis') ||
-    'Zur Übergabe deines Zutrittschips melde dich bitte bei:\n  Detlef Müller, Tel. +49 160 884 3412';
-  var signatur = getConfigValue('mail_signatur') ||
-    'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://boulderhallezugzwang.github.io/zugzwang-website';
-
-  var body = 'Hallo ' + data.vorname + ',\n\n' +
-    introText + '\n\n' +
-    'Wir haben folgende Daten erhalten:\n\n' +
-    '  Name:           ' + data.vorname + ' ' + data.nachname + '\n' +
-    '  Geburtsdatum:   ' + geburtsDe + '\n' +
-    '  Adresse:        ' + data.strasse + ', ' + data.plz + ' ' + data.ort + '\n' +
-    '  E-Mail:         ' + data.email + '\n' +
-    '  Mobilnummer:    ' + (data.telefon || '–') + '\n' +
-    '  Kategorie:      ' + data.kategorie + '\n' +
-    '  Eintritt:       ' + eintrittDe + '\n' +
-    '  Kontoinhaber:   ' + data.kontoinhaber + '\n' +
-    '  IBAN:           ' + data.iban + '\n' +
-    '  Mandatsreferenz: ' + mandatsRef + '\n' +
-    familyText + '\n' +
-    hinweisText + '\n\n' +
-    'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_mitgliedsantrag_email') || VEREIN_EMAIL_FALLBACK) + '.\n\n' +
-    signatur;
-
-  MailApp.sendEmail({
-    to: data.email,
-    subject: 'Dein Mitgliedsantrag beim Boulderverein Zugzwang e.V.',
-    body: body,
-    name: 'Boulderverein Zugzwang e.V.'
-  });
-}
-
-function sendNotificationEmail(data, eintrittDe, mandatsRef) {
-  var aktiv = getConfigValue('notify_mitgliedsantrag_aktiv');
-  if (aktiv === 'nein') return;
-  var notifyEmail = getConfigValue('notify_mitgliedsantrag_email') || VEREIN_EMAIL_FALLBACK;
-
-  var geburtsDe = toDe(data.geburtsdatum);
-
-  var familyText = '';
-  if (data.familienmitglieder && data.familienmitglieder.length > 0) {
-    familyText = '\n\nFamilienmitglieder:\n';
-    data.familienmitglieder.forEach(function(fm) {
-      familyText += '  - ' + fm.vorname + ' ' + fm.nachname + ' (geb. ' + toDe(fm.geburtsdatum) + ')\n';
-    });
-  }
-
-  var body = 'Ein neuer Mitgliedsantrag ist eingegangen:\n\n' +
-    '  Name:           ' + data.vorname + ' ' + data.nachname + '\n' +
-    '  Geburtsdatum:   ' + geburtsDe + '\n' +
-    '  Adresse:        ' + data.strasse + ', ' + data.plz + ' ' + data.ort + '\n' +
-    '  E-Mail:         ' + data.email + '\n' +
-    '  Mobilnummer:    ' + (data.telefon || '–') + '\n' +
-    '  Kategorie:      ' + data.kategorie + '\n' +
-    '  Eintritt:       ' + eintrittDe + '\n' +
-    '  Mandatsref.:    ' + mandatsRef + '\n' +
-    '  Kontoinhaber:   ' + data.kontoinhaber + '\n' +
-    '  IBAN:           ' + data.iban + '\n' +
-    '  BIC:            ' + (data.bic || '–') + '\n' +
-    familyText + '\n' +
-    '  Satzung:        ' + data.satzung + '\n' +
-    '  DSGVO:          ' + data.dsgvo + '\n' +
-    '  SEPA-Mandat:    ' + data.sepa_consent + '\n' +
-    '  Arbeitsdienst:  ' + (data.arbeitsdienst || '–') + '\n' +
-    '  Kommentar:      ' + (data.kommentar || '–') + '\n\n' +
-    'Eingegangen am: ' + eintrittDe;
-
-  MailApp.sendEmail({
-    to: notifyEmail,
-    subject: 'Neuer Mitgliedsantrag: ' + data.vorname + ' ' + data.nachname,
-    body: body,
-    name: 'Mitgliedsantrag-Formular'
-  });
-}
 
 // ═══════════════════════════════════════════════════
 // CLUBDESK CSV-EXPORT (Auswahl → Download)
 // ═══════════════════════════════════════════════════
 
-function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('ClubDesk')
-    .addItem('Auswahl als CSV exportieren', 'exportSelectionAsClubDeskCSV')
-    .addSeparator()
-    .addItem('ClubDesk-Export importieren', 'importClubDeskCSV')
-    .addToUi();
-}
 
 function exportSelectionAsClubDeskCSV() {
   var ui = SpreadsheetApp.getUi();
@@ -379,8 +203,8 @@ function importClubDeskCSV() {
     '  var reader = new FileReader();' +
     '  reader.onload = function(e) {' +
     '    google.script.run' +
-    '      .withSuccessHandler(function(msg) { document.getElementById("status").innerHTML = "<b style=color:green>" + msg + "</b>"; })' +
-    '      .withFailureHandler(function(err) { document.getElementById("status").innerHTML = "<b style=color:red>Fehler: " + err.message + "</b>"; })' +
+    '      .withSuccessHandler(function(msg) { var st = document.getElementById("status"); st.textContent = msg; st.style.color = "green"; st.style.fontWeight = "bold"; })' +
+    '      .withFailureHandler(function(err) { var st = document.getElementById("status"); st.textContent = "Fehler: " + err.message; st.style.color = "red"; st.style.fontWeight = "bold"; })' +
     '      .processClubDeskImport(e.target.result);' +
     '  };' +
     '  reader.readAsText(file, "iso-8859-1");' +
@@ -516,29 +340,3 @@ function parseCSV(text, delimiter) {
 // ═══════════════════════════════════════════════════
 // TEST
 // ═══════════════════════════════════════════════════
-function testDoPost() {
-  var testData = {
-    postData: {
-      contents: JSON.stringify({
-        vorname: 'Max', nachname: 'Mustermann',
-        geburtsdatum: '1990-05-15',
-        strasse: 'Musterstraße 1', plz: '91275', ort: 'Auerbach',
-        email: 'max@example.com', telefon: '0123456789',
-        kategorie: 'Mitglied Familie',
-        kommentar: 'Testkommentar',
-        kontoinhaber: 'Max Mustermann',
-        iban: 'DE89370400440532013000', bic: '',
-        satzung: 'Ja', dsgvo: 'Ja', sepa_consent: 'Ja',
-        arbeitsdienst: 'Ja',
-        familienmitglieder: [
-          { vorname: 'Anna', nachname: 'Mustermann', geburtsdatum: '1992-08-20' },
-          { vorname: 'Lena', nachname: 'Mustermann', geburtsdatum: '2015-03-10' }
-        ],
-        datum: '09.03.2026',
-        zeitstempel: new Date().toISOString()
-      })
-    }
-  };
-  doPost(testData);
-  Logger.log('Test OK – prüfe Sheet!');
-}

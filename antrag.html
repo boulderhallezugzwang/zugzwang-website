@@ -741,10 +741,13 @@ document.addEventListener('DOMContentLoaded',()=>{
     sb.disabled=true;sb.classList.add('loading');
     const progress = startProgress('progressFill', ['ps1', 'ps2', 'ps3']);
     try{
-      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
-        headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      const resp=await fetch(SCRIPT_URL,{method:'POST',redirect:'follow',
+        headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)});
+      const result=await resp.json();
+      if(!result||result.status!=='ok') throw new Error((result&&(result.message||result.error))||'Serverfehler');
       progress.finish();
       setTimeout(() => {
+        document.getElementById('errMsg').style.display='none';
         f.style.display='none';
         document.getElementById('okMsg').style.display='block';
         window.scrollTo({top:0,behavior:'smooth'});

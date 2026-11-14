@@ -46,64 +46,129 @@ const HEADERS = [
   'Eintritt'
 ];
 
+// Text aus dem oeffentlichen Formular sicher in eine Zelle schreiben:
+// ein fuehrendes = + - @ wuerde von Sheets als Formel ausgewertet.
+function sheetSafe(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v !== 'string') return v;
+  var s = v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 2000);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+
+function isEmail(s) {
+  return typeof s === 'string' && s.length <= 120 &&
+    /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/.test(s.trim());
+}
+
+// Alle Textfelder der Anfrage begrenzen (rekursiv). longKeys duerfen gross sein
+// (z.B. die Unterschrift als Bild). Gibt Fehlermeldung oder '' zurueck.
+function checkLengths(obj, longKeys, depth) {
+  if (depth > 3) return 'Ungültige Anfrage.';
+  var keys = Object.keys(obj);
+  if (keys.length > 60) return 'Ungültige Anfrage.';
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i], v = obj[k];
+    if (typeof v === 'string') {
+      var max = longKeys.indexOf(k) !== -1 ? 2000000 : 500;
+      if (v.length > max) return 'Eingabe zu lang: ' + k;
+    } else if (Array.isArray(v)) {
+      if (v.length > 12) return 'Zu viele Einträge: ' + k;
+      for (var j = 0; j < v.length; j++) {
+        if (!v[j] || typeof v[j] !== 'object') return 'Ungültige Anfrage.';
+        var e = checkLengths(v[j], longKeys, depth + 1);
+        if (e) return e;
+      }
+    } else if (v && typeof v === 'object') {
+      return 'Ungültige Anfrage.';
+    }
+  }
+  return '';
+}
+
+function requireText(data, fields) {
+  for (var i = 0; i < fields.length; i++) {
+    if (typeof data[fields[i]] !== 'string' || !data[fields[i]].trim()) return 'Pflichtfeld fehlt: ' + fields[i];
+  }
+  return '';
+}
+
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
-    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return jsonOut({ status: 'error', message: 'Ungültige Anfrage.' });
+    var fehler = checkLengths(data, [], 0) ||
+      requireText(data, ['nachname', 'vorname', 'geburtsdatum', 'strasse', 'plz', 'ort', 'email', 'kontoinhaber', 'iban']);
+    if (!fehler && !isEmail(data.email)) fehler = 'Bitte eine gültige E-Mail-Adresse angeben.';
+    if (!fehler && !/^\d{4}-\d{2}-\d{2}$/.test(data.geburtsdatum)) fehler = 'Ungültiges Geburtsdatum.';
+    if (!fehler && !/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(data.iban.replace(/\s+/g, '').toUpperCase())) fehler = 'Ungültige IBAN.';
+    if (fehler) return jsonOut({ status: 'error', message: fehler });
 
-    // ── Sheet anlegen oder finden ──
-    var sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) {
-      sheet = ss.insertSheet(SHEET_NAME);
-      sheet.appendRow(HEADERS);
-      sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
-      sheet.setFrozenRows(1);
-    }
-
+    var S = sheetSafe;
     var heute = todayDe();
-    var mandatsref = generateMandatsreferenz(sheet);
+    var mandatsref;
 
-    // Geburtsdatum DD.MM.YYYY
-    var geb = '';
-    if (data.geburtsdatum) {
-      var d = new Date(data.geburtsdatum);
-      geb = ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+    // Geburtsdatum DD.MM.YYYY (direkt aus dem ISO-Text, ohne Zeitzonen-Umweg)
+    var gp = data.geburtsdatum.split('-');
+    var geb = gp[2] + '.' + gp[1] + '.' + gp[0];
+
+    // Sperre: Mandatsreferenz ermitteln + Zeile anhaengen muss atomar sein.
+    var lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+      // ── Sheet anlegen oder finden ──
+      var sheet = ss.getSheetByName(SHEET_NAME);
+      if (!sheet) {
+        sheet = ss.insertSheet(SHEET_NAME);
+        sheet.appendRow(HEADERS);
+        sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
+        sheet.setFrozenRows(1);
+      }
+
+      mandatsref = generateMandatsreferenz(sheet);
+
+      // ── Zeile eintragen ──
+      sheet.appendRow([
+        S(data.nachname),
+        S(data.vorname),
+        geb,
+        S(data.strasse),
+        S(data.plz),
+        S(data.ort),
+        S(data.email),
+        S(data.telefon || ''),
+        S(data.kommentar || ''),
+        S(data.kontoinhaber),
+        S(data.iban),
+        S(data.bic || ''),
+        'Ja',
+        heute,
+        'Erst-Lastschrift',
+        mandatsref,
+        heute
+      ]);
+      SpreadsheetApp.flush();
+    } finally {
+      lock.releaseLock();
     }
 
-    // ── Zeile eintragen ──
-    sheet.appendRow([
-      data.nachname,
-      data.vorname,
-      geb,
-      data.strasse,
-      data.plz,
-      data.ort,
-      data.email,
-      data.telefon,
-      data.kommentar || '',
-      data.kontoinhaber,
-      data.iban,
-      data.bic || '',
-      'Ja',
-      heute,
-      'Erst-Lastschrift',
-      mandatsref,
-      heute
-    ]);
+    // Die Anmeldung ist gespeichert; Mail-Fehler duerfen daraus keinen Fehler
+    // machen (sonst sendet der Nutzer erneut → doppelte Zeilen).
+    try { sendBestaetigungsMail(data, heute, mandatsref, geb); }
+    catch (errMail) { console.error('Jugendtraining ' + mandatsref + ': Bestaetigungsmail fehlgeschlagen: ' + errMail); }
+    try { sendNotifyJugendtraining(data.vorname, data.nachname, heute); }
+    catch (errNotify) { console.error('Jugendtraining ' + mandatsref + ': Benachrichtigung fehlgeschlagen: ' + errNotify); }
 
-    // ── Mail ──
-    sendBestaetigungsMail(data, heute, mandatsref, geb);
-    sendNotifyJugendtraining(data.vorname, data.nachname, heute);
-
-    return ContentService.createTextOutput(
-      JSON.stringify({ status: 'ok' })
-    ).setMimeType(ContentService.MimeType.JSON);
+    return jsonOut({ status: 'ok' });
 
   } catch (error) {
-    Logger.log('Fehler: ' + error.toString());
-    return ContentService.createTextOutput(
-      JSON.stringify({ status: 'error', message: error.toString() })
-    ).setMimeType(ContentService.MimeType.JSON);
+    console.error('Fehler: ' + error.toString());
+    return jsonOut({ status: 'error', message: 'Die Anmeldung konnte nicht verarbeitet werden.' });
   }
 }
 

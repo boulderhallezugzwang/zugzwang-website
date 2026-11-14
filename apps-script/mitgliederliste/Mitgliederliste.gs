@@ -112,27 +112,94 @@ function getMitgliederSheet() {
          SpreadsheetApp.openById(SPREADSHEET_ID).getActiveSheet();
 }
 
+// ── Passwort-Hashing + Sperre nach Fehlversuchen ──
+// Passwoerter stehen nicht mehr im Klartext im Tab "Benutzer", sondern als
+//   zz1$<Runden>$<Salt>$<Hash>
+// Ein vom Admin im Klartext eingetragenes (Erst-)Passwort funktioniert
+// weiterhin und wird beim ersten erfolgreichen Anmelden automatisch
+// durch den Hash ersetzt. Zuruecksetzen wie bisher: neues Passwort im
+// Klartext in Spalte D eintragen + Erstanmeldung = Ja.
+// WICHTIG: Dieser Block ist identisch in mitgliederliste-script.gs und
+// hallendienst-script.gs – beide Projekte muessen zusammen bereitgestellt werden.
+var PW_ROUNDS = 300;
+var AUTH_MAX_FAILS = 10;        // Fehlversuche pro Benutzername ...
+var AUTH_LOCK_SECONDS = 900;    // ... innerhalb von 15 Minuten
+
+function pwDigest(password, salt, rounds) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + ':' + password, Utilities.Charset.UTF_8);
+  for (var i = 1; i < rounds; i++) {
+    bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes);
+  }
+  return Utilities.base64Encode(bytes);
+}
+
+function pwMake(password) {
+  var salt = Utilities.getUuid().replace(/-/g, '');
+  return 'zz1$' + PW_ROUNDS + '$' + salt + '$' + pwDigest(password, salt, PW_ROUNDS);
+}
+
+function pwIsHashed(stored) {
+  return /^zz1\$\d+\$[0-9a-f]+\$[A-Za-z0-9+\/=]+$/.test(stored);
+}
+
+function pwVerify(stored, password) {
+  if (!stored) return false;
+  if (!pwIsHashed(stored)) return stored === password;   // Altbestand / Erst-Passwort im Klartext
+  var p = stored.split('$');
+  var rounds = parseInt(p[1], 10);
+  if (!(rounds >= 1 && rounds <= 100000)) return false;
+  return pwDigest(password, p[2], rounds) === p[3];
+}
+
+function authFailKey(username) {
+  return 'authfail_' + username.toLowerCase().slice(0, 80);
+}
+
+function authIsLocked(username) {
+  var n = parseInt(CacheService.getScriptCache().get(authFailKey((username || '').toString())) || '0', 10);
+  return n >= AUTH_MAX_FAILS;
+}
+
+function authNoteFail(username) {
+  var cache = CacheService.getScriptCache();
+  var key = authFailKey(username);
+  var n = parseInt(cache.get(key) || '0', 10) + 1;
+  cache.put(key, String(n), AUTH_LOCK_SECONDS);
+}
+
 // Benutzer anhand Username + Passwort prüfen
-// Spalten: A=Benutzername, B=Anzeigename, C=Rolle, D=Passwort, E=Erstanmeldung
-function authenticateUser(username, password) {
-  if (!username || !password) return null;
-  var sheet = getBenutzerSheet();
+// Spalten: A=Benutzername, B=Anzeigename, C=Rolle, D=Passwort(-Hash), E=Erstanmeldung
+// Konten mit Erstanmeldung=Ja duerfen nur anmelden/Passwort setzen
+// (allowErstanmeldung=true), alle anderen Aktionen bleiben gesperrt.
+function authenticateUser(username, password, allowErstanmeldung) {
+  username = (username === null || username === undefined) ? '' : username.toString().trim();
+  password = (password === null || password === undefined) ? '' : password.toString();
+  if (!username || !password || password.length > 200) return null;
+  if (authIsLocked(username)) return null;
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(BENUTZER_TAB);
   if (!sheet) return null;
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return null;
   var data = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
   for (var i = 0; i < data.length; i++) {
-    if (data[i][0].toString().toLowerCase() === username.toLowerCase() &&
-        data[i][3].toString() === password) {
-      return {
-        row: i + 2,
-        benutzername: data[i][0].toString(),
-        anzeigename: data[i][1].toString(),
-        rolle: data[i][2].toString(),
-        erstanmeldung: data[i][4].toString().toLowerCase() === 'ja'
-      };
+    if (data[i][0].toString().trim().toLowerCase() !== username.toLowerCase()) continue;
+    var stored = data[i][3].toString();
+    if (!pwVerify(stored, password)) break;
+    if (!pwIsHashed(stored)) {
+      // Klartext-Altbestand beim ersten erfolgreichen Anmelden ersetzen
+      try { sheet.getRange(i + 2, 4).setValue(pwMake(password)); } catch (e) { console.error('Passwort-Hash konnte nicht gespeichert werden: ' + e); }
     }
+    var erstanmeldung = data[i][4].toString().trim().toLowerCase() === 'ja';
+    if (erstanmeldung && !allowErstanmeldung) return null;
+    return {
+      row: i + 2,
+      benutzername: data[i][0].toString(),
+      anzeigename: data[i][1].toString(),
+      rolle: data[i][2].toString(),
+      erstanmeldung: erstanmeldung
+    };
   }
+  authNoteFail(username);
   return null;
 }
 
@@ -149,7 +216,8 @@ function doPost(e) {
     }
 
     if (action === 'login') {
-      var user = authenticateUser(body.username, body.password);
+      if (authIsLocked(body.username)) return jsonResponse({ error: 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.' });
+      var user = authenticateUser(body.username, body.password, true);
       if (!user) return jsonResponse({ error: 'Benutzername oder Passwort falsch' });
       if (user.erstanmeldung) {
         return jsonResponse({ needsPassword: true, displayName: user.anzeigename });
@@ -161,11 +229,13 @@ function doPost(e) {
       var username = (body.username || '').toString().trim();
       var oldPassword = (body.oldPassword || '').toString();
       var newPassword = (body.newPassword || '').toString();
-      if (newPassword.length < 6) return jsonResponse({ error: 'Passwort muss mindestens 6 Zeichen lang sein' });
-      var user = authenticateUser(username, oldPassword);
+      if (newPassword.length < 8) return jsonResponse({ error: 'Passwort muss mindestens 8 Zeichen lang sein' });
+      if (newPassword.length > 200) return jsonResponse({ error: 'Passwort ist zu lang' });
+      if (newPassword === oldPassword) return jsonResponse({ error: 'Bitte ein neues Passwort wählen' });
+      var user = authenticateUser(username, oldPassword, true);
       if (!user) return jsonResponse({ error: 'Authentifizierung fehlgeschlagen' });
       var sheet = getBenutzerSheet();
-      sheet.getRange(user.row, 4).setValue(newPassword);  // Neues Passwort
+      sheet.getRange(user.row, 4).setValue(pwMake(newPassword));  // nur der Hash wird gespeichert
       sheet.getRange(user.row, 5).setValue('Nein');        // Erstanmeldung = Nein
       // Neu authentifizieren mit neuem Passwort
       user.erstanmeldung = false;
@@ -273,6 +343,20 @@ function doPost(e) {
 
         return jsonResponse(updateNewsDoc(docId, titel, datum, autor, inhalt, bildBase64, bildMimeType));
       }
+    }
+
+    // Chip-Daten aktualisieren (nur Admin). Per POST, damit Benutzername und
+    // Passwort nicht mehr in der URL (Verlauf, Protokolle) landen.
+    if (action === 'updateChip') {
+      var user = authenticateUser(body.username, body.password);
+      if (!user) return jsonResponse({ error: 'Nicht authentifiziert' });
+      if (user.rolle !== 'admin') return jsonResponse({ error: 'Keine Berechtigung' });
+      return jsonResponse(updateChipInSheet({
+        nachname: (body.nachname || '').toString(),
+        vorname: (body.vorname || '').toString(),
+        chip: sheetSafe((body.chip || '').toString()),
+        chipnr: sheetSafe((body.chipnr || '').toString())
+      }));
     }
 
     // Auth-geschützte Config-Aktionen (nur Admin)
@@ -1405,9 +1489,24 @@ function createNewsDoc(titel, datum, autor, inhalt, bildBase64, bildMimeType) {
   }
 }
 
+// Liefert die Datei nur, wenn sie ein Google Doc direkt im News-Ordner ist.
+// Ohne diese Pruefung konnte jeder eingeloggte Benutzer ueber die News-
+// Aktionen JEDE Drive-Datei des Vereinskontos loeschen oder leeren
+// (z.B. die Mitgliederliste).
+function getNewsFile(docId) {
+  if (!/^[A-Za-z0-9_-]{20,}$/.test(docId || '')) throw new Error('Ungültige Doc-ID');
+  var file = DriveApp.getFileById(docId);
+  if (file.getMimeType() !== MimeType.GOOGLE_DOCS) throw new Error('Keine News-Datei');
+  var parents = file.getParents();
+  while (parents.hasNext()) {
+    if (parents.next().getId() === NEWS_FOLDER_ID) return file;
+  }
+  throw new Error('Datei liegt nicht im News-Ordner');
+}
+
 function deleteNewsDoc(docId) {
   try {
-    var file = DriveApp.getFileById(docId);
+    var file = getNewsFile(docId);
     var titel = file.getName();
     file.setTrashed(true);
     return { ok: true, message: 'News "' + titel + '" gelöscht.' };
@@ -1418,8 +1517,17 @@ function deleteNewsDoc(docId) {
 
 function updateNewsDoc(docId, titel, datum, autor, inhalt, bildBase64, bildMimeType) {
   try {
+    var newsFile = getNewsFile(docId);
     var doc = DocumentApp.openById(docId);
     var body = doc.getBody();
+
+    // Vorhandenes Bild merken: body.clear() entfernt es, und der Client
+    // schickt beim Bearbeiten nur dann ein Bild mit, wenn ein neues gewaehlt wurde.
+    var altesBild = null;
+    if (!bildBase64) {
+      var bilder = body.getImages();
+      if (bilder.length > 0) altesBild = bilder[0].getBlob();
+    }
 
     body.clear();
     body.appendParagraph(titel).setHeading(DocumentApp.ParagraphHeading.HEADING1);
@@ -1434,6 +1542,8 @@ function updateNewsDoc(docId, titel, datum, autor, inhalt, bildBase64, bildMimeT
       } catch (e) {
         Logger.log('Bild-Fehler: ' + e.toString());
       }
+    } else if (altesBild) {
+      try { body.appendImage(altesBild); } catch (e2) { Logger.log('Bild-Fehler (altes Bild): ' + e2.toString()); }
     }
 
     if (inhalt) {
@@ -1444,7 +1554,7 @@ function updateNewsDoc(docId, titel, datum, autor, inhalt, bildBase64, bildMimeT
     }
 
     doc.saveAndClose();
-    DriveApp.getFileById(docId).setName(titel);
+    newsFile.setName(titel);
 
     return { ok: true, message: 'News "' + titel + '" aktualisiert.' };
   } catch (e) {
@@ -1457,6 +1567,53 @@ function updateNewsDoc(docId, titel, datum, autor, inhalt, bildBase64, bildMimeT
 // ═══════════════════════════════════════════════════
 
 var VEREIN_EMAIL_FALLBACK = 'boulderhallezugzwang@gmail.com';
+
+// Bestaetigungsmail an den Antragsteller senden? (Die Konstante fehlte
+// frueher: der ReferenceError hat BEIDE Mails verhindert.)
+var SEND_CONFIRMATION = true;
+
+// Text aus oeffentlichen Formularen sicher in eine Zelle schreiben:
+// Sheets wertet per setValue/appendRow geschriebene Texte wie eine
+// Benutzereingabe aus – ein fuehrendes = + - @ wuerde zur Formel.
+// Ein vorangestelltes Hochkomma erzwingt Text (wird nicht angezeigt).
+function sheetSafe(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v !== 'string') return v;
+  var s = v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 2000);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+
+function maIsEmail(s) {
+  return /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/.test((s || '').toString());
+}
+
+// Pflichtfelder pruefen; gibt Fehlermeldung oder '' zurueck.
+function maValidate(data) {
+  if (!data || typeof data !== 'object') return 'Ungültige Anfrage';
+  var pflicht = ['nachname', 'vorname', 'strasse', 'plz', 'ort', 'email', 'geburtsdatum', 'kategorie', 'iban', 'kontoinhaber'];
+  for (var i = 0; i < pflicht.length; i++) {
+    var val = data[pflicht[i]];
+    if (typeof val !== 'string' || !val.trim()) return 'Pflichtfeld fehlt: ' + pflicht[i];
+    if (val.length > 200) return 'Eingabe zu lang: ' + pflicht[i];
+  }
+  if (!maIsEmail(data.email)) return 'Ungültige E-Mail-Adresse';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data.geburtsdatum)) return 'Ungültiges Geburtsdatum';
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(data.iban.replace(/\s+/g, '').toUpperCase())) return 'Ungültige IBAN';
+  var fam = data.familienmitglieder;
+  if (fam !== undefined && fam !== null) {
+    if (!Array.isArray(fam) || fam.length > 10) return 'Ungültige Familienmitglieder';
+    for (var j = 0; j < fam.length; j++) {
+      var fm = fam[j] || {};
+      if (typeof fm.vorname !== 'string' || !fm.vorname.trim() ||
+          typeof fm.nachname !== 'string' || !fm.nachname.trim() ||
+          fm.vorname.length > 200 || fm.nachname.length > 200 ||
+          !/^\d{4}-\d{2}-\d{2}$/.test((fm.geburtsdatum || '').toString())) {
+        return 'Ungültige Angaben bei Familienmitglied ' + (j + 1);
+      }
+    }
+  }
+  return '';
+}
 
 var MA_HEADERS = [
   'Nachname', 'Vorname', 'Ort', 'E-Mail', 'Geburtsdatum',
@@ -1503,47 +1660,74 @@ function maGenerateMandatsreferenz(sheet) {
 }
 
 function handleMitgliedsantrag(data) {
-  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('Mitglieder');
+  var fehler = maValidate(data);
+  if (fehler) return jsonResponse({ status: 'error', message: fehler });
 
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(MA_HEADERS);
-    sheet.getRange(1, 1, 1, MA_HEADERS.length).setFontWeight('bold');
-    sheet.setFrozenRows(1);
-  }
-
+  var S = sheetSafe;
   var eintrittDe = maTodayDe();
   var geburtsDe = maToDe(data.geburtsdatum);
-  var mandatsRef = maGenerateMandatsreferenz(sheet);
   var fullName = data.vorname + ' ' + data.nachname;
+  var mandatsRef;
 
-  sheet.appendRow([
-    data.nachname, data.vorname, data.ort, data.email, geburtsDe,
-    mandatsRef, data.kategorie, eintrittDe,
-    '', data.strasse, data.plz, data.telefon || '',
-    data.kommentar || '', data.iban, data.bic || '', data.kontoinhaber,
-    'Ja', eintrittDe, 'Erst-Lastschrift', '', ''
-  ]);
+  // Sperre: Mandatsreferenz ermitteln + Zeilen anhaengen muss atomar sein,
+  // sonst bekommen zwei gleichzeitige Antraege dieselbe Referenz.
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('Mitglieder');
 
-  if (data.familienmitglieder && data.familienmitglieder.length > 0) {
-    data.familienmitglieder.forEach(function(fm) {
-      sheet.appendRow([
-        fm.nachname, fm.vorname, data.ort, data.email, maToDe(fm.geburtsdatum),
-        '', data.kategorie, eintrittDe,
-        fullName, data.strasse, data.plz, '',
-        '', '', '', '',
-        '', '', 'Erst-Lastschrift', '', ''
-      ]);
-    });
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(MA_HEADERS);
+      sheet.getRange(1, 1, 1, MA_HEADERS.length).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+
+    mandatsRef = maGenerateMandatsreferenz(sheet);
+
+    sheet.appendRow([
+      S(data.nachname), S(data.vorname), S(data.ort), S(data.email), geburtsDe,
+      mandatsRef, S(data.kategorie), eintrittDe,
+      '', S(data.strasse), S(data.plz), S(data.telefon || ''),
+      S(data.kommentar || ''), S(data.iban), S(data.bic || ''), S(data.kontoinhaber),
+      'Ja', eintrittDe, 'Erst-Lastschrift', '', ''
+    ]);
+
+    if (data.familienmitglieder && data.familienmitglieder.length > 0) {
+      data.familienmitglieder.forEach(function(fm) {
+        sheet.appendRow([
+          S(fm.nachname), S(fm.vorname), S(data.ort), S(data.email), maToDe(fm.geburtsdatum),
+          '', S(data.kategorie), eintrittDe,
+          S(fullName), S(data.strasse), S(data.plz), '',
+          '', '', '', '',
+          '', '', 'Erst-Lastschrift', '', ''
+        ]);
+      });
+    }
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
   }
 
+  // Der Antrag ist ab hier gespeichert. Ein Mail-Fehler (Kontingent leer,
+  // Adresse unzustellbar) darf daraus keinen Fehler machen – sonst schickt
+  // der Antragsteller erneut ab und es entstehen doppelte Zeilen. Beide
+  // Mails unabhaengig voneinander versuchen.
+  var mailBestaetigung = false;
   if (SEND_CONFIRMATION && data.email) {
-    maSendConfirmation(data, eintrittDe, mandatsRef);
+    try {
+      maSendConfirmation(data, eintrittDe, mandatsRef);
+      mailBestaetigung = true;
+    } catch (err) {
+      console.error('Mitgliedsantrag ' + mandatsRef + ': Bestaetigungsmail fehlgeschlagen: ' + err);
+    }
   }
-  maSendNotification(data, eintrittDe, mandatsRef);
+  try {
+    maSendNotification(data, eintrittDe, mandatsRef, mailBestaetigung);
+  } catch (err2) {
+    console.error('Mitgliedsantrag ' + mandatsRef + ': Benachrichtigung fehlgeschlagen: ' + err2);
+  }
 
-  return ContentService.createTextOutput(
-    JSON.stringify({ status: 'ok' })
-  ).setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse({ status: 'ok', mailBestaetigung: mailBestaetigung });
 }
 
 function maSendConfirmation(data, eintrittDe, mandatsRef) {
@@ -1588,7 +1772,7 @@ function maSendConfirmation(data, eintrittDe, mandatsRef) {
   });
 }
 
-function maSendNotification(data, eintrittDe, mandatsRef) {
+function maSendNotification(data, eintrittDe, mandatsRef, mailBestaetigung) {
   // Config prüfen: Benachrichtigung aktiv?
   var aktiv = getConfigValue('notify_mitgliedsantrag_aktiv');
   if (aktiv === 'nein') return;
@@ -1622,7 +1806,10 @@ function maSendNotification(data, eintrittDe, mandatsRef) {
     '  SEPA-Mandat:    ' + data.sepa_consent + '\n' +
     '  Arbeitsdienst:  ' + (data.arbeitsdienst || '–') + '\n' +
     '  Kommentar:      ' + (data.kommentar || '–') + '\n\n' +
-    'Eingegangen am: ' + eintrittDe;
+    'Eingegangen am: ' + eintrittDe +
+    (mailBestaetigung === false
+      ? '\n\nACHTUNG: Die Bestätigungsmail an den Antragsteller konnte NICHT gesendet werden. Bitte persönlich melden.'
+      : '');
 
   MailApp.sendEmail({
     to: notifyEmail,

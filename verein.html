@@ -560,6 +560,12 @@ const HD_URL = 'https://script.google.com/macros/s/AKfycbw2hUXLDIf0fns1e31UFirjg
 let hdTermine = [];
 let selectedDatum = null;
 
+// Alle Daten aus Backend/Kalender/Docs sind Fremdtext und werden vor dem
+// Einsetzen in HTML maskiert (sonst kann z.B. ein Terminname Skripte einschleusen).
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 // Termine laden
 async function loadHallendienst() {
   const container = document.getElementById('hdContent');
@@ -597,21 +603,21 @@ function renderHallendienst() {
     const dp = dateParts(t.datum);
     const mon = MONATE[parseInt(dp.month)] || dp.month;
     const cls = t.verfuegbar ? 'hd-open' : 'hd-taken';
-    const dataAttr = t.verfuegbar ? ` data-datum="${t.datum}" data-label="${t.wochentagLang}, ${t.datum} · ${t.uhrzeit}"` : '';
+    const dataAttr = t.verfuegbar ? ` data-datum="${esc(t.datum)}" data-label="${esc(t.wochentagLang)}, ${esc(t.datum)} · ${esc(t.uhrzeit)}"` : '';
     const status = t.verfuegbar
       ? '<span class="hd-badge-open">Frei — eintragen</span>'
-      : `<span class="hd-name">${t.name}</span>`;
+      : `<span class="hd-name">${esc(t.name)}</span>`;
 
     html += `
       <div class="hd-row ${cls}"${dataAttr}>
         <div class="hd-row-date">
-          <div class="hd-row-wt">${t.wochentag}</div>
-          <div class="hd-row-day">${dp.day}</div>
-          <div class="hd-row-month">${mon}</div>
+          <div class="hd-row-wt">${esc(t.wochentag)}</div>
+          <div class="hd-row-day">${esc(dp.day)}</div>
+          <div class="hd-row-month">${esc(mon)}</div>
         </div>
         <div class="hd-row-info">
-          <div class="hd-row-datum">${t.datum}</div>
-          <div class="hd-row-zeit">${t.uhrzeit}</div>
+          <div class="hd-row-datum">${esc(t.datum)}</div>
+          <div class="hd-row-zeit">${esc(t.uhrzeit)}</div>
         </div>
         <div class="hd-row-status">${status}</div>
       </div>`;

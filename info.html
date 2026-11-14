@@ -911,11 +911,15 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 // Hash-basiertes Tab-Switching (z.B. info.html#datenschutz)
-if (window.location.hash) {
-  const hash = window.location.hash.substring(1);
-  const tab = HASH_TO_TAB[hash];
+// Erst nach dem vollstaendigen Laden ausfuehren: switchTab greift auf
+// Konstanten zu, die weiter unten im Skript angelegt werden (sonst bricht
+// das ganze Seitenskript bei info.html#haftungsausschluss ab).
+function applyHash() {
+  const tab = HASH_TO_TAB[window.location.hash.substring(1)];
   if (tab) switchTab(tab);
 }
+document.addEventListener('DOMContentLoaded', applyHash);
+window.addEventListener('hashchange', applyHash);
 
 // ===== PROGRESS INDICATOR =====
 function startProgress(fillId, stepIds) {

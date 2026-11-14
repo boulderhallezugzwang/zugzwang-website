@@ -1,0 +1,20 @@
+{
+  "scriptId": "1RF4NrcIx0Ew6Uo8Qkdhl5lAfL7Aa3Q1G55ZNwTFgq9kgkkdt2S02A1vD",
+  "rootDir": "",
+  "scriptExtensions": [
+    ".js",
+    ".gs"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [
+    "Mitgliedsantrag.gs",
+    "Mitgliederliste.gs",
+    "Menue.gs"
+  ],
+  "skipSubdirectories": false
+}

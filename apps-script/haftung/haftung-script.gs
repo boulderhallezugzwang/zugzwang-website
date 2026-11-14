@@ -93,9 +93,87 @@ const DSGVO_TEXT = [
 // HAUPTFUNKTION
 // ═══════════════════════════════════════════════════
 
+// Text aus dem oeffentlichen Formular sicher in eine Zelle schreiben:
+// ein fuehrendes = + - @ wuerde von Sheets als Formel ausgewertet.
+function sheetSafe(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v !== 'string') return v;
+  var s = v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 2000);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+
+function isEmail(s) {
+  return typeof s === 'string' && s.length <= 120 &&
+    /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/.test(s.trim());
+}
+
+// Alle Textfelder der Anfrage begrenzen (rekursiv). longKeys duerfen gross sein
+// (z.B. die Unterschrift als Bild). Gibt Fehlermeldung oder '' zurueck.
+function checkLengths(obj, longKeys, depth) {
+  if (depth > 3) return 'Ungültige Anfrage.';
+  var keys = Object.keys(obj);
+  if (keys.length > 60) return 'Ungültige Anfrage.';
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i], v = obj[k];
+    if (typeof v === 'string') {
+      var max = longKeys.indexOf(k) !== -1 ? 2000000 : 500;
+      if (v.length > max) return 'Eingabe zu lang: ' + k;
+    } else if (Array.isArray(v)) {
+      if (v.length > 12) return 'Zu viele Einträge: ' + k;
+      for (var j = 0; j < v.length; j++) {
+        if (!v[j] || typeof v[j] !== 'object') return 'Ungültige Anfrage.';
+        var e = checkLengths(v[j], longKeys, depth + 1);
+        if (e) return e;
+      }
+    } else if (v && typeof v === 'object') {
+      return 'Ungültige Anfrage.';
+    }
+  }
+  return '';
+}
+
+function requireText(data, fields) {
+  for (var i = 0; i < fields.length; i++) {
+    if (typeof data[fields[i]] !== 'string' || !data[fields[i]].trim()) return 'Pflichtfeld fehlt: ' + fields[i];
+  }
+  return '';
+}
+
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// Eingaben pruefen; gibt Fehlermeldung oder '' zurueck.
+function validateHaftung(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return 'Ungültige Anfrage.';
+  var fehler = checkLengths(data, ['unterschrift'], 0);
+  if (fehler) return fehler;
+  if (!isEmail(data.email)) return 'Bitte eine gültige E-Mail-Adresse angeben.';
+  if (typeof data.unterschrift !== 'string' || data.unterschrift.indexOf('data:image/png;base64,') !== 0) return 'Unterschrift fehlt.';
+  if (data.typ === 'erwachsen') {
+    return requireText(data, ['vorname', 'nachname', 'geburtsdatum']);
+  }
+  if (data.typ === 'erziehungsberechtigter') {
+    fehler = requireText(data, ['eVorname', 'eNachname']);
+    if (fehler) return fehler;
+    if (!Array.isArray(data.kinder) || data.kinder.length < 1) return 'Bitte mindestens ein Kind angeben.';
+    for (var i = 0; i < data.kinder.length; i++) {
+      fehler = requireText(data.kinder[i], ['vorname', 'nachname', 'geburtsdatum']);
+      if (fehler) return fehler;
+    }
+    return '';
+  }
+  if (data.typ === 'jugendlicher') {
+    return requireText(data, ['eVorname', 'eNachname', 'kVorname', 'kNachname', 'kGeburtsdatum']);
+  }
+  return 'Unbekannter Formulartyp.';
+}
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    var fehler = validateHaftung(data);
+    if (fehler) return jsonOut({ status: 'error', message: fehler });
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
     // ── Sheet anlegen oder finden ──
@@ -107,8 +185,15 @@ function doPost(e) {
       sheet.setFrozenRows(1);
     }
 
-    var datum = data.datum || todayDe();
+    // Das Datum setzt der Server – nicht der Absender.
+    var datum = todayDe();
     var pdfFile;
+    var appendSafe = function(row) { sheet.appendRow(row.map(sheetSafe)); };
+    // PDF + Tabellenzeile sind gespeichert, bevor gemailt wird; ein Mail-Fehler
+    // (z.B. leeres Kontingent) darf daraus keinen Fehler machen.
+    var tryMail = function(fn) {
+      try { fn(); } catch (errMail) { console.error('Haftung: Mail fehlgeschlagen: ' + errMail); }
+    };
 
     if (data.typ === 'erwachsen') {
       // ── Erwachsener ──
@@ -117,7 +202,7 @@ function doPost(e) {
       var pdfUrl = pdfFile.getUrl();
 
       var adresse = (data.strasse || '') + ', ' + (data.plz || '') + ' ' + (data.ort || '');
-      sheet.appendRow([
+      appendSafe([
         'Haftungsausschluss (Erwachsen)',
         data.vorname,
         data.nachname,
@@ -129,8 +214,8 @@ function doPost(e) {
         pdfUrl
       ]);
 
-      sendBestaetigungAdult(data, datum, pdfFile);
-      sendNotifyHaftung('Erwachsener', data.vorname + ' ' + data.nachname, datum);
+      tryMail(function() { sendBestaetigungAdult(data, datum, pdfFile); });
+      tryMail(function() { sendNotifyHaftung('Erwachsener', data.vorname + ' ' + data.nachname, datum); });
 
     } else if (data.typ === 'erziehungsberechtigter') {
       // ── Erziehungsberechtigter + Kinder ──
@@ -142,7 +227,7 @@ function doPost(e) {
       var pdfUrl = pdfFile.getUrl();
 
       var adresse = (data.strasse || '') + ', ' + (data.plz || '') + ' ' + (data.ort || '');
-      sheet.appendRow([
+      appendSafe([
         'Haftungsausschluss (Minderjährige)',
         data.eVorname,
         data.eNachname,
@@ -154,8 +239,8 @@ function doPost(e) {
         pdfUrl
       ]);
 
-      sendBestaetigungMinor(data, datum, pdfFile);
-      sendNotifyHaftung('Minderjährige', data.eVorname + ' ' + data.eNachname + ' (für ' + kinderStr + ')', datum);
+      tryMail(function() { sendBestaetigungMinor(data, datum, pdfFile); });
+      tryMail(function() { sendNotifyHaftung('Minderjährige', data.eVorname + ' ' + data.eNachname + ' (für ' + kinderStr + ')', datum); });
 
     } else if (data.typ === 'jugendlicher') {
       // ── Einverständnis Jugendlicher ──
@@ -165,7 +250,7 @@ function doPost(e) {
 
       var adresse = (data.strasse || '') + ', ' + (data.plz || '') + ' ' + (data.ort || '');
       var jugendInfo = data.kVorname + ' ' + data.kNachname + ' (' + kGeb + ')';
-      sheet.appendRow([
+      appendSafe([
         'Einverständniserklärung',
         data.eVorname,
         data.eNachname,
@@ -177,19 +262,15 @@ function doPost(e) {
         pdfUrl
       ]);
 
-      sendBestaetigungJugend(data, kGeb, datum, pdfFile);
-      sendNotifyHaftung('Einverständnis Jugendliche/r', data.eVorname + ' ' + data.eNachname + ' (für ' + data.kVorname + ' ' + data.kNachname + ')', datum);
+      tryMail(function() { sendBestaetigungJugend(data, kGeb, datum, pdfFile); });
+      tryMail(function() { sendNotifyHaftung('Einverständnis Jugendliche/r', data.eVorname + ' ' + data.eNachname + ' (für ' + data.kVorname + ' ' + data.kNachname + ')', datum); });
     }
 
-    return ContentService.createTextOutput(
-      JSON.stringify({ status: 'ok' })
-    ).setMimeType(ContentService.MimeType.JSON);
+    return jsonOut({ status: 'ok' });
 
   } catch (error) {
-    Logger.log('Fehler: ' + error.toString());
-    return ContentService.createTextOutput(
-      JSON.stringify({ status: 'error', message: error.toString() })
-    ).setMimeType(ContentService.MimeType.JSON);
+    console.error('Fehler: ' + error.toString());
+    return jsonOut({ status: 'error', message: 'Das Formular konnte nicht verarbeitet werden.' });
   }
 }
 
