@@ -24,7 +24,12 @@ function ctx(sheets){ const mails=[]; const cache={};
   const props={}; c.props=props;
   c.PropertiesService={getScriptProperties(){return{getProperty(k){return props[k]||null},setProperty(k,v){props[k]=v}}}};
   c.Utilities.formatDate=(d)=>d.toISOString().slice(0,10);
-  c.Utilities.newBlob=()=>({});
+  c.Utilities.newBlob=(d,t,n)=>({getName(){return n||''},getBytes(){return [...Buffer.from(String(d))]},copyBlob(){return this},setName(){return this}});
+  c.Session={getEffectiveUser(){return{getEmail(){return 'admin@example.org'}}},getActiveUser(){return{getEmail(){return ''}}}};
+  c.brevo={calls:[],respond:()=>({code:201,body:'{"messageId":"x"}'})};
+  c.UrlFetchApp={fetch(url,o){ const p=JSON.parse(o.payload); c.brevo.calls.push({url,key:o.headers['api-key'],p}); const r=c.brevo.respond(p,c.brevo.calls.length); if(r.throw) throw new Error('net'); return {getResponseCode(){return r.code},getContentText(){return r.body||''}}; }};
+  c.gmailQuota=100; c.MailApp.getRemainingDailyQuota=()=>c.gmailQuota;
+  const origSend=c.MailApp.sendEmail; c.MailApp.sendEmail=(m)=>{ origSend(m); c.gmailQuota--; };
   const cals={}; c.cals=cals; let seq=0;
   c.CalendarApp={getCalendarById(id){ if(!cals[id]) cals[id]=[]; const list=cals[id]; const wrap=e=>({getId(){return e.id},getTitle(){return e.titel},getStartTime(){return e.start},getEndTime(){return e.end},getDescription(){return e.desc},setTitle(t){e.titel=t},setTime(a,b){e.start=a;e.end=b},setDescription(d){e.desc=d},deleteEvent(){list.splice(list.indexOf(e),1)}});
     return { createEvent(t,a,b,o){const e={id:'ev'+(++seq)+'@google.com',titel:t,start:a,end:b,desc:(o&&o.description)||''};list.push(e);return wrap(e);}, getEventById(i){const e=list.find(x=>x.id===i);return e?wrap(e):null;}, getEvents(a,b){return list.filter(e=>e.start>=a&&e.start<=b).map(wrap);} }; }};
@@ -147,5 +152,43 @@ ok(r.ok&&RS.length===1&&!/Rückmeldung/.test(r.message),'Termin ohne Rueckmeldun
 r=post(c,{...A,action:'createEvent',kalender:'events',titel:'Weg',datum:zukunft,zeitVon:'18:00',zeitBis:'19:00',beschreibung:'',mailMode:'none',remindHours:'0',rsvpAktiv:true,rsvpEmail:'o@example.org'});
 const weg=post(c,{...A,action:'getEvents'}).events.find(e=>e.titel==='Weg');
 r=post(c,{...A,action:'deleteEvent',kalender:'events',eventId:weg.id,mailMode:'none'}); ok(r.ok&&RS.length===1,'Termin loeschen entfernt die Rueckmelde-Zeile');
+
+// ---- Externer Maildienst (Brevo) fuer Rundmails
+const mk=n=>Array.from({length:n},(_,i)=>'m'+i+'@example.org');
+function mailCtx(props){ const cc=ctx({Mitglieder:mkSheet([MH.slice()]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B']])}); load(cc,'apps-script/mitgliederliste/Mitgliederliste.gs'); Object.assign(cc.props,props||{}); return cc; }
+const O={subject:'Betreff',body:'Hallo,\nLink: https://zugzwang-auerbach.de/x.html?t=1&a=ja.\n<b>kein html</b>',name:'Verein'};
+c=mailCtx(); let smc=vm.runInContext('sendMailChunk',c);
+r=smc(O,mk(5)); ok(r.sent===5&&c.brevo.calls.length===0&&c.mails.length===5,'ohne Schluessel: alles wie bisher ueber Gmail');
+c=mailCtx({BREVO_API_KEY:'k'}); smc=vm.runInContext('sendMailChunk',c); smc(O,mk(2)); ok(c.brevo.calls.length===0,'Schluessel ohne Absenderadresse: Brevo bleibt aus');
+const BP={BREVO_API_KEY:'geheim',MAIL_FROM_EMAIL:'verein@zugzwang-auerbach.de'};
+c=mailCtx(BP); smc=vm.runInContext('sendMailChunk',c);
+r=smc({...O,attachments:[c.Utilities.newBlob('ICS','text/calendar','termin.ics')]},mk(3));
+const bc=c.brevo.calls[0];
+ok(r.sent===3&&r.remaining.length===0&&c.mails.length===0&&c.brevo.calls.length===3,'mit Schluessel: Versand ueber Brevo, Gmail unberuehrt');
+ok(bc.url==='https://api.brevo.com/v3/smtp/email'&&bc.key==='geheim'&&bc.p.sender.email==='verein@zugzwang-auerbach.de'&&bc.p.replyTo.email==='boulderhallezugzwang@gmail.com'&&bc.p.to.length===1&&bc.p.to[0].email==='m0@example.org','Brevo-Anfrage: Absender, Antwortadresse, ein Empfaenger je Mail');
+ok(bc.p.textContent===O.body&&bc.p.htmlContent.includes('&lt;b&gt;kein html&lt;/b&gt;')&&bc.p.htmlContent.includes('<a href="https://zugzwang-auerbach.de/x.html?t=1&amp;a=ja">')&&bc.p.htmlContent.includes('<br>'),'Text wird sicher in HTML gewandelt, Links klickbar');
+ok(bc.p.attachment[0].name==='termin.ics'&&Buffer.from(bc.p.attachment[0].content,'base64').toString()==='ICS','ICS-Anhang wird mitgeschickt');
+// Limit: 300 ueber Brevo, Rest ueber Gmail (98 = 100 minus Reserve), Rest in die Warteschlange
+c=mailCtx(BP); smc=vm.runInContext('sendMailChunk',c);
+r=smc(O,mk(450)); ok(c.brevo.calls.length===300&&c.mails.length===98&&r.sent===398&&r.remaining.length===52&&r.remaining[0]==='m398@example.org','450 Empfaenger: 300 Brevo + 98 Gmail, 52 in die Warteschlange');
+r=smc(O,mk(10)); ok(c.brevo.calls.length===300&&r.sent===0&&r.remaining.length===10,'Tageslimit erreicht: nichts mehr, alles wartet');
+ok(vm.runInContext('mailCapacityNow',c)()===0,'Kapazitaet 0 nach Ausschoepfen');
+c=mailCtx({...BP,BREVO_DAILY_LIMIT:'20'}); smc=vm.runInContext('sendMailChunk',c); c.gmailQuota=0;
+r=smc(O,mk(25)); ok(r.sent===20&&r.remaining.length===5,'eigenes Tageslimit wird beachtet');
+// Fehlerfaelle
+c=mailCtx(BP); smc=vm.runInContext('sendMailChunk',c); c.brevo.respond=()=>({code:401,body:'{"code":"unauthorized","message":"Key not found"}'});
+r=smc(O,mk(4)); ok(r.sent===4&&c.mails.length===4&&c.brevo.calls.length===1&&r.failed.length===0,'ungueltiger Schluessel: Rueckfall auf Gmail, niemand als fehlgeschlagen');
+c=mailCtx(BP); smc=vm.runInContext('sendMailChunk',c); c.gmailQuota=0; c.brevo.respond=(p,n)=>n===2?{code:400,body:'{"code":"invalid_parameter","message":"email is not valid"}'}:{code:201,body:'{}'};
+r=smc(O,mk(4)); ok(r.sent===3&&r.failed.length===1&&r.failed[0]==='m1@example.org'&&r.remaining.length===0,'abgelehnte Adresse zaehlt als fehlgeschlagen, Rest geht raus');
+c=mailCtx(BP); smc=vm.runInContext('sendMailChunk',c); c.gmailQuota=0; c.brevo.respond=(p,n)=>n>=3?{code:400,body:'{"code":"not_enough_credits","message":"x"}'}:{code:201,body:'{}'};
+r=smc(O,mk(6)); ok(r.sent===2&&r.failed.length===0&&r.remaining.length===4,'Brevo meldet Limit: Rest wartet, niemand fehlgeschlagen');
+r=smc(O,mk(2)); ok(c.brevo.calls.length===3&&r.remaining.length===2,'danach wird Brevo heute nicht mehr angefragt');
+c=mailCtx(BP); smc=vm.runInContext('sendMailChunk',c); c.gmailQuota=0; c.brevo.respond=(p,n)=>n===2?{throw:true}:{code:201,body:'{}'};
+r=smc(O,mk(5)); ok(r.sent===1&&r.failed.length===0&&r.remaining.length===4,'Netzwerkfehler: Rest wartet statt verloren zu gehen');
+// Termin-Mail laeuft durch denselben Weg
+sh={Mitglieder:mkSheet([MH.slice(),['A','B','O','m1@example.org','','','Erwachsene'],['C','D','O','m2@example.org','','','Erwachsene']]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein']])};
+c=ctx(sh); load(c,'apps-script/mitgliederliste/Mitgliederliste.gs'); Object.assign(c.props,BP);
+r=post(c,{username:'anna',password:'geheim12',action:'createEvent',kalender:'events',titel:'Fest',datum:zukunft,zeitVon:'18:00',zeitBis:'21:00',beschreibung:'',mailMode:'all',remindHours:'0',rsvpAktiv:true,rsvpEmail:'o@example.org'});
+ok(r.ok&&c.brevo.calls.length===2&&c.mails.length===0&&/rueckmeldung\.html\?t=[0-9a-f]{40}&amp;a=ja/.test(c.brevo.calls[0].p.htmlContent)&&c.brevo.calls[0].p.attachment[0].name==='termin.ics','Termin-Mail mit Rueckmelde-Link und ICS geht ueber Brevo');
 
 console.log(fails?('\n'+fails+' FEHLGESCHLAGEN'):'\nalle Tests bestanden'); process.exit(fails?1:0);

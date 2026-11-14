@@ -1013,9 +1013,202 @@ function setupMailQueueTrigger() {
     .create();
 }
 
-// Sendet so viele Mails wie das verbleibende Tageskontingent erlaubt.
+// ── Externer Maildienst (Brevo) fuer Rundmails ──
+//
+// Das Gmail-Konto darf per Apps Script nur ~100 Empfaenger/Tag anschreiben.
+// Rundmails (Termine, Erinnerungen, Newsletter, Warteschlange) gehen deshalb
+// ueber die Brevo-API, sobald in den Skripteigenschaften
+// (Editor → Projekteinstellungen → Skripteigenschaften) gesetzt ist:
+//   BREVO_API_KEY      API-Schluessel (NIE ins Repo schreiben)
+//   MAIL_FROM_EMAIL    bei Brevo bestaetigte Absenderadresse der eigenen Domain
+//   MAIL_REPLY_TO      optional, Antwortadresse (Standard: Vereins-Gmail)
+//   BREVO_DAILY_LIMIT  optional, Standard 300 (kostenlose Stufe)
+// Fehlt der Schluessel, laeuft alles wie bisher ueber Gmail. Ist das Brevo-
+// Tageslimit erreicht, geht der Rest noch am selben Tag ueber Gmail, was dann
+// noch uebrig bleibt in die Warteschlange.
+// Einzelmails (Antrag, Hallendienst, Kuendigung ...) bleiben bei Gmail.
+
+var BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
+var BREVO_DEFAULT_LIMIT = 300;
+var BREVO_BILDER_ORDNER = 'Zugzwang_Newsletter_Bilder';
+
+function brevoConfig() {
+  var props = PropertiesService.getScriptProperties();
+  var key = (props.getProperty('BREVO_API_KEY') || '').trim();
+  var from = (props.getProperty('MAIL_FROM_EMAIL') || '').trim();
+  if (!key || !maIsEmail(from)) return null;
+  var limit = parseInt(props.getProperty('BREVO_DAILY_LIMIT') || '', 10);
+  return {
+    key: key,
+    from: from,
+    replyTo: (props.getProperty('MAIL_REPLY_TO') || '').trim() || VEREIN_EMAIL_FALLBACK,
+    limit: (limit > 0) ? limit : BREVO_DEFAULT_LIMIT
+  };
+}
+
+// Brevo zaehlt pro UTC-Tag; wir fuehren den Zaehler selbst mit.
+function brevoCountKey() {
+  return 'brevo_count_' + Utilities.formatDate(new Date(), 'UTC', 'yyyy-MM-dd');
+}
+
+function brevoRemaining(cfg) {
+  var used = parseInt(PropertiesService.getScriptProperties().getProperty(brevoCountKey()) || '0', 10) || 0;
+  return Math.max(0, cfg.limit - used);
+}
+
+function brevoAddCount(n) {
+  if (n <= 0) return;
+  var props = PropertiesService.getScriptProperties();
+  var key = brevoCountKey();
+  props.setProperty(key, String((parseInt(props.getProperty(key) || '0', 10) || 0) + n));
+}
+
+// Wie viele Rundmail-Empfaenger gehen jetzt noch raus (Brevo + Gmail)?
+function mailCapacityNow() {
+  var cfg = brevoConfig();
+  var gmail = Math.max(0, MailApp.getRemainingDailyQuota() - MAIL_QUOTA_BUFFER);
+  return (cfg ? brevoRemaining(cfg) : 0) + gmail;
+}
+
+function mailEscHtml(t) {
+  return String(t === null || t === undefined ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Reiner Text → schlichtes HTML (Brevo verlangt immer eine HTML-Fassung)
+function mailTextToHtml(text) {
+  var html = mailEscHtml(text)
+    .replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g, '<a href="$1">$1</a>')
+    .replace(/\r?\n/g, '<br>\n');
+  return '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#222;">' + html + '</div>';
+}
+
+// Brevo kann keine eingebetteten (cid:) Bilder. Newsletter-Bilder werden
+// deshalb dauerhaft in einem per Link lesbaren Drive-Ordner abgelegt und im
+// HTML verlinkt. Der Dateiname ist der Hash des Inhalts → kein Doppel-Upload.
+function brevoHostInlineImages(html, inlineImages) {
+  var keys = Object.keys(inlineImages || {});
+  if (keys.length === 0) return html;
+  var it = DriveApp.getFoldersByName(BREVO_BILDER_ORDNER);
+  var folder = it.hasNext() ? it.next() : DriveApp.createFolder(BREVO_BILDER_ORDNER);
+  for (var i = 0; i < keys.length; i++) {
+    var blob = inlineImages[keys[i]];
+    var hash = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, blob.getBytes())
+      .map(function(b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+    var vorhanden = folder.getFilesByName(hash);
+    var file = vorhanden.hasNext() ? vorhanden.next() : folder.createFile(blob.copyBlob().setName(hash));
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    html = html.split('cid:' + keys[i]).join('https://lh3.googleusercontent.com/d/' + file.getId());
+  }
+  return html;
+}
+
+// Versand ueber Brevo. Rueckgabe wie sendMailChunk, zusaetzlich
+//   fallback: true  → Schluessel/Konto abgelehnt, bitte Gmail nehmen
+function sendMailChunkBrevo(cfg, opts, recipients) {
+  var out = { sent: 0, remaining: [], failed: [], fallback: false };
+  var maxNow = Math.min(recipients.length, brevoRemaining(cfg));
+  if (maxNow <= 0) { out.remaining = recipients.slice(); return out; }
+
+  var html;
+  try {
+    html = opts.htmlBody ? brevoHostInlineImages(opts.htmlBody, opts.inlineImages) : mailTextToHtml(opts.body || '');
+  } catch (eImg) {
+    console.error('[Brevo] Bilder konnten nicht abgelegt werden: ' + eImg);
+    out.remaining = recipients.slice(); out.fallback = true;
+    return out;
+  }
+
+  var base = {
+    sender: { name: opts.name || 'Boulderverein Zugzwang e.V.', email: cfg.from },
+    replyTo: { email: cfg.replyTo },
+    subject: opts.subject,
+    htmlContent: html,
+    textContent: opts.body || ''
+  };
+  if (opts.attachments && opts.attachments.length) {
+    base.attachment = opts.attachments.map(function(blob) {
+      return { name: blob.getName() || 'anhang.ics', content: Utilities.base64Encode(blob.getBytes()) };
+    });
+  }
+
+  var i = 0;
+  for (; i < maxNow; i++) {
+    var payload = {};
+    for (var k in base) payload[k] = base[k];
+    payload.to = [{ email: recipients[i] }];
+    var code = 0, text = '';
+    try {
+      var resp = UrlFetchApp.fetch(BREVO_URL, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { 'api-key': cfg.key, 'accept': 'application/json' },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      });
+      code = resp.getResponseCode();
+      text = resp.getContentText() || '';
+    } catch (eNet) {
+      console.error('[Brevo] Netzwerkfehler: ' + eNet);
+      break;                                   // Rest spaeter erneut versuchen
+    }
+
+    if (code === 201 || code === 202) { out.sent++; continue; }
+
+    var errCode = '';
+    try { errCode = (JSON.parse(text).code || '').toString(); } catch (eJson) {}
+    console.error('[Brevo] HTTP ' + code + ' ' + errCode + ' an ' + recipients[i] + ': ' + text.slice(0, 200));
+
+    if (code === 401 || code === 403 || errCode === 'unauthorized' || errCode === 'permission_denied') {
+      out.fallback = true;                     // Schluessel/Absender nicht (mehr) gueltig
+      break;
+    }
+    if (code === 402 || code === 429 || /credits/i.test(errCode)) {
+      // Tageslimit bei Brevo erreicht: eigenen Zaehler hochsetzen, Rest wandert weiter
+      PropertiesService.getScriptProperties().setProperty(brevoCountKey(), String(cfg.limit));
+      break;
+    }
+    if (code >= 500) break;                    // Stoerung bei Brevo → spaeter erneut
+    out.failed.push(recipients[i]);            // 400: diese Adresse wird nicht angenommen
+  }
+
+  brevoAddCount(out.sent);
+  out.remaining = recipients.slice(i);
+  Logger.log('  [Brevo] sent=' + out.sent + ', failed=' + out.failed.length + ', remaining=' + out.remaining.length + ', fallback=' + out.fallback);
+  return out;
+}
+
+// Sendet so viele Mails wie heute noch moeglich sind: zuerst ueber Brevo
+// (falls eingerichtet), den Rest ueber Gmail.
 // Gibt zurueck: { sent, remaining: [], failed: [] }
 function sendMailChunk(opts, recipients) {
+  var cfg = brevoConfig();
+  if (!cfg) return sendMailChunkGmail(opts, recipients);
+
+  var b = sendMailChunkBrevo(cfg, opts, recipients);
+  if (b.remaining.length === 0) return { sent: b.sent, remaining: [], failed: b.failed };
+
+  var g = sendMailChunkGmail(opts, b.remaining);
+  return { sent: b.sent + g.sent, remaining: g.remaining, failed: b.failed.concat(g.failed) };
+}
+
+// Einmal im Skript-Editor ausfuehren, um die Einrichtung zu pruefen:
+// schickt EINE Testmail ueber Brevo an die Admin-Adresse und protokolliert das Ergebnis.
+function testMailProvider() {
+  var cfg = brevoConfig();
+  if (!cfg) { Logger.log('Brevo ist nicht eingerichtet: BREVO_API_KEY und MAIL_FROM_EMAIL in den Skripteigenschaften setzen.'); return; }
+  var an = getAdminMailAddress();
+  var r = sendMailChunkBrevo(cfg, {
+    subject: 'Testmail über Brevo – Boulderverein Zugzwang',
+    body: 'Diese Testmail wurde über den externen Maildienst verschickt.\n\nAbsender: ' + cfg.from + '\nAntwort an: ' + cfg.replyTo + '\nhttps://zugzwang-auerbach.de',
+    name: 'Boulderverein Zugzwang e.V.'
+  }, [an]);
+  Logger.log('Testmail an ' + an + ': ' + JSON.stringify({ sent: r.sent, failed: r.failed.length, fallback: r.fallback }) +
+    ' | heute über Brevo noch möglich: ' + brevoRemaining(cfg));
+}
+
+// Versand ueber das Gmail-Konto (MailApp), begrenzt durch dessen Tageskontingent.
+function sendMailChunkGmail(opts, recipients) {
   var quota = MailApp.getRemainingDailyQuota();
   var maxNow = Math.max(0, quota - MAIL_QUOTA_BUFFER);
   Logger.log('  [sendMailChunk] quota=' + quota + ', buffer=' + MAIL_QUOTA_BUFFER + ', maxNow=' + maxNow + ', recipients=' + recipients.length);
@@ -1122,10 +1315,10 @@ function processMailQueue() {
       Logger.log('  -> skip (status !== "pending")');
       continue;
     }
-    var quotaNow = MailApp.getRemainingDailyQuota();
-    Logger.log('  Quota vor Versand: ' + quotaNow + ' (Buffer ' + MAIL_QUOTA_BUFFER + ')');
-    if (quotaNow <= MAIL_QUOTA_BUFFER) {
-      Logger.log('  -> break (Quota erschoepft)');
+    var quotaNow = mailCapacityNow();
+    Logger.log('  Kapazitaet vor Versand (Brevo + Gmail): ' + quotaNow);
+    if (quotaNow <= 0) {
+      Logger.log('  -> break (Kontingent erschoepft)');
       break;
     }
 
