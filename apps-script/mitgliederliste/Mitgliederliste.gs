@@ -1203,7 +1203,14 @@ function sendMailChunkBrevo(cfg, opts, recipients) {
       break;
     }
     if (code >= 500) break;                    // Stoerung bei Brevo → spaeter erneut
-    out.failed.push(recipients[i]);            // 400: diese Adresse wird nicht angenommen
+    if (code === 400 && (errCode === 'invalid_parameter' || errCode === 'missing_parameter')) {
+      out.failed.push(recipients[i]);          // diese eine Adresse wird nicht angenommen
+      continue;
+    }
+    // Alles andere liegt nicht am Empfaenger (Kontingent, Konto, unbekannter
+    // Fehler): niemanden als fehlgeschlagen abschreiben, Rest ueber Gmail.
+    out.fallback = true;
+    break;
   }
 
   brevoAddCount(out.sent);

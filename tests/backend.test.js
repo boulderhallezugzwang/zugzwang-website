@@ -271,6 +271,8 @@ r=smc(O,mk(6)); ok(r.sent===2&&r.failed.length===0&&r.remaining.length===4,'Brev
 r=smc(O,mk(2)); ok(c.brevo.calls.length===3&&r.remaining.length===2,'danach wird Brevo heute nicht mehr angefragt');
 c=mailCtx(BP); smc=vm.runInContext('sendMailChunk',c); c.gmailQuota=0; c.brevo.respond=(p,n)=>n===2?{throw:true}:{code:201,body:'{}'};
 r=smc(O,mk(5)); ok(r.sent===1&&r.failed.length===0&&r.remaining.length===4,'Netzwerkfehler: Rest wartet statt verloren zu gehen');
+c=mailCtx(BP); smc=vm.runInContext('sendMailChunk',c); c.brevo.respond=(p,n)=>n>=3?{code:400,body:'{"code":"account_limit_reached","message":"monthly quota"}'}:{code:201,body:'{}'};
+r=smc(O,mk(6)); ok(r.sent===6&&r.failed.length===0&&r.remaining.length===0&&c.mails.length===4,'unbekannter Brevo-Fehler (z.B. Monatskontingent): Rest geht ueber Gmail, niemand fehlgeschlagen');
 // Termin-Mail laeuft durch denselben Weg
 sh={Mitglieder:mkSheet([MH.slice(),['A','B','O','m1@example.org','','','Erwachsene'],['C','D','O','m2@example.org','','','Erwachsene']]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein']])};
 c=ctx(sh); load(c,'apps-script/mitgliederliste/Mitgliederliste.gs'); Object.assign(c.props,BP);
