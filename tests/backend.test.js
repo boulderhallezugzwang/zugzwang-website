@@ -120,7 +120,7 @@ ok(r.ok&&/Rückmeldung aktiv/.test(r.message),'Termin mit Rueckmeldung angelegt'
 const RS=sh['Rückmeldungen'].rows; const tok=RS[1][0];
 ok(RS.length===2&&/^[0-9a-f]{40}$/.test(tok)&&/^a/.test(tok)&&RS[1][5]==='orga@example.org','Zeile in Tab Rueckmeldungen mit Token');
 const evMail=c.mails.find(m=>/Sommerfest/.test(m.subject));
-ok(evMail&&evMail.body.includes('rueckmeldung.html?t='+tok+'&a=ja')&&evMail.body.includes('&a=nein'),'Termin-Mail enthaelt Zusage- und Absage-Link');
+ok(evMail&&evMail.body.includes('rueckmeldung.html?t='+tok+'\n')&&!/[?&]a=(ja|nein)/.test(evMail.body),'Termin-Mail enthaelt einen Rueckmelde-Link ohne Antwort in der Adresse');
 ok(!JSON.stringify(c.mails).includes('github.io'),'Termin-Mail nennt die neue Domain');
 r=post(c,{action:'rsvpInfo',t:tok}); ok(r.ok&&r.titel==='Sommerfest'&&r.vorbei===false&&!('email' in r)&&!('ja' in r),'rsvpInfo oeffentlich: Titel/Datum, keine Zaehler/E-Mail');
 ok(post(c,{action:'rsvpInfo',t:'x'}).error&&post(c,{action:'rsvp',t:'a'+'0'.repeat(39),antwort:'ja'}).error,'ungueltiges/unbekanntes Token abgelehnt');
@@ -189,6 +189,6 @@ r=smc(O,mk(5)); ok(r.sent===1&&r.failed.length===0&&r.remaining.length===4,'Netz
 sh={Mitglieder:mkSheet([MH.slice(),['A','B','O','m1@example.org','','','Erwachsene'],['C','D','O','m2@example.org','','','Erwachsene']]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein']])};
 c=ctx(sh); load(c,'apps-script/mitgliederliste/Mitgliederliste.gs'); Object.assign(c.props,BP);
 r=post(c,{username:'anna',password:'geheim12',action:'createEvent',kalender:'events',titel:'Fest',datum:zukunft,zeitVon:'18:00',zeitBis:'21:00',beschreibung:'',mailMode:'all',remindHours:'0',rsvpAktiv:true,rsvpEmail:'o@example.org'});
-ok(r.ok&&c.brevo.calls.length===2&&c.mails.length===0&&/rueckmeldung\.html\?t=[0-9a-f]{40}&amp;a=ja/.test(c.brevo.calls[0].p.htmlContent)&&c.brevo.calls[0].p.attachment[0].name==='termin.ics','Termin-Mail mit Rueckmelde-Link und ICS geht ueber Brevo');
+ok(r.ok&&c.brevo.calls.length===2&&c.mails.length===0&&/<a href="https:\/\/zugzwang-auerbach\.de\/rueckmeldung\.html\?t=[0-9a-f]{40}">/.test(c.brevo.calls[0].p.htmlContent)&&c.brevo.calls[0].p.attachment[0].name==='termin.ics','Termin-Mail mit Rueckmelde-Link und ICS geht ueber Brevo');
 
 console.log(fails?('\n'+fails+' FEHLGESCHLAGEN'):'\nalle Tests bestanden'); process.exit(fails?1:0);

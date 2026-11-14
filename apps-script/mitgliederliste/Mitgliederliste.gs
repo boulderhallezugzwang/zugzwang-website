@@ -2046,7 +2046,7 @@ function maSendNotification(data, eintrittDe, mandatsRef, mailBestaetigung) {
 // ═══════════════════════════════════════════════════
 //
 // Beim Termin laesst sich eine Rueckmeldung einschalten. Die Termin-Mail
-// enthaelt dann zwei Links auf rueckmeldung.html (Zusage / Absage). Gezaehlt
+// enthaelt dann einen Link auf rueckmeldung.html (dort Zusage / Absage). Gezaehlt
 // wird bewusst OHNE Namen: nur wie viele Zu- und Absagen es gibt.
 // Die Links fuehren auf eine Bestaetigungsseite und zaehlen erst nach einem
 // Klick dort – Mailprogramme rufen Links oft vorab automatisch auf.
@@ -2166,10 +2166,11 @@ function rsvpLoadMap(mitToken) {
 // Textblock fuer Termin-, Aenderungs- und Erinnerungsmail
 function rsvpMailBlock(token) {
   if (!token) return '';
-  var base = RSVP_SITE + '/rueckmeldung.html?t=' + token + '&a=';
-  return '\nKommst Du? Bitte gib uns kurz Bescheid:\n' +
-    '  Zusage: ' + base + 'ja\n' +
-    '  Absage: ' + base + 'nein\n';
+  // Bewusst EIN Link ohne Antwort in der Adresse: der Maildienst zaehlt Klicks
+  // je Empfaenger mit. Die Zu- oder Absage wird erst auf der Seite gewaehlt,
+  // so erfaehrt niemand, wer wie geantwortet hat.
+  return '\nKommst Du? Bitte gib uns kurz Bescheid – Zusage oder Absage mit einem Klick:\n' +
+    '  ' + RSVP_SITE + '/rueckmeldung.html?t=' + token + '\n';
 }
 
 function rsvpFind(sheet, token) {
