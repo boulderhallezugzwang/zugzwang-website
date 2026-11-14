@@ -7,9 +7,9 @@ function mkSheet(rows){ return {
     getValues(){ const o=[]; for(let i=0;i<nr;i++){const row=[];for(let j=0;j<nc;j++)row.push((rows[r-1+i]||[])[c-1+j]??'');o.push(row);} return o; },
     getValue(){ return (rows[r-1]||[])[c-1]??''; },
     setValue(v){ while(rows.length<r)rows.push([]); rows[r-1][c-1]=v; return this; },
-    setValues(vs){ vs.forEach((vr,i)=>vr.forEach((v,j)=>{rows[r-1+i][c-1+j]=v;})); return this; },
+    setValues(vs){ vs.forEach((vr,i)=>{ while(rows.length<r+i)rows.push([]); vr.forEach((v,j)=>{rows[r-1+i][c-1+j]=v;}); }); return this; },
     setFontWeight(){return this;} }; },
-  appendRow(r){rows.push(r.slice());}, setFrozenRows(){} }; }
+  appendRow(r){rows.push(r.slice());}, deleteRow(n){rows.splice(n-1,1);}, setFrozenRows(){} }; }
 function ctx(sheets){ const mails=[]; const cache={};
   const c={ console:{error(){},log(){}}, Logger:{log(){}}, mails,
    SpreadsheetApp:{ openById(){ return { getSheetByName(n){return sheets[n]||null}, getSheets(){return Object.values(sheets)}, insertSheet(n){sheets[n]=mkSheet([]);return sheets[n];} }; }, flush(){} },
@@ -20,7 +20,14 @@ function ctx(sheets){ const mails=[]; const cache={};
    Utilities:{DigestAlgorithm:{SHA_256:1},Charset:{UTF_8:1},
      computeDigest(a,d){ return [...crypto.createHash('sha256').update(typeof d==='string'?Buffer.from(d,'utf8'):Buffer.from(d.map(x=>x&255))).digest()]; },
      base64Encode(b){return Buffer.from(b.map(x=>x&255)).toString('base64')}, getUuid(){return crypto.randomUUID()} },
-   MimeType:{GOOGLE_DOCS:'gdoc'}, DriveApp:{}, DocumentApp:{}, CalendarApp:{}, PropertiesService:{}, ScriptApp:{}, HtmlService:{} };
+   MimeType:{GOOGLE_DOCS:'gdoc'}, DriveApp:{}, DocumentApp:{}, ScriptApp:{getProjectTriggers(){return[]}}, HtmlService:{} };
+  const props={}; c.props=props;
+  c.PropertiesService={getScriptProperties(){return{getProperty(k){return props[k]||null},setProperty(k,v){props[k]=v}}}};
+  c.Utilities.formatDate=(d)=>d.toISOString().slice(0,10);
+  c.Utilities.newBlob=()=>({});
+  const cals={}; c.cals=cals; let seq=0;
+  c.CalendarApp={getCalendarById(id){ if(!cals[id]) cals[id]=[]; const list=cals[id]; const wrap=e=>({getId(){return e.id},getTitle(){return e.titel},getStartTime(){return e.start},getEndTime(){return e.end},getDescription(){return e.desc},setTitle(t){e.titel=t},setTime(a,b){e.start=a;e.end=b},setDescription(d){e.desc=d},deleteEvent(){list.splice(list.indexOf(e),1)}});
+    return { createEvent(t,a,b,o){const e={id:'ev'+(++seq)+'@google.com',titel:t,start:a,end:b,desc:(o&&o.description)||''};list.push(e);return wrap(e);}, getEventById(i){const e=list.find(x=>x.id===i);return e?wrap(e):null;}, getEvents(a,b){return list.filter(e=>e.start>=a&&e.start<=b).map(wrap);} }; }};
   return vm.createContext(c); }
 const load=(c,f)=>vm.runInContext(fs.readFileSync(path.join(repo,f),'utf8').replace(/^const /gm,'var '),c);
 const post=(c,obj)=>JSON.parse(vm.runInContext('doPost',c)({postData:{contents:JSON.stringify(obj)}}).t);
@@ -96,4 +103,49 @@ ok(v({typ:'erwachsen',vorname:'A',nachname:'B',geburtsdatum:'1990-01-01',email:'
 ok(v({typ:'erziehungsberechtigter',eVorname:'A',eNachname:'B',email:'a@b.de',kinder:[{vorname:'K',nachname:'B',geburtsdatum:'2015-01-01'}],unterschrift:sig})==='','Haftung Kinder gueltig');
 ok(v({typ:'jugendlicher',eVorname:'A',eNachname:'B',email:'a@b.de',kVorname:'K',kNachname:'B',kGeburtsdatum:'2010-01-01',unterschrift:sig})==='','Haftung Jugend gueltig');
 ok(v({typ:'quatsch',email:'a@b.de',unterschrift:sig})!==''&&v({typ:'erwachsen',vorname:'A',nachname:'B',geburtsdatum:'1',email:'a@b.de'})!=='','Haftung: unbekannter Typ / fehlende Unterschrift abgelehnt');
+// ---- Rueckmeldung zu Terminen
+sh={Mitglieder:mkSheet([MH.slice(),['A','B','O','m1@example.org','','','Erwachsene'],['C','D','O','m2@example.org','','','Erwachsene']]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein']])};
+c=ctx(sh); load(c,'apps-script/mitgliederliste/Mitgliederliste.gs');
+const A={username:'anna',password:'geheim12'};
+const zukunft=new Date(Date.now()+5*864e5).toISOString().slice(0,10);
+r=post(c,{...A,action:'createEvent',kalender:'events',titel:'Sommerfest',datum:zukunft,zeitVon:'18:00',zeitBis:'21:00',beschreibung:'Grillen',mailMode:'all',remindHours:'0',rsvpAktiv:true,rsvpEmail:'kein-at'});
+ok(/gültige E-Mail/.test(r.error||''),'Rueckmeldung: ungueltige Melde-Adresse abgelehnt');
+r=post(c,{...A,action:'createEvent',kalender:'events',titel:'Sommerfest',datum:zukunft,zeitVon:'18:00',zeitBis:'21:00',beschreibung:'Grillen',mailMode:'all',remindHours:'0',rsvpAktiv:true,rsvpEmail:'orga@example.org'});
+ok(r.ok&&/Rückmeldung aktiv/.test(r.message),'Termin mit Rueckmeldung angelegt');
+const RS=sh['Rückmeldungen'].rows; const tok=RS[1][0];
+ok(RS.length===2&&/^[0-9a-f]{40}$/.test(tok)&&/^a/.test(tok)&&RS[1][5]==='orga@example.org','Zeile in Tab Rueckmeldungen mit Token');
+const evMail=c.mails.find(m=>/Sommerfest/.test(m.subject));
+ok(evMail&&evMail.body.includes('rueckmeldung.html?t='+tok+'&a=ja')&&evMail.body.includes('&a=nein'),'Termin-Mail enthaelt Zusage- und Absage-Link');
+ok(!JSON.stringify(c.mails).includes('github.io'),'Termin-Mail nennt die neue Domain');
+r=post(c,{action:'rsvpInfo',t:tok}); ok(r.ok&&r.titel==='Sommerfest'&&r.vorbei===false&&!('email' in r)&&!('ja' in r),'rsvpInfo oeffentlich: Titel/Datum, keine Zaehler/E-Mail');
+ok(post(c,{action:'rsvpInfo',t:'x'}).error&&post(c,{action:'rsvp',t:'a'+'0'.repeat(39),antwort:'ja'}).error,'ungueltiges/unbekanntes Token abgelehnt');
+ok(post(c,{action:'rsvp',t:tok,antwort:'vielleicht'}).error,'ungueltige Antwort abgelehnt');
+post(c,{action:'rsvp',t:tok,antwort:'ja'}); post(c,{action:'rsvp',t:tok,antwort:'ja'}); post(c,{action:'rsvp',t:tok,antwort:'nein'});
+ok(RS[1][6]===2&&RS[1][7]===1,'2 Zusagen, 1 Absage gezaehlt');
+post(c,{action:'rsvp',t:tok,antwort:'nein',vorher:'ja'}); ok(RS[1][6]===1&&RS[1][7]===2,'Antwort aendern zaehlt um statt doppelt');
+r=post(c,{...A,action:'getEvents'}); const evX=r.events.find(e=>e.titel==='Sommerfest');
+ok(evX&&evX.rsvp&&evX.rsvp.ja===1&&evX.rsvp.nein===2&&evX.rsvp.email==='orga@example.org'&&!('token' in evX.rsvp),'Intern-Liste zeigt Zaehler');
+// Zusammenfassung
+const sum=vm.runInContext('sendRsvpSummaries',c); let before=c.mails.length;
+sum(); let sm=c.mails.slice(before);
+ok(sm.length===1&&sm[0].to==='orga@example.org'&&/1 Zusagen, 2 Absagen/.test(sm[0].subject)&&/Zusagen: \+1/.test(sm[0].body),'Tagesmail mit Stand und Veraenderung');
+c.props.rsvp_summary_tag=''; before=c.mails.length; sum(); ok(c.mails.length===before,'nichts Neues -> keine Mail');
+post(c,{action:'rsvp',t:tok,antwort:'ja'}); before=c.mails.length; sum(); ok(c.mails.length===before,'am selben Tag keine zweite Mail');
+c.props.rsvp_summary_tag=''; sum(); ok(c.mails.length===before+1&&/Zusagen: \+1/.test(c.mails[c.mails.length-1].body)&&/Absagen: 0/.test(c.mails[c.mails.length-1].body),'naechster Tag: nur die Veraenderung');
+// Termin vorbei
+RS[1][4]=new Date(Date.now()-3600e3); RS[1][6]=9; c.props.rsvp_summary_tag=''; before=c.mails.length; sum();
+ok(c.mails.length===before,'Termin war schon -> keine Mail mehr');
+ok(/begonnen/.test(post(c,{action:'rsvp',t:tok,antwort:'ja'}).error||'')&&post(c,{action:'rsvpInfo',t:tok}).vorbei===true,'nach Terminbeginn keine Rueckmeldung mehr');
+// Bearbeiten: Zaehler bleiben, Ausschalten/Loeschen entfernt die Zeile
+RS[1][4]=new Date(Date.now()+5*864e5); RS[1][6]=4; RS[1][7]=1;
+r=post(c,{...A,action:'updateEvent',kalender:'events',eventId:evX.id,titel:'Sommerfest 2',datum:zukunft,zeitVon:'17:00',zeitBis:'21:00',beschreibung:'',mailMode:'none',remindHours:'0',rsvpAktiv:true,rsvpEmail:'neu@example.org'});
+ok(r.ok&&RS.length===2&&RS[1][0]===tok&&RS[1][3]==='Sommerfest 2'&&RS[1][5]==='neu@example.org'&&RS[1][6]===4,'Bearbeiten behaelt Token und Zaehler');
+r=post(c,{...A,action:'updateEvent',kalender:'events',eventId:evX.id,titel:'Sommerfest 2',datum:zukunft,zeitVon:'17:00',zeitBis:'21:00',beschreibung:'',mailMode:'none',remindHours:'0',rsvpAktiv:false});
+ok(r.ok&&RS.length===1,'Rueckmeldung ausschalten entfernt die Zeile');
+r=post(c,{...A,action:'createEvent',kalender:'events',titel:'Ohne',datum:zukunft,zeitVon:'18:00',zeitBis:'19:00',beschreibung:'',mailMode:'none',remindHours:'0'});
+ok(r.ok&&RS.length===1&&!/Rückmeldung/.test(r.message),'Termin ohne Rueckmeldung wie bisher');
+r=post(c,{...A,action:'createEvent',kalender:'events',titel:'Weg',datum:zukunft,zeitVon:'18:00',zeitBis:'19:00',beschreibung:'',mailMode:'none',remindHours:'0',rsvpAktiv:true,rsvpEmail:'o@example.org'});
+const weg=post(c,{...A,action:'getEvents'}).events.find(e=>e.titel==='Weg');
+r=post(c,{...A,action:'deleteEvent',kalender:'events',eventId:weg.id,mailMode:'none'}); ok(r.ok&&RS.length===1,'Termin loeschen entfernt die Rueckmelde-Zeile');
+
 console.log(fails?('\n'+fails+' FEHLGESCHLAGEN'):'\nalle Tests bestanden'); process.exit(fails?1:0);

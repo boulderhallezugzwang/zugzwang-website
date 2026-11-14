@@ -868,6 +868,16 @@
             <input type="text" id="evMailTo" placeholder="E-Mail-Adressen (kommagetrennt)" style="display:none;">
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Rückmeldung</label>
+            <label style="font-weight:normal; cursor:pointer;"><input type="checkbox" id="evRsvp"> Zu-/Absage in der Mail anbieten (gezählt wird ohne Namen)</label>
+            <div id="evRsvpBox" style="display:none; margin-top:8px;">
+              <input type="email" id="evRsvpEmail" placeholder="E-Mail für die tägliche Zusammenfassung" autocomplete="email">
+              <div style="font-size:12px; opacity:0.75; margin-top:4px;">Dorthin geht höchstens einmal täglich eine Mail mit dem Stand – nur wenn neue Zu- oder Absagen dazugekommen sind und bis der Termin beginnt.</div>
+            </div>
+          </div>
+        </div>
         <div class="form-actions">
           <button class="submit-btn" id="evSubmitBtn" onclick="evSubmit()">Termin erstellen</button>
           <button class="submit-btn" id="evCancelBtn" style="display:none; background:#999;" onclick="evCancelEdit()">Abbrechen</button>
@@ -1381,6 +1391,36 @@ document.querySelectorAll('input[name="evMailMode"]').forEach(function(radio) {
   });
 });
 
+// Rueckmeldung: E-Mail-Feld ein-/ausblenden; zuletzt benutzte Adresse vorschlagen
+document.getElementById('evRsvp').addEventListener('change', function() {
+  document.getElementById('evRsvpBox').style.display = this.checked ? 'block' : 'none';
+  var feld = document.getElementById('evRsvpEmail');
+  if (this.checked && !feld.value) {
+    try { feld.value = localStorage.getItem('zz_rsvp_email') || ''; } catch (e) {}
+  }
+});
+
+// Liest die Rueckmelde-Einstellung; gibt null zurueck, wenn die E-Mail fehlt/ungueltig ist.
+function evGetRsvp() {
+  var aktiv = document.getElementById('evRsvp').checked;
+  if (!aktiv) return { rsvpAktiv: false, rsvpEmail: '' };
+  var email = document.getElementById('evRsvpEmail').value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    evShowResult('Bitte eine gültige E-Mail für die Rückmeldungen angeben', true);
+    document.getElementById('evRsvpEmail').focus();
+    return null;
+  }
+  try { localStorage.setItem('zz_rsvp_email', email); } catch (e) {}
+  return { rsvpAktiv: true, rsvpEmail: email };
+}
+
+function evSetRsvp(rsvp) {
+  var aktiv = !!(rsvp && rsvp.aktiv);
+  document.getElementById('evRsvp').checked = aktiv;
+  document.getElementById('evRsvpBox').style.display = aktiv ? 'block' : 'none';
+  document.getElementById('evRsvpEmail').value = aktiv ? (rsvp.email || '') : '';
+}
+
 function evGetMailMode() {
   var checked = document.querySelector('input[name="evMailMode"]:checked');
   return checked ? checked.value : 'none';
@@ -1882,6 +1922,8 @@ function evCreate() {
   if (!titel) { evShowResult('Bitte Titel eingeben', true); return; }
   if (!datum) { evShowResult('Bitte Datum angeben', true); return; }
   if (!zeitVon || !zeitBis) { evShowResult('Bitte Uhrzeiten angeben', true); return; }
+  var rsvp = evGetRsvp();
+  if (!rsvp) return;
 
   var progressMsg = mailMode === 'none' ? 'Termin wird erstellt...' : 'Termin wird erstellt...';
   var progressDetail = mailMode === 'none' ? '' : 'Mails werden gesendet';
@@ -1892,13 +1934,15 @@ function evCreate() {
   evPost('createEvent', {
     kalender: kalender, titel: titel, datum: datum,
     zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung,
-    mailMode: mailMode, mailTo: mailTo, remindHours: remindHours
+    mailMode: mailMode, mailTo: mailTo, remindHours: remindHours,
+    rsvpAktiv: rsvp.rsvpAktiv, rsvpEmail: rsvp.rsvpEmail
   }).then(data => {
     hideProgress();
     if (data.error) { evShowResult(data.error, true); return; }
     evShowResult(data.message, false);
     document.getElementById('evTitel').value = '';
     document.getElementById('evBeschreibung').value = '';
+    evSetRsvp(null);
     evLoaded = false;
     evLoadEvents();
   }).catch(err => {
@@ -1963,6 +2007,7 @@ function evStartEdit(idx) {
   document.getElementById('evBis').value = ev.zeitBis;
   document.getElementById('evBeschreibung').value = ev.beschreibung;
   document.getElementById('evRemind').value = ev.erinnerung || '0';
+  evSetRsvp(ev.rsvp);
   document.getElementById('evCancelBtn').style.display = 'inline-block';
   document.getElementById('evResult').style.display = 'none';
   evUpdateButtonText();
@@ -1974,6 +2019,7 @@ function evCancelEdit() {
   document.getElementById('evTitel').value = '';
   document.getElementById('evBeschreibung').value = '';
   document.getElementById('evRemind').value = '24';
+  evSetRsvp(null);
   document.getElementById('evCancelBtn').style.display = 'none';
   document.getElementById('evResult').style.display = 'none';
   evUpdateButtonText();
@@ -1992,6 +2038,8 @@ function evSubmit() {
     var mailTo = document.getElementById('evMailTo').value.trim();
 
     if (!titel || !datum || !zeitVon || !zeitBis) { evShowResult('Alle Felder ausfüllen', true); return; }
+    var rsvp = evGetRsvp();
+    if (!rsvp) return;
 
     var progressDetail = mailMode === 'none' ? '' : 'Änderungsmails werden gesendet';
     showProgress('Termin wird geändert...', progressDetail);
@@ -2001,7 +2049,8 @@ function evSubmit() {
     evPost('updateEvent', {
       kalender: evEditingId.kalender, eventId: evEditingId.id,
       titel: titel, datum: datum, zeitVon: zeitVon, zeitBis: zeitBis, beschreibung: beschreibung,
-      mailMode: mailMode, mailTo: mailTo, remindHours: remindHours
+      mailMode: mailMode, mailTo: mailTo, remindHours: remindHours,
+      rsvpAktiv: rsvp.rsvpAktiv, rsvpEmail: rsvp.rsvpEmail
     }).then(data => {
       hideProgress();
       if (data.error) { evShowResult(data.error, true); return; }
@@ -2021,6 +2070,7 @@ function evSubmit() {
 function evShowResult(msg, isError) {
   var el = document.getElementById('evResult');
   el.textContent = msg;
+  el.style.display = '';   // evStartEdit/evCancelEdit blenden per inline-Style aus
   el.className = 'event-result ' + (isError ? 'error' : 'success');
 }
 
@@ -2054,8 +2104,13 @@ function evRenderList() {
       var remindText = ev.erinnerung >= 168 ? '1 Woche' : (ev.erinnerung >= 48 ? '2 Tage' : (ev.erinnerung >= 24 ? '1 Tag' : ev.erinnerung + 'h'));
       remindBadge = '<span class="ev-mail-badge" style="background:rgba(33,150,243,0.15);color:#2196F3;">Erinnerung: ' + remindText + '</span>';
     }
+    var rsvpBadge = '';
+    if (ev.rsvp && ev.rsvp.aktiv) {
+      rsvpBadge = '<span class="ev-mail-badge" style="background:rgba(46,204,113,0.15);color:#2ecc71;" title="R\u00fcckmeldungen gehen an ' + escHtml(ev.rsvp.email) + '">'
+        + 'Zusagen: ' + (parseInt(ev.rsvp.ja, 10) || 0) + ' \u00b7 Absagen: ' + (parseInt(ev.rsvp.nein, 10) || 0) + '</span>';
+    }
     html += '<div class="ev-actions">'
-      + mailBadge + remindBadge
+      + mailBadge + remindBadge + rsvpBadge
       + '<button class="ev-edit-btn" onclick="evStartEdit(' + idx + ')">Bearbeiten</button>'
       + '<button class="ev-del-btn" onclick="evDelete(\'' + escAttr(ev.kalender) + '\',\'' + escAttr(ev.id) + '\')">L\u00f6schen</button>'
       + '</div></div>';

@@ -215,6 +215,10 @@ function doPost(e) {
       return handleMitgliedsantrag(body);
     }
 
+    // Oeffentlich (ohne Anmeldung): Zu-/Absage zu einem Termin
+    if (action === 'rsvpInfo') return jsonResponse(rsvpInfo(body.t));
+    if (action === 'rsvp') return jsonResponse(rsvpAntwort(body.t, body.antwort, body.vorher));
+
     if (action === 'login') {
       if (authIsLocked(body.username)) return jsonResponse({ error: 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.' });
       var user = authenticateUser(body.username, body.password, true);
@@ -266,7 +270,9 @@ function doPost(e) {
         var mailMode = (body.mailMode || 'all').toString();
         var mailTo = (body.mailTo || '').toString();
         var remindHours = (body.remindHours || '0').toString();
-        var result = createCalEvent(kalender, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours);
+        var rsvpOpts = rsvpParseOpts(body);
+        if (rsvpOpts.error) return jsonResponse({ error: rsvpOpts.error });
+        var result = createCalEvent(kalender, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts);
         return jsonResponse(result);
       }
 
@@ -295,7 +301,9 @@ function doPost(e) {
         var mailMode = (body.mailMode || 'all').toString();
         var mailTo = (body.mailTo || '').toString();
         var remindHours = (body.remindHours || '0').toString();
-        return jsonResponse(updateCalEvent(kalender, eventId, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours));
+        var rsvpOpts = rsvpParseOpts(body);
+        if (rsvpOpts.error) return jsonResponse({ error: rsvpOpts.error });
+        return jsonResponse(updateCalEvent(kalender, eventId, titel, datum, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts));
       }
     }
 
@@ -621,6 +629,7 @@ function getCalendarEvents() {
   bis.setFullYear(bis.getFullYear() + 1);
 
   var alleTermine = [];
+  var rsvpMap = rsvpLoadMap();
   var keys = Object.keys(KALENDER);
   for (var k = 0; k < keys.length; k++) {
     var key = keys[k];
@@ -643,7 +652,8 @@ function getCalendarEvents() {
         zeitBis: ('0' + end.getHours()).slice(-2) + ':' + ('0' + end.getMinutes()).slice(-2),
         beschreibung: stripTags(ev.getDescription() || ''),
         mailStatus: parseMailTag(ev.getDescription() || ''),
-        erinnerung: parseRemindTag(ev.getDescription() || '')
+        erinnerung: parseRemindTag(ev.getDescription() || ''),
+        rsvp: rsvpMap[ev.getId()] || null
       });
     }
   }
@@ -670,6 +680,7 @@ function deleteCalEvent(kalender, eventId, mailMode, mailTo) {
     var zeitBis = ('0' + end.getHours()).slice(-2) + ':' + ('0' + end.getMinutes()).slice(-2);
 
     ev.deleteEvent();
+    try { rsvpRemove(eventId); } catch (eRsvp) { console.error('Rueckmeldung entfernen fehlgeschlagen: ' + eRsvp); }
 
     var msg = 'Termin "' + titel + '" gelöscht.';
 
@@ -685,7 +696,7 @@ function deleteCalEvent(kalender, eventId, mailMode, mailTo) {
   }
 }
 
-function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours) {
+function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts) {
   var cal = CalendarApp.getCalendarById(KALENDER[kalender]);
   if (!cal) return { error: 'Kalender nicht gefunden' };
 
@@ -706,6 +717,14 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
     ev.setTitle(titel);
     ev.setTime(startDate, endDate);
 
+    // Rueckmeldung: einschalten/aktualisieren oder ausschalten
+    var rsvpToken = '';
+    if (rsvpOpts && rsvpOpts.aktiv) {
+      rsvpToken = rsvpUpsert(eventId, kalender, titel, startDate, rsvpOpts.email);
+    } else {
+      rsvpRemove(eventId);
+    }
+
     var mailResult = { sent: 0, queued: 0, failed: 0, total: 0 };
     var actualRecipients = [];
 
@@ -715,7 +734,7 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
       var icsContent = generateICS(titel, startDate, endDate, beschreibung, remindHours);
       var customRecipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
       actualRecipients = customRecipients || getEmailRecipients(null);
-      mailResult = sendUpdateMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, beschreibung, KALENDER_NAMEN[kalender], icsContent, customRecipients);
+      mailResult = sendUpdateMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis, beschreibung, KALENDER_NAMEN[kalender], icsContent, customRecipients, rsvpToken);
     }
 
     // Mail-Status + Erinnerung in Beschreibung aktualisieren (Total-Empfaengerzahl, nicht "sent")
@@ -725,6 +744,7 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
     var msg = 'Termin aktualisiert.';
     if (mailResult.total > 0) msg += ' ' + formatChunkedSendMessage(mailResult, mailResult.total);
     if (remindHours && remindHours !== '0') msg += ' Erinnerung ' + remindHours + 'h vorher aktiv.';
+    if (rsvpToken) msg += ' Rückmeldung aktiv' + (mailMode === 'none' ? ' (ohne Mail kennt aber niemand den Link).' : '.');
 
     return { ok: true, message: msg };
   } catch (e) {
@@ -732,7 +752,7 @@ function updateCalEvent(kalender, eventId, titel, datumISO, zeitVon, zeitBis, be
   }
 }
 
-function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours) {
+function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschreibung, mailMode, mailTo, remindHours, rsvpOpts) {
   var dateParts = datumISO.split('-');
   var vonParts = zeitVon.split(':');
   var bisParts = zeitBis.split(':');
@@ -751,6 +771,11 @@ function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschrei
   var mailResult = { sent: 0, queued: 0, failed: 0, total: 0 };
   var actualRecipients = [];
 
+  // Der Link in der Mail braucht nur das Token; die Termin-ID gibt es erst
+  // nach dem Anlegen im Kalender.
+  var rsvpAktiv = !!(rsvpOpts && rsvpOpts.aktiv);
+  var rsvpToken = rsvpAktiv ? rsvpNewToken() : '';
+
   if (mailMode !== 'none') {
     var icsContent = generateICS(titel, startDate, endDate, beschreibung, remindHours);
     var wochentag = WOCHENTAGE_LANG[startDate.getDay()];
@@ -760,18 +785,20 @@ function createCalEvent(kalenderKey, titel, datumISO, zeitVon, zeitBis, beschrei
     var customRecipients = (mailMode === 'custom') ? parseCustomEmails(mailTo) : null;
     actualRecipients = customRecipients || getEmailRecipients(null);
     mailResult = sendEventMail(titel, datumFormatiert, wochentag, zeitVon, zeitBis,
-      beschreibung, KALENDER_NAMEN[kalenderKey], icsContent, customRecipients);
+      beschreibung, KALENDER_NAMEN[kalenderKey], icsContent, customRecipients, rsvpToken);
   }
 
   // Mail-Status + Erinnerung in Beschreibung speichern (Total-Empfaengerzahl, nicht "sent")
   var descWithTag = (beschreibung || '') + buildMailTag(mailMode, mailResult.total, mailMode === 'custom' ? actualRecipients : null) + buildRemindTag(remindHours);
 
   var eventOptions = { description: descWithTag };
-  cal.createEvent(titel, startDate, endDate, eventOptions);
+  var neuerTermin = cal.createEvent(titel, startDate, endDate, eventOptions);
+  if (rsvpAktiv) rsvpInsert(rsvpToken, neuerTermin.getId(), kalenderKey, titel, startDate, rsvpOpts.email);
 
   var msg = 'Termin "' + titel + '" erstellt.';
   if (mailResult.total > 0) msg += ' ' + formatChunkedSendMessage(mailResult, mailResult.total);
   if (remindHours && remindHours !== '0') msg += ' Erinnerung ' + remindHours + 'h vorher aktiv.';
+  if (rsvpAktiv) msg += ' Rückmeldung aktiv' + (mailMode === 'none' ? ' (ohne Mail kennt aber niemand den Link).' : '.');
 
   return { ok: true, message: msg };
 }
@@ -1242,7 +1269,7 @@ function getEmailRecipients(customRecipients) {
 // ── Mail-Versand: Neuer Termin ──
 // Gibt { sent, queued, failed, total } zurueck.
 
-function sendEventMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients) {
+function sendEventMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients, rsvpToken) {
   var recipients = getEmailRecipients(customRecipients);
   if (recipients.length === 0) return { sent: 0, queued: 0, failed: 0, total: 0 };
 
@@ -1252,10 +1279,11 @@ function sendEventMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, 
     wochentag + ', ' + datum + '\n' +
     zeitVon + ' – ' + zeitBis + ' Uhr\n';
   if (beschreibung) body += '\n' + beschreibung + '\n';
+  body += rsvpMailBlock(rsvpToken);
   body += '\nIm Anhang findest Du eine Kalenderdatei (.ics) zum Importieren in Deinen Kalender.\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    'https://zugzwang-auerbach.de';
 
   var subject = kalenderName + ': ' + titel + ' – ' + datum;
   var opts = {
@@ -1338,7 +1366,7 @@ function sendCancelMail(titel, datum, wochentag, zeitVon, zeitBis, kalenderName,
 
 // ── Mail-Versand: Änderung ──
 
-function sendUpdateMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients) {
+function sendUpdateMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung, kalenderName, icsContent, customRecipients, rsvpToken) {
   var recipients = getEmailRecipients(customRecipients);
   if (recipients.length === 0) return { sent: 0, queued: 0, failed: 0, total: 0 };
 
@@ -1348,10 +1376,11 @@ function sendUpdateMail(titel, datum, wochentag, zeitVon, zeitBis, beschreibung,
     wochentag + ', ' + datum + '\n' +
     zeitVon + ' – ' + zeitBis + ' Uhr\n';
   if (beschreibung) body += '\n' + beschreibung + '\n';
+  body += rsvpMailBlock(rsvpToken);
   body += '\nIm Anhang findest Du die aktualisierte Kalenderdatei (.ics).\n\n' +
     'Sportliche Grüße,\n' +
     'Boulderverein Zugzwang e.V.\n' +
-    'https://boulderhallezugzwang.github.io/zugzwang-website';
+    'https://zugzwang-auerbach.de';
 
   var subject = 'GEÄNDERT: ' + titel + ' – ' + datum;
   var opts = {
@@ -1820,6 +1849,269 @@ function maSendNotification(data, eintrittDe, mandatsRef, mailBestaetigung) {
 }
 
 // ═══════════════════════════════════════════════════
+// RÜCKMELDUNG (Zu-/Absage) ZU TERMINEN
+// ═══════════════════════════════════════════════════
+//
+// Beim Termin laesst sich eine Rueckmeldung einschalten. Die Termin-Mail
+// enthaelt dann zwei Links auf rueckmeldung.html (Zusage / Absage). Gezaehlt
+// wird bewusst OHNE Namen: nur wie viele Zu- und Absagen es gibt.
+// Die Links fuehren auf eine Bestaetigungsseite und zaehlen erst nach einem
+// Klick dort – Mailprogramme rufen Links oft vorab automatisch auf.
+//
+// Tab "Rückmeldungen", eine Zeile je Termin:
+//   A Token | B Termin-ID | C Kalender | D Titel | E Start | F Melde-E-Mail
+//   G Zusagen | H Absagen | I Gemeldet Zusagen | J Gemeldet Absagen | K Erstellt
+// "Gemeldet" = Stand der letzten Zusammenfassungs-Mail an die Melde-Adresse.
+
+var RSVP_SHEET = 'Rückmeldungen';
+var RSVP_HEADERS = ['Token', 'Termin-ID', 'Kalender', 'Titel', 'Start', 'Melde-E-Mail',
+  'Zusagen', 'Absagen', 'Gemeldet Zusagen', 'Gemeldet Absagen', 'Erstellt'];
+var RSVP_SITE = 'https://zugzwang-auerbach.de';
+var RSVP_MAX_PER_HOUR = 400;   // Antworten je Termin und Stunde (Schutz vor Dauerklicken)
+
+function rsvpSheet() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(RSVP_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(RSVP_SHEET);
+    sheet.getRange(1, 1, 1, RSVP_HEADERS.length).setValues([RSVP_HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function rsvpRows(sheet) {
+  var last = sheet.getLastRow();
+  if (last < 2) return [];
+  return sheet.getRange(2, 1, last - 1, RSVP_HEADERS.length).getValues();
+}
+
+function rsvpNum(v) {
+  var n = parseInt(v, 10);
+  return (n > 0) ? n : 0;
+}
+
+function rsvpNewToken() {
+  // beginnt mit einem Buchstaben, damit Sheets das Token nie als Zahl deutet
+  return 'a' + (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').slice(0, 39);
+}
+
+function rsvpValidToken(t) {
+  return typeof t === 'string' && /^[0-9a-f]{40}$/.test(t);
+}
+
+// Parameter aus der Anfrage des Intern-Bereichs
+function rsvpParseOpts(body) {
+  var aktiv = body.rsvpAktiv === true || body.rsvpAktiv === 'true';
+  if (!aktiv) return { aktiv: false, email: '' };
+  var email = (body.rsvpEmail || '').toString().trim();
+  if (!maIsEmail(email) || email.length > 120) return { error: 'Bitte eine gültige E-Mail-Adresse für die Rückmeldungen angeben' };
+  return { aktiv: true, email: email };
+}
+
+function rsvpInsert(token, eventId, kalender, titel, startDate, email) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    rsvpSheet().appendRow([token, eventId, kalender, sheetSafe(titel), startDate, sheetSafe(email), 0, 0, 0, 0, new Date()]);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Vorhandene Zeile aktualisieren (Zaehler bleiben) oder neu anlegen. Gibt das Token zurueck.
+function rsvpUpsert(eventId, kalender, titel, startDate, email) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sheet = rsvpSheet();
+    var rows = rsvpRows(sheet);
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i][1] === eventId) {
+        sheet.getRange(i + 2, 3, 1, 4).setValues([[kalender, sheetSafe(titel), startDate, sheetSafe(email)]]);
+        return rows[i][0].toString();
+      }
+    }
+    var token = rsvpNewToken();
+    sheet.appendRow([token, eventId, kalender, sheetSafe(titel), startDate, sheetSafe(email), 0, 0, 0, 0, new Date()]);
+    return token;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function rsvpRemove(eventId) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(RSVP_SHEET);
+  if (!sheet) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var rows = rsvpRows(sheet);
+    for (var i = rows.length - 1; i >= 0; i--) {
+      if (rows[i][1] === eventId) sheet.deleteRow(i + 2);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Termin-ID → { aktiv, email, ja, nein } (mitToken: zusaetzlich token)
+function rsvpLoadMap(mitToken) {
+  var map = {};
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(RSVP_SHEET);
+  if (!sheet) return map;
+  var rows = rsvpRows(sheet);
+  for (var i = 0; i < rows.length; i++) {
+    var e = { aktiv: true, email: rows[i][5].toString(), ja: rsvpNum(rows[i][6]), nein: rsvpNum(rows[i][7]) };
+    if (mitToken) e.token = rows[i][0].toString();
+    map[rows[i][1]] = e;
+  }
+  return map;
+}
+
+// Textblock fuer Termin-, Aenderungs- und Erinnerungsmail
+function rsvpMailBlock(token) {
+  if (!token) return '';
+  var base = RSVP_SITE + '/rueckmeldung.html?t=' + token + '&a=';
+  return '\nKommst Du? Bitte gib uns kurz Bescheid:\n' +
+    '  Zusage: ' + base + 'ja\n' +
+    '  Absage: ' + base + 'nein\n';
+}
+
+function rsvpFind(sheet, token) {
+  var rows = rsvpRows(sheet);
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i][0] === token) return { row: i + 2, v: rows[i] };
+  }
+  return null;
+}
+
+function rsvpStart(v) {
+  var d = (v instanceof Date) ? v : new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Oeffentlich: Angaben zum Termin fuer die Bestaetigungsseite (keine Zaehler, keine E-Mail)
+function rsvpInfo(token) {
+  if (!rsvpValidToken(token)) return { error: 'Dieser Link ist ungültig.' };
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(RSVP_SHEET);
+  var hit = sheet ? rsvpFind(sheet, token) : null;
+  if (!hit) return { error: 'Zu diesem Termin ist keine Rückmeldung (mehr) möglich.' };
+  var start = rsvpStart(hit.v[4]);
+  if (!start) return { error: 'Zu diesem Termin ist keine Rückmeldung (mehr) möglich.' };
+  return {
+    ok: true,
+    titel: hit.v[3].toString(),
+    wochentag: WOCHENTAGE_LANG[start.getDay()],
+    datum: ('0' + start.getDate()).slice(-2) + '.' + ('0' + (start.getMonth() + 1)).slice(-2) + '.' + start.getFullYear(),
+    zeit: ('0' + start.getHours()).slice(-2) + ':' + ('0' + start.getMinutes()).slice(-2),
+    vorbei: start.getTime() <= Date.now()
+  };
+}
+
+// Oeffentlich: Zu-/Absage zaehlen. "vorher" = fruehere Antwort aus demselben
+// Browser (dort gemerkt), damit jemand seine Antwort aendern kann, ohne
+// doppelt gezaehlt zu werden.
+function rsvpAntwort(token, antwort, vorher) {
+  if (!rsvpValidToken(token)) return { error: 'Dieser Link ist ungültig.' };
+  if (antwort !== 'ja' && antwort !== 'nein') return { error: 'Ungültige Antwort.' };
+  if (vorher !== 'ja' && vorher !== 'nein') vorher = '';
+  if (vorher === antwort) return { ok: true, antwort: antwort };
+
+  var cache = CacheService.getScriptCache();
+  var rateKey = 'rsvp_' + token;
+  var n = parseInt(cache.get(rateKey) || '0', 10);
+  if (n >= RSVP_MAX_PER_HOUR) return { error: 'Im Moment gehen zu viele Rückmeldungen ein. Bitte später noch einmal versuchen.' };
+  cache.put(rateKey, String(n + 1), 3600);
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(RSVP_SHEET);
+    var hit = sheet ? rsvpFind(sheet, token) : null;
+    if (!hit) return { error: 'Zu diesem Termin ist keine Rückmeldung (mehr) möglich.' };
+    var start = rsvpStart(hit.v[4]);
+    if (!start || start.getTime() <= Date.now()) return { error: 'Der Termin hat bereits begonnen – eine Rückmeldung ist nicht mehr möglich.' };
+
+    var ja = rsvpNum(hit.v[6]);
+    var nein = rsvpNum(hit.v[7]);
+    if (vorher === 'ja') ja = Math.max(0, ja - 1);
+    if (vorher === 'nein') nein = Math.max(0, nein - 1);
+    if (antwort === 'ja') ja++; else nein++;
+    sheet.getRange(hit.row, 7, 1, 2).setValues([[ja, nein]]);
+    SpreadsheetApp.flush();
+    return { ok: true, antwort: antwort };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Einmal taeglich: je Termin EINE Mail an die Melde-Adresse, aber nur wenn
+ * seit der letzten Meldung Zu-/Absagen dazugekommen sind und der Termin noch
+ * nicht begonnen hat. Wird von sendEventReminders() mit aufgerufen; der
+ * Datums-Merker verhindert Mehrfachversand, falls der Trigger oefter laeuft.
+ */
+function sendRsvpSummaries() {
+  var props = PropertiesService.getScriptProperties();
+  var heute = Utilities.formatDate(new Date(), 'Europe/Berlin', 'yyyy-MM-dd');
+  if (props.getProperty('rsvp_summary_tag') === heute) return;
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(RSVP_SHEET);
+  if (!sheet) { props.setProperty('rsvp_summary_tag', heute); return; }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var rows = rsvpRows(sheet);
+    var now = Date.now();
+    var alt = now - 60 * 24 * 60 * 60 * 1000;   // Zeilen 60 Tage nach dem Termin aufraeumen
+
+    for (var i = rows.length - 1; i >= 0; i--) {
+      var v = rows[i];
+      var start = rsvpStart(v[4]);
+      if (!start) continue;
+      if (start.getTime() < alt) { sheet.deleteRow(i + 2); continue; }
+      if (start.getTime() <= now) continue;                 // Termin war schon → keine Mail mehr
+
+      var ja = rsvpNum(v[6]), nein = rsvpNum(v[7]);
+      var gJa = rsvpNum(v[8]), gNein = rsvpNum(v[9]);
+      if (ja === gJa && nein === gNein) continue;           // nichts Neues → keine Mail
+
+      var email = v[5].toString().trim();
+      if (!maIsEmail(email)) continue;
+      if (MailApp.getRemainingDailyQuota() < 1) break;      // morgen erneut versuchen
+
+      var diff = function(neu, alt2) { var d = neu - alt2; return (d > 0 ? '+' : '') + d; };
+      var datum = ('0' + start.getDate()).slice(-2) + '.' + ('0' + (start.getMonth() + 1)).slice(-2) + '.' + start.getFullYear();
+      var zeit = ('0' + start.getHours()).slice(-2) + ':' + ('0' + start.getMinutes()).slice(-2);
+      MailApp.sendEmail({
+        to: email,
+        subject: 'Rückmeldungen: ' + v[3] + ' – ' + datum + ' (' + ja + ' Zusagen, ' + nein + ' Absagen)',
+        body: 'Rückmeldungen zum Termin\n\n' +
+          '  ' + v[3] + '\n' +
+          '  ' + WOCHENTAGE_LANG[start.getDay()] + ', ' + datum + ', ' + zeit + ' Uhr\n\n' +
+          'Aktueller Stand:\n' +
+          '  Zusagen: ' + ja + '\n' +
+          '  Absagen: ' + nein + '\n\n' +
+          'Seit der letzten Meldung:\n' +
+          '  Zusagen: ' + diff(ja, gJa) + '\n' +
+          '  Absagen: ' + diff(nein, gNein) + '\n\n' +
+          'Diese Mail kommt höchstens einmal täglich und nur, wenn sich etwas geändert hat.\n' +
+          'Den aktuellen Stand siehst Du jederzeit im internen Bereich unter „Termine“.',
+        name: 'Boulderverein Zugzwang e.V.'
+      });
+      sheet.getRange(i + 2, 9, 1, 2).setValues([[ja, nein]]);
+    }
+    SpreadsheetApp.flush();
+    props.setProperty('rsvp_summary_tag', heute);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ═══════════════════════════════════════════════════
 // NEWSLETTER: Mail an Mitglieder senden
 // ═══════════════════════════════════════════════════
 
@@ -1948,6 +2240,12 @@ function setupReminderTrigger() {
  * Wird automatisch durch den Trigger aufgerufen.
  */
 function sendEventReminders() {
+  // Tageszusammenfassung der Rueckmeldungen laeuft im selben Trigger mit.
+  try { sendRsvpSummaries(); } catch (eSum) { console.error('Rueckmelde-Zusammenfassung fehlgeschlagen: ' + eSum); }
+
+  var rsvpMapErinnerung = {};
+  try { rsvpMapErinnerung = rsvpLoadMap(true); } catch (eMap) { console.error('Rueckmeldungen nicht lesbar: ' + eMap); }
+
   var now = new Date();
   var maxFuture = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 Tage voraus prüfen
 
@@ -2007,10 +2305,13 @@ function sendEventReminders() {
 
       if (cleanDesc) body += '\n' + cleanDesc + '\n';
 
+      var rsvpRow = rsvpMapErinnerung[ev.getId()];
+      if (rsvpRow) body += rsvpMailBlock(rsvpRow.token);
+
       body += '\nWir freuen uns auf Dich!\n\n' +
         'Sportliche Grüße,\n' +
         'Boulderverein Zugzwang e.V.\n' +
-        'https://boulderhallezugzwang.github.io/zugzwang-website';
+        'https://zugzwang-auerbach.de';
 
       var subject = 'Erinnerung: ' + titel + ' – ' + datumFormatiert;
       var opts = {

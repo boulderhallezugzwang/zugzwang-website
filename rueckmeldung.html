@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Rückmeldung — Boulderverein Zugzwang e.V.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #141414;
+    --dark: #1c1c1c;
+    --dark-card: #232323;
+    --dark-border: #333;
+    --yellow: #D4A020;
+    --yellow-light: #E8B930;
+    --cream: #E8DCC8;
+    --cream-dim: #c4b9a6;
+    --text: #d4d0c8;
+    --text-dim: #8a8680;
+    --error: #e74c3c;
+    --error-bg: rgba(231,76,60,0.1);
+    --success: #2ecc71;
+    --success-bg: rgba(46,204,113,0.1);
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; line-height: 1.55;
+    color: var(--text); background: var(--black);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  nav {
+    background: rgba(20,20,20,0.92);
+    border-bottom: 1px solid var(--dark-border);
+    text-align: center; padding: 12px 24px;
+  }
+  .nav-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 800; font-size: 22px;
+    letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+  }
+  .nav-logo .zug { color: var(--cream); }
+  .nav-logo .zwang { color: var(--yellow); }
+
+  main { flex: 1; width: 100%; max-width: 520px; margin: 0 auto; padding: 36px 20px 40px; }
+  h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 30px; font-weight: 800; color: var(--cream);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding-bottom: 14px; margin-bottom: 22px;
+    border-bottom: 2px solid var(--yellow);
+  }
+  .card {
+    background: var(--dark-card); border: 1px solid var(--dark-border);
+    border-radius: var(--radius); padding: 22px; margin-bottom: 20px;
+  }
+  .ev-titel {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px; font-weight: 700; color: var(--cream); line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .ev-zeit { color: var(--yellow-light); margin-top: 6px; font-weight: 500; }
+  .frage { color: var(--cream-dim); margin-bottom: 14px; }
+  .buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+  button {
+    flex: 1 1 160px; min-height: 52px; padding: 12px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 19px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    border-radius: var(--radius); cursor: pointer;
+    border: 2px solid var(--dark-border); background: var(--dark); color: var(--cream);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  button:hover:not(:disabled) { border-color: var(--cream-dim); }
+  button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+  button:disabled { opacity: 0.55; cursor: default; }
+  #btnJa.vorschlag   { border-color: var(--success); }
+  #btnNein.vorschlag { border-color: var(--error); }
+  #btnJa.gewaehlt    { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+  #btnNein.gewaehlt  { background: var(--error-bg); border-color: var(--error); color: var(--error); }
+  .msg { border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px; }
+  .msg.ok  { background: var(--success-bg); border: 1px solid var(--success); color: var(--cream); }
+  .msg.err { background: var(--error-bg); border: 1px solid var(--error); color: var(--cream); }
+  .hinweis { font-size: 13px; color: var(--text-dim); }
+  [hidden] { display: none !important; }
+  footer { text-align: center; padding: 20px; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--dark-border); }
+  footer a { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo"><span class="zug">Zug</span><span class="zwang">zwang</span></a>
+</nav>
+
+<main>
+  <h1>Rückmeldung</h1>
+
+  <div class="msg err" id="fehler" role="alert" hidden></div>
+  <div class="msg ok" id="erfolg" role="status" hidden></div>
+
+  <div class="card" id="terminCard" hidden>
+    <div class="ev-titel" id="evTitel"></div>
+    <div class="ev-zeit" id="evZeit"></div>
+  </div>
+
+  <div class="card" id="antwortCard" hidden>
+    <p class="frage" id="frage">Kommst Du?</p>
+    <div class="buttons">
+      <button type="button" id="btnJa">Ich komme</button>
+      <button type="button" id="btnNein">Ich komme nicht</button>
+    </div>
+  </div>
+
+  <p class="hinweis" id="laden">Termin wird geladen …</p>
+  <p class="hinweis" id="fuss" hidden>Es wird nur gezählt, wie viele zu- und absagen – ohne Namen.</p>
+</main>
+
+<footer>
+  Boulderverein Zugzwang e.V. · <a href="impressum.html">Impressum</a> · <a href="info.html#datenschutz">Datenschutz</a>
+</footer>
+
+<script>
+// Haupt-Backend (gleiche Bereitstellung wie intern.html / antrag.html)
+const API_URL = 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec';
+
+const params = new URLSearchParams(location.search);
+const token = params.get('t') || '';
+const vorschlag = params.get('a');           // 'ja' | 'nein' aus dem Mail-Link (nur Vorauswahl)
+const KEY = 'zz_rsvp_' + token;
+
+const $ = id => document.getElementById(id);
+const btnJa = $('btnJa'), btnNein = $('btnNein');
+
+function merken(a) { try { localStorage.setItem(KEY, a); } catch (e) {} }
+function gemerkt() { try { const v = localStorage.getItem(KEY); return (v === 'ja' || v === 'nein') ? v : ''; } catch (e) { return ''; } }
+
+function zeigeFehler(text) {
+  $('laden').hidden = true;
+  $('fehler').textContent = text;
+  $('fehler').hidden = false;
+}
+
+async function post(body) {
+  const resp = await fetch(API_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body)
+  });
+  return resp.json();
+}
+
+function zeigeStand(antwort) {
+  btnJa.classList.remove('vorschlag', 'gewaehlt');
+  btnNein.classList.remove('vorschlag', 'gewaehlt');
+  if (antwort) {
+    (antwort === 'ja' ? btnJa : btnNein).classList.add('gewaehlt');
+    $('frage').textContent = 'Du kannst Deine Antwort bis zum Termin noch ändern:';
+    $('erfolg').textContent = antwort === 'ja'
+      ? 'Danke – Deine Zusage ist angekommen.'
+      : 'Danke – Deine Absage ist angekommen.';
+    $('erfolg').hidden = false;
+  } else if (vorschlag === 'ja' || vorschlag === 'nein') {
+    (vorschlag === 'ja' ? btnJa : btnNein).classList.add('vorschlag');
+    $('frage').textContent = 'Bitte bestätige Deine Antwort mit einem Klick:';
+  }
+}
+
+async function antworten(antwort) {
+  const vorher = gemerkt();
+  if (vorher === antwort) { zeigeStand(antwort); return; }
+  btnJa.disabled = btnNein.disabled = true;
+  $('fehler').hidden = true;
+  try {
+    const r = await post({ action: 'rsvp', t: token, antwort: antwort, vorher: vorher });
+    if (!r || !r.ok) throw new Error((r && r.error) || 'Die Rückmeldung konnte nicht gespeichert werden.');
+    merken(antwort);
+    zeigeStand(antwort);
+  } catch (e) {
+    $('erfolg').hidden = true;
+    $('fehler').textContent = e.message && e.message !== 'Failed to fetch'
+      ? e.message
+      : 'Keine Verbindung. Bitte versuche es gleich noch einmal.';
+    $('fehler').hidden = false;
+  } finally {
+    btnJa.disabled = btnNein.disabled = false;
+  }
+}
+
+btnJa.addEventListener('click', () => antworten('ja'));
+btnNein.addEventListener('click', () => antworten('nein'));
+
+(async function start() {
+  if (!/^[0-9a-f]{40}$/.test(token)) { zeigeFehler('Dieser Link ist ungültig oder unvollständig.'); return; }
+  try {
+    const info = await post({ action: 'rsvpInfo', t: token });
+    if (!info || !info.ok) { zeigeFehler((info && info.error) || 'Der Termin konnte nicht geladen werden.'); return; }
+    $('laden').hidden = true;
+    $('evTitel').textContent = info.titel;
+    $('evZeit').textContent = info.wochentag + ', ' + info.datum + ' · ' + info.zeit + ' Uhr';
+    $('terminCard').hidden = false;
+    if (info.vorbei) {
+      zeigeFehler('Der Termin hat bereits begonnen – eine Rückmeldung ist nicht mehr möglich.');
+      return;
+    }
+    $('antwortCard').hidden = false;
+    $('fuss').hidden = false;
+    zeigeStand(gemerkt());
+  } catch (e) {
+    zeigeFehler('Keine Verbindung. Bitte lade die Seite neu.');
+  }
+})();
+</script>
+</body>
+</html>

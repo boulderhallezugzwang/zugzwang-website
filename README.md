@@ -11,6 +11,7 @@ Webseite und Backend-Scripts für den **Boulderverein Zugzwang e.V.** — Boulde
 ```
 ├── index.html, verein.html, team.html, jugendtraining.html, info.html
 ├── antrag.html, haftung.html, kuendigung.html, impressum.html
+├── rueckmeldung.html           ← Zu-/Absage zu einem Termin (Link aus der Termin-Mail, zählt ohne Namen)
 ├── intern.html                 ← Interner Bereich (Anmeldung, Mitglieder, Termine, News, Newsletter, Team, Bilder, Config)
 ├── data/                       ← ticker.json, team.json, carousel.json (werden aus intern.html per GitHub-API geschrieben)
 ├── img/                        ← Bilder
