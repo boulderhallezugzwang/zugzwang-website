@@ -1178,9 +1178,9 @@
           <option value="befreit">Befreit</option>
           <option value="alle">Alle</option>
         </select>
-        <input type="search" id="dnSuche" placeholder="Name suchen" oninput="dnRender()" style="flex:1;min-width:140px;max-width:240px;">
         <button class="submit-btn" onclick="dnExportCSV()" style="padding:8px 16px;white-space:nowrap;">Einzug exportieren (CSV)</button>
       </div>
+      <input type="search" id="dnSuche" placeholder="Name suchen (auch Familienmitglieder) – durchsucht alle Einträge" oninput="dnRender()" autocomplete="off" style="width:100%;font-size:16px;padding:12px 16px;margin-bottom:12px;">
       <div id="dnHinweis" class="event-result" style="display:none;"></div>
       <div id="dnSumme" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
       <div id="dnUnklar"></div>
@@ -1850,11 +1850,16 @@ function dnGefiltert() {
   if (!dnData) return [];
   var f = document.getElementById('dnFilter').value;
   var q = document.getElementById('dnSuche').value.trim().toLowerCase();
+  var worte = q ? q.split(/\s+/) : [];
   return dnData.einheiten.filter(function(e) {
+    // Mit Suchbegriff: alle Eintraege durchsuchen, der Filter "Anzeigen" gilt dann nicht
+    if (worte.length) {
+      var text = (e.vorname + ' ' + e.nachname + ' ' + e.angehoerige.join(' ')).toLowerCase();
+      return worte.every(function(w) { return text.indexOf(w) !== -1; });
+    }
     if (f === 'zahlen' && e.stand !== 'offen' && e.stand !== 'gewaehlt') return false;
     if (f === 'befreit' && ['befreit', 'neu', 'kind', 'foerder'].indexOf(e.stand) === -1) return false;
     if (['offen', 'gewaehlt', 'erfuellt'].indexOf(f) !== -1 && e.stand !== f) return false;
-    if (q && (e.vorname + ' ' + e.nachname + ' ' + e.angehoerige.join(' ')).toLowerCase().indexOf(q) === -1) return false;
     return true;
   }).sort(function(a, b) {
     return (a.nachname + a.vorname).localeCompare(b.nachname + b.vorname, 'de');
@@ -1890,7 +1895,7 @@ function dnRender() {
 
   var liste = dnGefiltert();
   if (!liste.length) {
-    document.getElementById('dnListe').innerHTML = '<div class="no-results">Keine Einträge für diese Auswahl</div>';
+    document.getElementById('dnListe').innerHTML = '<div class="no-results">' + (document.getElementById('dnSuche').value.trim() ? 'Niemand gefunden' : 'Keine Einträge für diese Auswahl') + '</div>';
     return;
   }
   var html = '<div class="dn-wrap"><table class="dn-table"><thead><tr><th>Name</th><th>Gruppe</th><th>Dienste ' + d.jahr + '</th><th>Stand</th><th>Betrag</th><th></th></tr></thead><tbody>';
