@@ -823,12 +823,12 @@
 
       <h3>§ 1 Jahresbeiträge</h3>
       <p>Die Beiträge gelten je Kalenderjahr und werden per SEPA-Lastschrift eingezogen.</p>
-      <p><strong>Vollmitgliedschaft</strong> (Mitgliedsbeitrag einschließlich Jahreskarte): Erwachsene 150,00 €, Ermäßigt (Schüler/Studenten) 90,00 €, Familien 300,00 €. Kinder unter 10 Jahren sind bei Mitgliedschaft eines Elternteils beitragsfrei.</p>
-      <p><strong>Fördermitgliedschaft</strong> (ohne Jahreskarte): Erwachsene 20,00 €, Ermäßigt (Schüler/Studenten) 16,00 €, Familien 40,00 €.</p>
+      <p><strong>Vollmitgliedschaft</strong> (Mitgliedsbeitrag einschließlich Jahreskarte): Erwachsene <span data-b="beitrag_voll_erwachsene+jahreskarte_erwachsene">150,00 €</span>, Ermäßigt (Schüler/Studenten) <span data-b="beitrag_voll_ermaessigt+jahreskarte_ermaessigt">90,00 €</span>, Familien <span data-b="beitrag_voll_familie+jahreskarte_familie">300,00 €</span>. Kinder unter 10 Jahren sind bei Mitgliedschaft eines Elternteils beitragsfrei.</p>
+      <p><strong>Fördermitgliedschaft</strong> (ohne Jahreskarte): Erwachsene <span data-b="beitrag_foerder_erwachsene">20,00 €</span>, Ermäßigt (Schüler/Studenten) <span data-b="beitrag_foerder_ermaessigt">16,00 €</span>, Familien <span data-b="beitrag_foerder_familie">40,00 €</span>.</p>
       <p>Wer ab dem 1. Oktober eintritt, zahlt den Beitrag erst ab dem folgenden Kalenderjahr.</p>
 
       <h3>§ 2 Helferdienst</h3>
-      <p>Der Betrieb der Boulderhalle ist nur durch die Mithilfe der Mitglieder möglich. Ab dem Kalenderjahr 2027 leistet deshalb pro Kalenderjahr mindestens einen Helfer- oder Hallendienst:</p>
+      <p>Der Betrieb der Boulderhalle ist nur durch die Mithilfe der Mitglieder möglich. Ab dem Kalenderjahr <span data-jahr>2027</span> leistet deshalb pro Kalenderjahr mindestens einen Helfer- oder Hallendienst:</p>
       <ul>
         <li>jedes erwachsene Vollmitglied,</li>
         <li>jede Familie mit Familienmitgliedschaft – ein Dienst für die ganze Familie, gleich welches Familienmitglied ihn leistet,</li>
@@ -839,9 +839,9 @@
       <h3>§ 3 Ersatzbeitrag</h3>
       <p>Wer in einem Kalenderjahr keinen Dienst nach § 2 leistet, zahlt für dieses Jahr einen Ersatzbeitrag:</p>
       <ul>
-        <li>Erwachsene: 100,00 €</li>
-        <li>Familien: 100,00 € für die ganze Familie</li>
-        <li>Ermäßigte Mitglieder ab 16 Jahren (Schüler, Studenten, Jugendliche): 40,00 €</li>
+        <li>Erwachsene: <span data-b="ersatz_erwachsen">100,00 €</span></li>
+        <li>Familien: <span data-b="ersatz_familie">100,00 €</span> für die ganze Familie</li>
+        <li>Ermäßigte Mitglieder ab 16 Jahren (Schüler, Studenten, Jugendliche): <span data-b="ersatz_jugend">40,00 €</span></li>
       </ul>
       <p>Der Ersatzbeitrag wird nach Ablauf des Kalenderjahres per SEPA-Lastschrift eingezogen.</p>
       <p>Mitglieder können im Mitgliedsantrag oder später gegenüber dem Vorstand erklären, dass sie dauerhaft keinen Dienst leisten und stattdessen jährlich den Ersatzbeitrag zahlen. Die Erklärung gilt, bis das Mitglied sie gegenüber dem Vorstand widerruft.</p>
@@ -854,7 +854,7 @@
       </ul>
 
       <h3>§ 5 Inkrafttreten</h3>
-      <p>Diese Beitragsordnung tritt mit Beschluss in Kraft. Die Regelungen zu Helferdienst und Ersatzbeitrag gelten erstmals für das Kalenderjahr 2027.</p>
+      <p>Diese Beitragsordnung tritt mit Beschluss in Kraft. Die Regelungen zu Helferdienst und Ersatzbeitrag gelten erstmals für das Kalenderjahr <span data-jahr>2027</span>.</p>
     </div>
   </div>
 
@@ -967,6 +967,23 @@ function applyHash() {
   if (tab) switchTab(tab);
 }
 document.addEventListener('DOMContentLoaded', applyHash);
+
+// Beitragsordnung: Betraege aus der Config nachladen (die Zahlen im HTML sind die Rueckfallwerte)
+document.addEventListener('DOMContentLoaded', async function() {
+  try {
+    const r = await fetch('https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec',
+      { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'beitragsInfo' }) });
+    const j = await r.json();
+    if (!j || !j.ok || !j.beitraege) return;
+    const werte = Object.assign({ ersatz_erwachsen: j.erwachsen, ersatz_familie: j.familie, ersatz_jugend: j.jugend }, j.beitraege);
+    document.querySelectorAll('#tab-beitragsordnung [data-b]').forEach(function(el) {
+      let sum = 0, gueltig = true;
+      el.dataset.b.split('+').forEach(function(k) { if (typeof werte[k] === 'number') sum += werte[k]; else gueltig = false; });
+      if (gueltig) el.textContent = sum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    });
+    if (j.startJahr) document.querySelectorAll('#tab-beitragsordnung [data-jahr]').forEach(function(el) { el.textContent = j.startJahr; });
+  } catch (e) {}
+});
 window.addEventListener('hashchange', applyHash);
 
 // ===== PROGRESS INDICATOR =====
