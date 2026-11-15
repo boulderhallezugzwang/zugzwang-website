@@ -2013,8 +2013,10 @@ function handleMitgliedsantrag(data) {
 }
 
 function maHelferdienstText(data) {
-  if (data.helferdienst === 'ersatz') return 'Ersatzbeitrag statt Helferdienst';
-  if (data.helferdienst === 'dienst') return 'mindestens ein Helfer- oder Hallendienst pro Jahr';
+  // Vor dem Startjahr dazusagen, ab wann die Regelung gilt
+  var ab = new Date().getFullYear() < ersatzStartJahr() ? ' (gilt ab ' + ersatzStartJahr() + ')' : '';
+  if (data.helferdienst === 'ersatz') return 'Ersatzbeitrag statt Helferdienst' + ab;
+  if (data.helferdienst === 'dienst') return 'mindestens ein Helfer- oder Hallendienst pro Jahr' + ab;
   return data.arbeitsdienst || '–';
 }
 
