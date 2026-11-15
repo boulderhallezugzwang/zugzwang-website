@@ -443,6 +443,29 @@ u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y}); ok(E('Dorn').stand==='befre
 post(ec,{...AD,action:'dienstBefreien',row:dorn.row,key:dorn.key,feld:'befreiung',wert:''});
 post(ec,{...AD,action:'dienstBefreien',row:dorn.row,key:dorn.key,feld:'gewaehlt',wert:true});
 u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y}); ok(E('Dorn').stand==='gewaehlt'&&es.Mitglieder.rows[dorn.row-1][22]==='Ja','Wahl Ersatzbeitrag von Hand gesetzt');
+// Erinnerungsmails (April/August/Oktober, Monatsanfang)
+{
+const RealDate=Date; const setNow=(y,m,d)=>{ vm.runInContext('Date',ec); ec.__now=new RealDate(y,m-1,d,8,0).getTime(); vm.runInContext('(function(){var R=Date; if(R.__fake) R=R.__real; function F(a,b,c,d,e,f,g){ if(arguments.length===0) return new R(__now); return new R(...arguments); } F.now=function(){return __now}; F.prototype=R.prototype; F.__fake=true; F.__real=R; Date=F;})()',ec); };
+const mi=()=>es.Mitglieder.rows[0].indexOf('Dienst-Erinnerung');
+for(let i=es.Config.rows.length-1;i>0;i--) if(/^ersatz_/.test(es.Config.rows[i][0])) es.Config.rows.splice(i,1); es.Config.rows.push(['ersatz_start_jahr',String(Y),'']);
+const E0=ec.mails.length;
+setNow(Y,5,2); vm.runInContext('ersatzErinnerungen()',ec); ok(ec.mails.length===E0,'Erinnerung: im Mai keine Mail');
+setNow(Y,4,15); vm.runInContext('ersatzErinnerungen()',ec); ok(ec.mails.length===E0,'Erinnerung: Mitte April keine Mail (nur Monatsanfang)');
+setNow(Y,4,2); let er=vm.runInContext('ersatzErinnerungen()',ec);
+const neu=ec.mails.slice(E0), an=n=>neu.find(m=>new RegExp('Hallo '+n+',').test(m.body));
+ok(er.gesendet===neu.length&&neu.length>=4,'Erinnerung Anfang April: Mails verschickt: '+neu.length);
+ok(an('Thomas')&&/1 geleisteter Dienst vermerkt/.test(an('Thomas').body)&&/erfüllt/.test(an('Thomas').body)&&/^Danke für Euren Dienst/.test(an('Thomas').subject),'Familie mit Dienst: Dank und Stand');
+ok(an('Anna')&&/noch kein geleisteter Dienst/.test(an('Anna').body)&&/für 1 Dienst eingetragen/.test(an('Anna').body)&&/Ersatzbeitrag von 100 € für die Familie/.test(an('Anna').body)&&/^Erinnerung: Euer Helferdienst/.test(an('Anna').subject),'Familie ohne Dienst: Erinnerung, Hinweis aufs Quittieren, Betrag');
+ok(an('Mia')&&/Ersatzbeitrag von 40 €/.test(an('Mia').body)&&/verein\.html#helferdienste/.test(an('Mia').body),'Ermaessigt: 40 €, Links zu den Terminen');
+ok(!an('Ina')&&!an('Jan')&&!an('Gerd')&&!an('Fina')&&!an('Carolin')&&!an('Kai'),'keine Mail an Befreite, Ersatzbeitrag-Waehler, Foerdermitglieder, Kinder, Angehoerige');
+ok(es.Mitglieder.rows.find(x=>x[1]==='Anna')[mi()]===Y+'-04','Monat in Spalte Dienst-Erinnerung vermerkt');
+const E1=ec.mails.length; setNow(Y,4,3); vm.runInContext('ersatzErinnerungen()',ec); ok(ec.mails.length===E1,'zweiter Lauf im April: niemand doppelt');
+setNow(Y,10,1); vm.runInContext('ersatzErinnerungen()',ec); ok(ec.mails.slice(E1).some(m=>/^Letzte Erinnerung/.test(m.subject)),'Oktober: letzte Erinnerung');
+const E2=ec.mails.length; es.Config.rows.find(x=>x[0]==='ersatz_start_jahr')[1]=String(Y+1); setNow(Y,8,1); vm.runInContext('ersatzErinnerungen()',ec); ok(ec.mails.length===E2,'vor dem Startjahr keine Erinnerung');
+es.Config.rows.find(x=>x[0]==='ersatz_start_jahr')[1]=String(Y); ec.gmailQuota=25; setNow(Y,8,1); er=vm.runInContext('ersatzErinnerungen()',ec);
+ok(er.gesendet===3&&er.offen>0,'knappes Mailkontingent: Rest folgt am naechsten Tag (Reserve bleibt frei): '+JSON.stringify(er));
+vm.runInContext('Date=Date.__real',ec); ec.gmailQuota=100;
+}
 // Antrag: Wahl + Verweis per Mandatsreferenz; Zusatzspalten werden angelegt
 const as={Mitglieder:mkSheet([MH.slice()]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B']])};
 const ac=ctx(as); load(ac,'apps-script/mitgliederliste/Mitgliederliste.gs');
@@ -500,6 +523,14 @@ ok(!!post(qc,{...C,action:'quittSpontan',art:'helferdienst',ref:'gibtsnicht',vor
 qs.Dienste.rows[1][8]='eingetragen';
 r=post(qc,{...C,action:'quittSpontan',art:'helferdienst',ref:'hA',vorname:'Eva',nachname:'Müller',geburtsdatum:'1990-05-03'});
 ok(r.ok&&st(1)==='geleistet'&&qs.Dienste.rows.length===6,'spontan, obwohl eingetragen: bestehende Zeile wird abgehakt');
+// Erinnerung am Vortag des Hallendienstes
+const morgenD=new Date(T0.getTime()+86400000+3600000*12);
+qs.Dienste.rows.push([did(7),'hallendienst','x',morgenD,K('Kern','Karl','04.06.1985'),'Kern','Karl','karl@example.org','eingetragen','',''],
+  [did(8),'hallendienst','x',morgenD,K('Müller','Eva','03.05.1990'),'Müller','Eva','eva@example.org','ausgetragen','','']);
+const H0=qc.mails.length; let hn=vm.runInContext('hdErinnerungen()',qc); const hm=qc.mails[H0];
+ok(hn===1&&qc.mails.length===H0+1&&hm.to==='karl@example.org'&&/^Erinnerung Hallendienst – morgen/.test(hm.subject)&&/Dienst quittieren/.test(hm.body)&&!/dienst\.html|austragen/i.test(hm.body),'Hallendienst-Erinnerung am Vortag: nur Eingetragene, mit Quittier-Hinweis, ohne Austragen-Link');
+ok(vm.runInContext('hdErinnerungen()',qc)===0&&qc.mails.length===H0+1,'Hallendienst-Erinnerung nicht doppelt');
+qs.Dienste.rows.splice(qs.Dienste.rows.length-2,2);
 // Nachtragen durch Admin
 const AD2={username:'anna',password:'geheim12'};
 ok(!!post(qc,{action:'dienstQuittAdmin',dienstId:did(3),geleistet:true}).error,'Nachtragen: nur mit Anmeldung');

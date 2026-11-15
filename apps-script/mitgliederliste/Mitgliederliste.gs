@@ -2821,7 +2821,7 @@ function helferErinnerungen() {
     for (var j = 0; j < liste.length; j++) {
       helferMail(liste[j].email, 'Erinnerung Helferdienst – ' + rows[i][2],
         'Hallo ' + liste[j].name.split(' ')[0] + ',\n\nkurze Erinnerung an Deinen Helferdienst:\n\n' + helferBeschreibe(rows[i]) +
-        (rows[i][5] ? '\n' + rows[i][5] + '\n' : '') + '\nDanke, dass Du dabei bist!');
+        (rows[i][5] ? '\n' + rows[i][5] + '\n' : '') + '\n' + QUITT_HINWEIS + '\n\nDanke, dass Du dabei bist!');
     }
     sheet.getRange(i + 2, 9).setValue(new Date());
   }
@@ -2960,6 +2960,10 @@ function sendEventReminders() {
   try { sendRsvpSummaries(); } catch (eSum) { console.error('Rueckmelde-Zusammenfassung fehlgeschlagen: ' + eSum); }
   // Dienst-Zaehler in der Mitgliederliste einmal taeglich auffrischen (Jahreswechsel).
   try { dienstSyncMitgliederliste(); } catch (eDienst) { console.error('Dienst-Zaehler nicht aktualisiert: ' + eDienst); }
+  // Hallendienst von morgen: Eingetragene erinnern.
+  try { hdErinnerungen(); } catch (eHdRem) { console.error('Hallendienst-Erinnerung fehlgeschlagen: ' + eHdRem); }
+  // Anfang April/August/Oktober: Zwischenstand und Erinnerung an die Dienstpflicht.
+  try { ersatzErinnerungen(); } catch (eErin) { console.error('Dienst-Erinnerung fehlgeschlagen: ' + eErin); }
   // Lesbare Familien-Zuordnung in der Mitgliederliste auffrischen.
   try { ersatzSchreibeFamilien(); } catch (eFam) { console.error('Familien-Spalte: ' + eFam); }
   // Eingetragene Helfer vor ihrem Dienst erinnern.
@@ -3167,6 +3171,7 @@ function ersatzLadeMitglieder() {
       key: dienstMitgliedKey(nach, vor, zelle(data[i], 'Geburtsdatum')),
       status: text(data[i], 'Status'),
       eintritt: dienstDatumObj(zelle(data[i], 'Eintritt')),
+      email: text(data[i], 'E-Mail'),
       mandatsref: text(data[i], 'Mandatsreferenz'),
       verweis: text(data[i], 'Zahlungspflichtiges Mitglied'),
       iban: text(data[i], 'IBAN'),
@@ -3342,6 +3347,7 @@ function ersatzUebersicht(jahr, mitBank) {
       befreiung: m.befreiung, befreiungFamilie: befreiung, gewaehlt: m.gewaehlt
     };
     if (mitBank) {
+      e.email = m.email;
       e.iban = m.iban; e.bic = m.bic; e.mandatsreferenz = m.mandatsref;
       e.kontoinhaber = m.kontoinhaber; e.mandatDatum = m.mandatDatum;
     }
@@ -3354,6 +3360,110 @@ function ersatzUebersicht(jahr, mitBank) {
     summe: summe, einheiten: einheiten, unklar: unklar,
     offeneQuittungen: quittOffene(drows, jahr)
   };
+}
+
+// ── Erinnerung an die Dienstpflicht ──
+// Anfang April, August und Oktober (Config ersatz_erinnerung_monate) bekommt jede
+// Einheit mit Dienstpflicht – Einzelmitglied bzw. Hauptmitglied der Familie – eine Mail
+// mit ihrem Stand: wie viele Dienste geleistet sind oder dass noch keiner vermerkt ist.
+// Nicht angeschrieben werden Befreite, Neue (ab 1.11.), unter 16-Jaehrige, Foerdermitglieder
+// und wer den Ersatzbeitrag gewaehlt hat. Spalte "Dienst-Erinnerung" merkt sich den Monat,
+// damit niemand doppelt angeschrieben wird und der Versand am naechsten Tag weiterlaufen kann.
+var ERSATZ_SPALTE_ERINNERUNG = 'Dienst-Erinnerung';
+var ERSATZ_ERINNERUNG_MONATE = [4, 8, 10];
+var ERSATZ_ERINNERUNG_BIS_TAG = 10;      // "Anfang des Monats": Versand vom 1. bis zum 10.
+var ERSATZ_ERINNERUNG_RESERVE = 20;      // so viele Mails bleiben am Tag fuer anderes frei
+
+function ersatzErinnerungMonate() {
+  var roh = (getConfigValue('ersatz_erinnerung_monate') || '').toString().trim();
+  if (!roh) return ERSATZ_ERINNERUNG_MONATE;
+  var out = [];
+  roh.split(/[\s,;]+/).forEach(function(t) {
+    var n = parseInt(t, 10);
+    if (/^\d{1,2}$/.test(t) && n >= 1 && n <= 12 && out.indexOf(n) === -1) out.push(n);
+  });
+  return out;
+}
+
+function ersatzEuro(n) {
+  var s = (Math.round(n * 100) / 100).toFixed(2).replace('.', ',');
+  return s.replace(/,00$/, '') + ' €';
+}
+
+// Betreff und Text der Erinnerung fuer eine Einheit aus ersatzUebersicht
+function ersatzErinnerungText(e, jahr, letzte) {
+  var familie = e.typ === 'familie';
+  var du = familie ? 'Euch' : 'Dir', dein = familie ? 'Euer' : 'Dein';
+  var text = 'Hallo ' + e.vorname + ',\n\n';
+  var betreff;
+  if (e.dienste >= 1) {
+    betreff = 'Danke für ' + (familie ? 'Euren' : 'Deinen') + ' Dienst ' + jahr;
+    text += 'kurzer Zwischenstand zu den Helfer- und Hallendiensten ' + jahr + ':\n\n' +
+      'Bei ' + du + (familie ? ' als Familie' : '') + ' ' + (e.dienste === 1 ? 'ist 1 geleisteter Dienst' : 'sind ' + e.dienste + ' geleistete Dienste') + ' vermerkt. ' +
+      'Damit ist der Dienst für ' + jahr + ' erfüllt – vielen Dank fürs Mithelfen!\n\n' +
+      'Wer Lust hat, darf natürlich gern öfter helfen. Freie Termine:\n';
+  } else {
+    betreff = (letzte ? 'Letzte Erinnerung: ' : 'Erinnerung: ') + dein + ' Helferdienst ' + jahr + ' steht noch aus';
+    text += 'kurzer Zwischenstand zu den Helfer- und Hallendiensten ' + jahr + ':\n\n' +
+      'Bei ' + du + (familie ? ' als Familie' : '') + ' ist für ' + jahr + ' noch kein geleisteter Dienst vermerkt.\n';
+    if (e.eingetragen > 0) {
+      text += (familie ? 'Ihr seid' : 'Du bist') + ' für ' + (e.eingetragen === 1 ? '1 Dienst' : e.eingetragen + ' Dienste') + ' eingetragen. ' +
+        'Ein Dienst zählt erst, wenn er am Tag selbst am iPad in der Halle quittiert wurde. ' +
+        'Falls der Dienst schon war und das Quittieren vergessen wurde, melde Dich bitte kurz beim Vorstand.\n';
+    }
+    text += '\nJedes Vollmitglied ab 16 leistet pro Jahr mindestens einen Helfer- oder Hallendienst' +
+      (familie ? ' – bei Familien reicht ein Dienst für die ganze Familie, egal wer ihn übernimmt' : '') + '. ' +
+      (letzte ? 'Das Jahr ist bald vorbei, deshalb ist das die letzte Erinnerung. ' : '') +
+      'Such ' + (familie ? 'Euch' : 'Dir') + ' am besten gleich einen Termin aus:\n';
+  }
+  text += '  Hallendienst:  ' + DIENST_SITE + '/verein.html#hallendienst\n' +
+          '  Helferdienste: ' + DIENST_SITE + '/verein.html#helferdienste\n';
+  if (e.dienste < 1) {
+    var betrag = ersatzBetrag(e.typ);
+    if (betrag > 0) {
+      text += '\nOhne geleisteten Dienst wird für ' + jahr + ' der Ersatzbeitrag von ' + ersatzEuro(betrag) +
+        (familie ? ' für die Familie' : '') + ' fällig (siehe Beitragsordnung: ' + DIENST_SITE + '/info.html#beitragsordnung).\n';
+    }
+  }
+  var signatur = getConfigValue('mail_signatur') || 'Sportliche Grüße,\nBoulderverein Zugzwang e.V.';
+  return { subject: betreff, body: text + '\n' + signatur };
+}
+
+// Laeuft taeglich mit; verschickt nur Anfang der eingestellten Monate und erst ab dem Startjahr.
+function ersatzErinnerungen() {
+  var heute = new Date();
+  var jahr = heute.getFullYear(), monat = heute.getMonth() + 1;
+  if (jahr < ersatzStartJahr()) return { gesendet: 0 };
+  var monate = ersatzErinnerungMonate();
+  if (monate.indexOf(monat) === -1 || heute.getDate() > ERSATZ_ERINNERUNG_BIS_TAG) return { gesendet: 0 };
+  var marke = jahr + '-' + ('0' + monat).slice(-2);
+  var letzte = monat === Math.max.apply(null, monate);
+
+  var u = ersatzUebersicht(jahr, true);
+  var sheet = dienstMitgliederSheet();
+  var col = ersatzSpalte(sheet, ERSATZ_SPALTE_ERINNERUNG) + 1;
+  var zeilen = sheet.getLastRow() - 1;
+  var marken = zeilen > 0 ? sheet.getRange(2, col, zeilen, 1).getValues() : [];
+  var frei = mailCapacityNow() - ERSATZ_ERINNERUNG_RESERVE;
+  var gesendet = 0, offen = 0;
+  for (var i = 0; i < u.einheiten.length; i++) {
+    var e = u.einheiten[i];
+    if (e.stand !== 'offen' && e.stand !== 'erfuellt') continue;
+    if (!maIsEmail(e.email)) continue;
+    if (String((marken[e.row - 2] || [''])[0]) === marke) continue;
+    if (gesendet >= frei) { offen++; continue; }
+    var mail = ersatzErinnerungText(e, jahr, letzte);
+    var res = sendMailChunk({ subject: mail.subject, body: mail.body, name: 'Boulderverein Zugzwang e.V.' }, [e.email]);
+    if (res.sent === 1) {
+      sheet.getRange(e.row, col).setValue(marke);
+      gesendet++;
+    } else if (res.failed && res.failed.length) {
+      sheet.getRange(e.row, col).setValue(marke);          // unzustellbare Adresse nicht taeglich neu versuchen
+      console.error('Dienst-Erinnerung an Zeile ' + e.row + ' fehlgeschlagen');
+    } else { offen++; }
+  }
+  if (gesendet || offen) console.log('Dienst-Erinnerung ' + marke + ': ' + gesendet + ' gesendet, ' + offen + ' folgen am naechsten Tag');
+  return { gesendet: gesendet, offen: offen };
 }
 
 // Befreiung bzw. "Ersatzbeitrag gewaehlt" von Hand setzen (nur Admin).
@@ -3398,6 +3508,37 @@ function ersatzSetze(row, key, feld, wert) {
 var QUITT_HD_START = { 3: '18:00', 5: '18:00', 0: '14:00' };   // Hallendienst: Mi, Fr, So (wie im Hallendienst-Skript)
 var QUITT_ORDNER = 'Zugzwang_Dienst_Quittungen';
 var QUITT_SPALTE = 12;   // Tab "Dienste", Spalte L: Link zur Unterschrift
+var QUITT_SPALTE_ERINNERT = 13;   // Spalte M: Erinnerung an den Hallendienst verschickt am
+var QUITT_HINWEIS = 'Bitte hake Deinen Dienst vor Ort am iPad ab („Dienst quittieren“, mit Unterschrift) – nur quittierte Dienste zählen.';
+
+// Erinnerung am Vortag an alle, die fuer den Hallendienst von morgen eingetragen sind
+// (laeuft im taeglichen Trigger). Bewusst ohne Link zum Austragen.
+function hdErinnerungen() {
+  var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+  if (!dsheet) return 0;
+  var last = dsheet.getLastRow();
+  if (last < 2) return 0;
+  var heute = new Date();
+  var morgen = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() + 1);
+  var morgenDE = dienstDatumDE(morgen);
+  var rows = dsheet.getRange(2, 1, last - 1, QUITT_SPALTE_ERINNERT).getValues();
+  var n = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (r[1] !== 'hallendienst' || (r[8] !== 'eingetragen' && r[8] !== 'ohne_platz')) continue;
+    if (dienstDatumDE(r[3]) !== morgenDE || r[QUITT_SPALTE_ERINNERT - 1]) continue;
+    if (!maIsEmail(String(r[7]))) continue;
+    var start = QUITT_HD_START[morgen.getDay()];
+    helferMail(String(r[7]), 'Erinnerung Hallendienst – morgen, ' + morgenDE,
+      'Hallo ' + r[6] + ',\n\nkurze Erinnerung an Deinen Hallendienst:\n\n  ' +
+      WOCHENTAGE_LANG[morgen.getDay()] + ', ' + morgenDE + (start ? ', ab ' + start + ' Uhr' : '') + '\n\n' +
+      QUITT_HINWEIS + '\n\nDanke, dass Du dabei bist!');
+    if (!String(dsheet.getRange(1, QUITT_SPALTE_ERINNERT).getValue())) dsheet.getRange(1, QUITT_SPALTE_ERINNERT).setValue('Erinnert').setFontWeight('bold');
+    dsheet.getRange(i + 2, QUITT_SPALTE_ERINNERT).setValue(new Date());
+    n++;
+  }
+  return n;
+}
 
 // Legt das Unterschriftsbild in Drive ab (Ordner "Zugzwang_Dienst_Quittungen") und
 // vermerkt den Link in Spalte L des Tabs "Dienste". Ein Fehler dabei verhindert das

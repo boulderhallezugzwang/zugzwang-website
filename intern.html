@@ -3420,6 +3420,12 @@ function cfgRender() {
    ['ersatz_betrag_familie', 'Familien, pauschal für die ganze Familie (Euro)', '100', '9999'],
    ['ersatz_betrag_jugend', 'Ermäßigt ab 16: Schüler, Studenten, Jugendliche (Euro)', '40', '9999'],
    ['ersatz_start_jahr', 'Gilt ab Jahr', '2027', '2099']].forEach(function(f) {
+    if (f[0] === 'ersatz_start_jahr') {
+      html += '<div style="margin-bottom:10px;">';
+      html += '<label for="cfg_ersatz_erinnerung_monate" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">Erinnerungsmail mit Zwischenstand: Monate, jeweils am Monatsanfang (Zahlen mit Komma)</label>';
+      html += '<input type="text" inputmode="numeric" id="cfg_ersatz_erinnerung_monate" value="' + escHtml(cfgGetVal('ersatz_erinnerung_monate') || '') + '" placeholder="4, 8, 10" style="width:110px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
+      html += '</div>';
+    }
     html += '<div style="margin-bottom:10px;">';
     html += '<label for="cfg_' + f[0] + '" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">' + f[1] + '</label>';
     html += '<input type="number" min="0" max="' + f[3] + '" step="1" inputmode="numeric" id="cfg_' + f[0] + '" value="' + escHtml(cfgGetVal(f[0]) || '') + '" placeholder="' + f[2] + '" style="width:110px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
@@ -3548,7 +3554,7 @@ function cfgSave() {
   var dienstTelEl = document.getElementById('cfg_dienste_kontakt_telefon');
   if (dienstTelEl) items.push({ key: 'dienste_kontakt_telefon', value: dienstTelEl.value.trim() });
   ['dienste_limit', 'dienste_hd_sperre_tage', 'dienste_austragen_tage',
-   'ersatz_betrag_erwachsene', 'ersatz_betrag_familie', 'ersatz_betrag_jugend', 'ersatz_start_jahr']
+   'ersatz_betrag_erwachsene', 'ersatz_betrag_familie', 'ersatz_betrag_jugend', 'ersatz_start_jahr', 'ersatz_erinnerung_monate']
    .concat(CFG_BEITRAG.map(function(f) { return f[0]; })).forEach(function(key) {
     var el = document.getElementById('cfg_' + key);
     if (el) items.push({ key: key, value: el.value.trim() });
