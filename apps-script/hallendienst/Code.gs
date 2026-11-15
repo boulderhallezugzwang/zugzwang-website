@@ -654,7 +654,9 @@ function deleteTermin(sheet, datumStr) {
       str = raw.toString();
     }
     if (str === datumStr) {
+      var wegT = sheet.getRange(i + 2, 3, 1, 3).getValues()[0];   // Vorname, Nachname, E-Mail
       sheet.deleteRow(i + 2);
+      hdAbsageMail(wegT[0], wegT[2], datumStr);
       try { dienstMarkiereDienst('hallendienst', datumStr, 'gestrichen'); } catch (eD) { console.error('Dienste-Protokoll: ' + eD); }
       // Kalender-Event löschen
       deleteCalendarEvent(datumStr);
@@ -665,6 +667,32 @@ function deleteTermin(sheet, datumStr) {
   }
 
   return { error: 'Termin nicht gefunden' };
+}
+
+// Wer fuer einen Hallendienst eingetragen war, den der Vorstand loescht oder freiraeumt,
+// bekommt Bescheid (nur fuer Termine, die noch nicht vorbei sind).
+function hdAbsageMail(vorname, email, datumStr) {
+  email = String(email || '').trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+  var datum = parseDatumDE(datumStr);
+  if (!datum || dienstTageBis(datum) < 0) return;
+  try {
+    var signatur = getConfigValue('mail_signatur') ||
+      'Sportliche Grüße,\nBoulderverein Zugzwang e.V.\nNeuhauser Straße 1\n91275 Auerbach i.d.OPf.\n\nhttps://zugzwang-auerbach.de';
+    MailApp.sendEmail({
+      to: email,
+      subject: 'Hallendienst am ' + datumStr + ' entfällt',
+      body: 'Hallo ' + String(vorname || '').trim() + ',\n\n' +
+        'Dein Hallendienst am ' + WOCHENTAGE_LANG[datum.getDay()] + ', ' + datumStr + ', findet leider nicht statt – wir haben Deine Eintragung herausgenommen. ' +
+        'Du musst nichts weiter tun.\n\n' +
+        'Der Termin zählt damit nicht als Dienst. Wenn Du magst, such Dir gern einen anderen Termin aus:\n' +
+        '  ' + DIENST_SITE + '/verein.html#hallendienst\n\n' +
+        'Danke für Deine Bereitschaft und entschuldige die Umstände!\n\n' +
+        'Bei Fragen erreichst Du uns unter ' + (getConfigValue('kontakt_hallendienst_email') || 'boulderhallezugzwang@gmail.com') + '.\n\n' +
+        signatur,
+      name: 'Boulderverein Zugzwang e.V.'
+    });
+  } catch (e) { console.error('Absage-Mail Hallendienst ' + datumStr + ' fehlgeschlagen: ' + e); }
 }
 
 function clearPerson(sheet, datumStr) {
@@ -685,6 +713,8 @@ function clearPerson(sheet, datumStr) {
     }
     if (str === datumStr) {
       var row = i + 2;
+      var wegP = sheet.getRange(row, 3, 1, 3).getValues()[0];      // Vorname, Nachname, E-Mail
+      hdAbsageMail(wegP[0], wegP[2], datumStr);
       sheet.getRange(row, 3).setValue('');  // Vorname
       sheet.getRange(row, 4).setValue('');  // Nachname
       sheet.getRange(row, 5).setValue('');  // E-Mail

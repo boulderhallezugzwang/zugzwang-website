@@ -174,8 +174,14 @@ ok(c.mails.length===vorMails+1&&/wieder frei/.test(c.mails[c.mails.length-1].sub
 ok(post(c,{action:'dienstAustragen',c:id1}).schonAusgetragen===true&&post(c,{action:'dienstInfo',c:id1}).status==='ausgetragen','zweiter Klick aendert nichts');
 // Vorstand entfernt Person -> gestrichen
 H=hdCtx([S1]); c=H.c; sh=H.sh; post(c,E);
-r=post(c,{action:'clearPerson',username:'anna',password:'geheim12',datum:S1});
+let cm0=c.mails.length; r=post(c,{action:'clearPerson',username:'anna',password:'geheim12',datum:S1});
 ok(!r.error&&sh.Dienste.rows[1][8]==='gestrichen'&&sh.Mitglieder.rows[1][sh.Mitglieder.rows[0].indexOf('Dienste lfd. Jahr')]===0,'Vorstand entfernt Person: Dienst gestrichen, Zaehler zurueck');
+ok(c.mails.length===cm0+1&&c.mails[cm0].to===E.email&&/entfällt/.test(c.mails[cm0].subject)&&/findet leider nicht statt/.test(c.mails[cm0].body),'… und die Person bekommt eine Absage-Mail');
+H=hdCtx([S1]); c=H.c; sh=H.sh; post(c,E); cm0=c.mails.length;
+r=post(c,{action:'deleteTermin',username:'anna',password:'geheim12',datum:S1});
+ok(!r.error&&c.mails.length===cm0+1&&/entfällt/.test(c.mails[cm0].subject)&&sh.Dienste.rows[1][8]==='gestrichen','Vorstand loescht Termin: Absage-Mail an den Eingetragenen');
+H=hdCtx([S1]); c=H.c; sh=H.sh; cm0=c.mails.length; post(c,{action:'deleteTermin',username:'anna',password:'geheim12',datum:S1});
+ok(c.mails.length===cm0,'freier Termin geloescht: keine Mail');
 // Gemeinsamer Block ist in beiden Projekten identisch
 const kernRe=/\/\/ >>> DIENSTE-KERN[\s\S]*?\/\/ <<< DIENSTE-KERN/, lies=f=>fs.readFileSync(path.join(repo,f),'utf8');
 const kern=lies('apps-script/_gemeinsam/dienste-kern.js').trim();
@@ -341,7 +347,8 @@ r=post(c,{...A,action:'updateEvent',kalender:'arbeitsdienst',eventId:evH.id,tite
 ok(r.ok&&HD()[HD().length-1][8]==='eingetragen'&&sh.Helferdienste.rows[1][6]===3,'Plaetze erhoeht: Warteliste rueckt nach');
 // Vorstand streicht einen Helfer
 const tomId=HD()[2][0]; ok(post(c,{action:'helferStreichen',dienstId:tomId}).error==='Nicht authentifiziert','Streichen nur mit Anmeldung');
-r=post(c,{...A,action:'helferStreichen',dienstId:tomId}); ok(r.ok&&HD()[2][8]==='gestrichen'&&/Tom Maier gestrichen/.test(r.message),'Vorstand streicht Helfer: zaehlt nicht mehr');
+const sm0=c.mails.length; r=post(c,{...A,action:'helferStreichen',dienstId:tomId}); ok(r.ok&&HD()[2][8]==='gestrichen'&&/Tom Maier gestrichen/.test(r.message),'Vorstand streicht Helfer: zaehlt nicht mehr');
+ok(c.mails.slice(sm0).some(m=>/Eintragung wurde herausgenommen/.test(m.subject)&&/Hallo Tom,/.test(m.body)),'… und der Gestrichene bekommt eine Mail');
 // Erinnerung
 sh.Helferdienste.rows[1][3]=new Date(Date.now()+20*3600e3); sh.Helferdienste.rows[1][4]=new Date(Date.now()+24*3600e3);
 const morgen=new Date(Date.now()+20*3600e3); HD().forEach((x,i)=>{ if(i>0&&x[1]==='helferdienst') x[3]=new Date(morgen.getFullYear(),morgen.getMonth(),morgen.getDate()); });

@@ -2791,6 +2791,14 @@ function helferStreichen(dienstId) {
     var hattePlatz = hit.v[8] === 'eingetragen';
     dienstSetStatus(hit.sheet, hit.row, 'gestrichen');
     SpreadsheetApp.flush();
+    // Der gestrichenen Person Bescheid geben (nur fuer Dienste, die noch bevorstehen)
+    if (hit.dienst && helferIstDatum(hit.dienst[3]) && hit.dienst[3].getTime() > Date.now()) {
+      helferMail(String(hit.v[7]), 'Helferdienst: Deine Eintragung wurde herausgenommen – ' + hit.dienst[2],
+        'Hallo ' + hit.v[6] + ',\n\nwir haben Deine Eintragung für den folgenden Helferdienst herausgenommen:\n\n' +
+        helferBeschreibe(hit.dienst) + '\nDu musst nichts weiter tun. Der Termin zählt damit nicht als Dienst – ' +
+        'wenn Du magst, such Dir gern einen anderen aus:\n  ' + HELFER_SEITE + '\n\n' +
+        'Danke für Deine Bereitschaft! Bei Fragen melde Dich einfach bei uns.');
+    }
     // Nachruecken nur, solange der Dienst noch bevorsteht
     var nach = 0;
     if (hattePlatz && hit.dienst && helferIstDatum(hit.dienst[3]) && hit.dienst[3].getTime() > Date.now()) nach = helferNachruecken(hit.v[2]);
