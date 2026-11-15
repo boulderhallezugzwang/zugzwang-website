@@ -3395,36 +3395,33 @@ function ersatzEuro(n) {
 // Betreff und Text der Erinnerung fuer eine Einheit aus ersatzUebersicht
 function ersatzErinnerungText(e, jahr, letzte) {
   var familie = e.typ === 'familie';
-  var du = familie ? 'Euch' : 'Dir', dein = familie ? 'Euer' : 'Dein';
+  var links = '  Hallendienst:  ' + DIENST_SITE + '/verein.html#hallendienst\n' +
+              '  Helferdienste: ' + DIENST_SITE + '/verein.html#helferdienste\n';
   var text = 'Hallo ' + e.vorname + ',\n\n';
   var betreff;
   if (e.dienste >= 1) {
-    betreff = 'Danke für ' + (familie ? 'Euren' : 'Deinen') + ' Dienst ' + jahr;
-    text += 'kurzer Zwischenstand zu den Helfer- und Hallendiensten ' + jahr + ':\n\n' +
-      'Bei ' + du + (familie ? ' als Familie' : '') + ' ' + (e.dienste === 1 ? 'ist 1 geleisteter Dienst' : 'sind ' + e.dienste + ' geleistete Dienste') + ' vermerkt. ' +
-      'Damit ist der Dienst für ' + jahr + ' erfüllt – vielen Dank fürs Mithelfen!\n\n' +
-      'Wer Lust hat, darf natürlich gern öfter helfen. Freie Termine:\n';
+    betreff = 'Danke für ' + (familie ? 'Euren' : 'Deinen') + ' Dienst ' + jahr + '!';
+    text += 'ein kurzer Zwischenstand zu den Helfer- und Hallendiensten ' + jahr + ':\n\n' +
+      'Bei ' + (familie ? 'Euch als Familie' : 'Dir') + ' ' + (e.dienste === 1 ? 'ist 1 geleisteter Dienst' : 'sind ' + e.dienste + ' geleistete Dienste') + ' vermerkt – ' +
+      'damit ist für ' + jahr + ' alles erledigt. Vielen Dank fürs Mithelfen, ohne ' + (familie ? 'Euch' : 'Dich') + ' ginge es nicht!\n\n' +
+      'Wer Lust hat, darf natürlich gern öfter dabei sein. Die nächsten Termine:\n' + links;
   } else {
-    betreff = (letzte ? 'Letzte Erinnerung: ' : 'Erinnerung: ') + dein + ' Helferdienst ' + jahr + ' steht noch aus';
-    text += 'kurzer Zwischenstand zu den Helfer- und Hallendiensten ' + jahr + ':\n\n' +
-      'Bei ' + du + (familie ? ' als Familie' : '') + ' ist für ' + jahr + ' noch kein geleisteter Dienst vermerkt.\n';
+    betreff = (letzte ? 'Zum Jahresende: ' : 'Kleine Erinnerung: ') + (familie ? 'Euer' : 'Dein') + ' Helferdienst ' + jahr;
+    text += 'unsere Halle lebt davon, dass alle ein bisschen mit anpacken – schön, dass ' + (familie ? 'Ihr' : 'Du') + ' dabei ' + (familie ? 'seid' : 'bist') + '! ' +
+      'Hier ein kurzer Zwischenstand zu den Helfer- und Hallendiensten ' + jahr + ':\n\n' +
+      'Bei ' + (familie ? 'Euch als Familie' : 'Dir') + ' ist bisher noch kein geleisteter Dienst vermerkt. ' +
+      (letzte ? 'Das Jahr geht langsam zu Ende, deshalb melden wir uns noch einmal.' : 'Kein Problem – es ist noch genug Zeit.') + '\n';
     if (e.eingetragen > 0) {
-      text += (familie ? 'Ihr seid' : 'Du bist') + ' für ' + (e.eingetragen === 1 ? '1 Dienst' : e.eingetragen + ' Dienste') + ' eingetragen. ' +
-        'Ein Dienst zählt erst, wenn er am Tag selbst am iPad in der Halle quittiert wurde. ' +
-        'Falls der Dienst schon war und das Quittieren vergessen wurde, melde Dich bitte kurz beim Vorstand.\n';
+      text += '\n' + (familie ? 'Ihr seid' : 'Du bist') + ' schon für ' + (e.eingetragen === 1 ? '1 Dienst' : e.eingetragen + ' Dienste') + ' eingetragen – super! ' +
+        'Bitte denk' + (familie ? 't' : '') + ' daran, den Dienst am Tag selbst am iPad in der Halle zu quittieren, erst dann zählt er. ' +
+        'Falls der Dienst schon war und das Quittieren untergegangen ist, ' + (familie ? 'gebt' : 'gib') + ' uns einfach kurz Bescheid.\n';
     }
-    text += '\nJedes Vollmitglied ab 16 leistet pro Jahr mindestens einen Helfer- oder Hallendienst' +
-      (familie ? ' – bei Familien reicht ein Dienst für die ganze Familie, egal wer ihn übernimmt' : '') + '. ' +
-      (letzte ? 'Das Jahr ist bald vorbei, deshalb ist das die letzte Erinnerung. ' : '') +
-      'Such ' + (familie ? 'Euch' : 'Dir') + ' am besten gleich einen Termin aus:\n';
-  }
-  text += '  Hallendienst:  ' + DIENST_SITE + '/verein.html#hallendienst\n' +
-          '  Helferdienste: ' + DIENST_SITE + '/verein.html#helferdienste\n';
-  if (e.dienste < 1) {
+    text += '\nPro Jahr reicht ein Helfer- oder Hallendienst' + (familie ? ' für die ganze Familie, egal wer ihn übernimmt' : '') + '. ' +
+      'Such' + (familie ? 't Euch' : ' Dir') + ' gern einen Termin aus, der passt:\n' + links;
     var betrag = ersatzBetrag(e.typ);
     if (betrag > 0) {
-      text += '\nOhne geleisteten Dienst wird für ' + jahr + ' der Ersatzbeitrag von ' + ersatzEuro(betrag) +
-        (familie ? ' für die Familie' : '') + ' fällig (siehe Beitragsordnung: ' + DIENST_SITE + '/info.html#beitragsordnung).\n';
+      text += '\nZur Info: Wer im Jahr keinen Dienst schafft, zahlt laut Beitragsordnung einen Ersatzbeitrag von ' + ersatzEuro(betrag) +
+        (familie ? ' für die Familie' : '') + '. Schöner ist es natürlich, wenn wir uns in der Halle sehen!\n';
     }
   }
   var signatur = getConfigValue('mail_signatur') || 'Sportliche Grüße,\nBoulderverein Zugzwang e.V.';
@@ -3481,21 +3478,24 @@ function ersatzAbschlussText(e, jahr) {
   var kontakt = getConfigValue('kontakt_hallendienst_email') || VEREIN_EMAIL_FALLBACK;
   var tel = (getConfigValue('dienste_kontakt_telefon') || '').toString().trim();
   var text = 'Hallo ' + e.vorname + ',\n\n' +
-    'das Jahr ' + jahr + ' ist vorbei, und wir schließen die Helfer- und Hallendienste ab.\n\n' +
-    'Bei ' + (familie ? 'Euch als Familie' : 'Dir') + ' ist für ' + jahr + ' kein geleisteter Dienst vermerkt.' +
+    'ein gutes neues Jahr! Wir schließen gerade die Helfer- und Hallendienste ' + jahr + ' ab und möchten kurz mit ' + (familie ? 'Euch' : 'Dir') +
+    ' abgleichen, ob bei uns alles richtig vermerkt ist.\n\n' +
+    'Bei ' + (familie ? 'Euch als Familie' : 'Dir') + ' ist für ' + jahr + ' kein geleisteter Dienst eingetragen.' +
     (e.eingetragen > 0
-      ? ' ' + (familie ? 'Ihr wart' : 'Du warst') + ' zwar für ' + (e.eingetragen === 1 ? '1 Dienst' : e.eingetragen + ' Dienste') +
-        ' eingetragen, er wurde aber nicht am iPad in der Halle quittiert.'
+      ? ' ' + (familie ? 'Ihr wart' : 'Du warst') + ' für ' + (e.eingetragen === 1 ? '1 Dienst' : e.eingetragen + ' Dienste') +
+        ' angemeldet, er wurde aber nicht am iPad in der Halle quittiert.'
       : '') + '\n\n' +
-    'Nach unserer Beitragsordnung wird deshalb der Ersatzbeitrag von ' + ersatzEuro(e.betrag) +
-    (familie ? ' für die Familie' : '') + ' fällig. Wir ziehen ihn im Februar per SEPA-Lastschrift ein.\n\n' +
-    'Stimmt etwas nicht? Wenn ' + (familie ? 'Ihr' : 'Du') + ' ' + jahr + ' doch einen Dienst geleistet ' + (familie ? 'habt' : 'hast') +
-    ' (zum Beispiel, weil das Quittieren vergessen wurde), antworte bitte bis zum 31. Januar auf diese Mail oder schreib an ' + kontakt +
-    (tel ? ' bzw. ' + tel : '') + ' – mit Datum und Art des Dienstes. Wir prüfen das und tragen den Dienst nach.\n\n' +
-    'Ohne Rückmeldung bis zum 31. Januar gehen wir davon aus, dass alles stimmt.\n\n' +
+    'Laut Beitragsordnung fällt dafür der Ersatzbeitrag von ' + ersatzEuro(e.betrag) + (familie ? ' für die Familie' : '') +
+    ' an, den wir im Februar per Lastschrift einziehen würden.\n\n' +
+    'Falls das nicht stimmt – etwa weil ' + (familie ? 'Ihr geholfen habt' : 'Du geholfen hast') + ' und das Quittieren untergegangen ist –, ist das überhaupt kein Problem: ' +
+    'Antworte' + (familie ? 't' : '') + ' einfach bis zum 31. Januar auf diese Mail (oder an ' + kontakt + (tel ? ' bzw. ' + tel : '') + ') und schreib' + (familie ? 't' : '') +
+    ' uns kurz, wann und wobei ' + (familie ? 'Ihr dabei wart' : 'Du dabei warst') + '. Wir tragen den Dienst dann gern nach.\n\n' +
+    'Wenn wir bis dahin nichts hören, gehen wir davon aus, dass unser Stand passt.\n\n' +
+    'Und für ' + (jahr + 1) + ' freuen wir uns, wenn ' + (familie ? 'Ihr' : 'Du') + ' dabei ' + (familie ? 'seid' : 'bist') + ' – die Termine stehen hier:\n' +
+    '  ' + DIENST_SITE + '/verein.html#helferdienste\n\n' +
     'Beitragsordnung: ' + DIENST_SITE + '/info.html#beitragsordnung\n';
   var signatur = getConfigValue('mail_signatur') || 'Sportliche Grüße,\nBoulderverein Zugzwang e.V.';
-  return { subject: 'Helferdienst ' + jahr + ': Ersatzbeitrag – bitte prüfen', body: text + '\n' + signatur };
+  return { subject: 'Helferdienst ' + jahr + ' – stimmt unser Stand?', body: text + '\n' + signatur };
 }
 
 // Laeuft taeglich mit; verschickt nur Anfang Januar fuer das Vorjahr.
@@ -3571,7 +3571,7 @@ var QUITT_HD_START = { 3: '18:00', 5: '18:00', 0: '14:00' };   // Hallendienst: 
 var QUITT_ORDNER = 'Zugzwang_Dienst_Quittungen';
 var QUITT_SPALTE = 12;   // Tab "Dienste", Spalte L: Link zur Unterschrift
 var QUITT_SPALTE_ERINNERT = 13;   // Spalte M: Erinnerung an den Hallendienst verschickt am
-var QUITT_HINWEIS = 'Bitte hake Deinen Dienst vor Ort am iPad ab („Dienst quittieren“, mit Unterschrift) – nur quittierte Dienste zählen.';
+var QUITT_HINWEIS = 'Eine kleine Bitte: Quittiere Deinen Dienst vor Ort kurz am iPad („Dienst quittieren“, mit Unterschrift) – erst dann wird er Dir gutgeschrieben.';
 
 // Erinnerung am Vortag an alle, die fuer den Hallendienst von morgen eingetragen sind
 // (laeuft im taeglichen Trigger). Bewusst ohne Link zum Austragen.
@@ -3592,9 +3592,9 @@ function hdErinnerungen() {
     if (!maIsEmail(String(r[7]))) continue;
     var start = QUITT_HD_START[morgen.getDay()];
     helferMail(String(r[7]), 'Erinnerung Hallendienst – morgen, ' + morgenDE,
-      'Hallo ' + r[6] + ',\n\nkurze Erinnerung an Deinen Hallendienst:\n\n  ' +
+      'Hallo ' + r[6] + ',\n\nschön, dass Du morgen den Hallendienst übernimmst! Hier noch einmal die Eckdaten:\n\n  ' +
       WOCHENTAGE_LANG[morgen.getDay()] + ', ' + morgenDE + (start ? ', ab ' + start + ' Uhr' : '') + '\n\n' +
-      QUITT_HINWEIS + '\n\nDanke, dass Du dabei bist!');
+      QUITT_HINWEIS + '\n\nVielen Dank fürs Mithelfen und viel Spaß!');
     if (!String(dsheet.getRange(1, QUITT_SPALTE_ERINNERT).getValue())) dsheet.getRange(1, QUITT_SPALTE_ERINNERT).setValue('Erinnert').setFontWeight('bold');
     dsheet.getRange(i + 2, QUITT_SPALTE_ERINNERT).setValue(new Date());
     n++;
