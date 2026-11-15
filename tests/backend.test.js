@@ -413,6 +413,8 @@ ok(E('Gans').stand==='foerder'&&E('Gans').betrag===0,'Foerdermitglied: keine Pfl
 ok(E('Hahn').stand==='neu'&&E('Hahn').betrag===0,'Eintritt ab 1.11.: im Eintrittsjahr befreit');
 ok(E('Igel').stand==='befreit'&&E('Igel').betrag===0,'von Hand befreit');
 ok(E('Jost').stand==='gewaehlt'&&E('Jost').betrag===100,'Ersatzbeitrag gewaehlt: zahlt');
+{const fi=es.Mitglieder.rows[0].indexOf('Familie'); const F=n=>es.Mitglieder.rows.find(x=>x[1]===n)[fi];
+ok(fi===EH.length&&F('Thomas')==='Taubmann, Thomas'&&F('Carolin')==='Taubmann, Thomas'&&F('Ben')==='Berg, Anna'&&F('Cid')==='Clar, Cora'&&F('Kai')==='?'&&!F('Dirk'),'Spalte Familie: Name des Hauptmitglieds, ? bei unklar, leer bei Einzelmitglied');}
 ok(u.unklar.length===1&&u.unklar[0].nachname==='Kurz'&&!E('Kurz'),'unklarer Verweis wird gemeldet, nicht berechnet');
 ok(u.summe.betrag===480&&u.summe.offen===5&&u.summe.erfuellt===1,'Summe 440: '+JSON.stringify(u.summe));
 ok(E('Dorn').iban&&E('Dorn').mandatsreferenz==='ZZ-2026-0518','Einzugsdaten fuer Admin');

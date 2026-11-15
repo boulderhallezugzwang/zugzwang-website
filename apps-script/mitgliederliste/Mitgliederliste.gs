@@ -240,7 +240,10 @@ function doPost(e) {
       var ebUser = authenticateUser(body.username, body.password);
       if (!ebUser) return jsonResponse({ error: 'Nicht authentifiziert' });
       if (ebUser.rolle !== 'admin') return jsonResponse({ error: 'Keine Berechtigung' });
-      if (action === 'dienstUebersicht') return jsonResponse(ersatzUebersicht(body.jahr, true));
+      if (action === 'dienstUebersicht') {
+        try { ersatzSchreibeFamilien(); } catch (eFam) { console.error('Familien-Spalte: ' + eFam); }
+        return jsonResponse(ersatzUebersicht(body.jahr, true));
+      }
       return jsonResponse(ersatzSetze(body.row, (body.key || '').toString(), (body.feld || '').toString(), body.wert));
     }
 
@@ -1985,6 +1988,7 @@ function handleMitgliedsantrag(data) {
         ]);
       });
     }
+    try { ersatzSchreibeFamilien(); } catch (eFam) { console.error('Familien-Spalte: ' + eFam); }
     SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
@@ -2949,6 +2953,8 @@ function sendEventReminders() {
   try { sendRsvpSummaries(); } catch (eSum) { console.error('Rueckmelde-Zusammenfassung fehlgeschlagen: ' + eSum); }
   // Dienst-Zaehler in der Mitgliederliste einmal taeglich auffrischen (Jahreswechsel).
   try { dienstSyncMitgliederliste(); } catch (eDienst) { console.error('Dienst-Zaehler nicht aktualisiert: ' + eDienst); }
+  // Lesbare Familien-Zuordnung in der Mitgliederliste auffrischen.
+  try { ersatzSchreibeFamilien(); } catch (eFam) { console.error('Familien-Spalte: ' + eFam); }
   // Eingetragene Helfer vor ihrem Dienst erinnern.
   try { helferErinnerungen(); } catch (eHelferRem) { console.error('Helfer-Erinnerung fehlgeschlagen: ' + eHelferRem); }
 
@@ -3080,6 +3086,7 @@ function sendEventReminders() {
 
 var ERSATZ_SPALTE_BEFREIUNG = 'Dienst-Befreiung';
 var ERSATZ_SPALTE_GEWAEHLT = 'Ersatzbeitrag gewählt';
+var ERSATZ_SPALTE_FAMILIE = 'Familie';
 var ERSATZ_START_JAHR = 2027;
 var ERSATZ_BETRAEGE = { erwachsen: 100, familie: 100, jugend: 40 };
 var ERSATZ_CONFIG_KEYS = { erwachsen: 'ersatz_betrag_erwachsene', familie: 'ersatz_betrag_familie', jugend: 'ersatz_betrag_jugend' };
@@ -3207,21 +3214,10 @@ function ersatzAlterAm(geburt, stichtag) {
   return a;
 }
 
-// Uebersicht fuer ein Jahr: je Einheit (Person oder Familie) der Stand.
-// mitBank = true liefert zusaetzlich die Einzugsdaten (nur fuer Admins).
-function ersatzUebersicht(jahr, mitBank) {
-  jahr = parseInt(jahr, 10);
-  var aktJahr = new Date().getFullYear();
-  if (!jahr || jahr < 2020 || jahr > aktJahr + 1) jahr = aktJahr;
-
-  var liste = ersatzLadeMitglieder();
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var dsheet = ss.getSheetByName(DIENSTE_TAB);
-  var drows = dsheet ? dienstRows(dsheet) : [];
-
+// Ordnet Angehoerige ihrem Hauptmitglied zu: { hauptVon: {Index: Index}, unklar: [...] }
+function ersatzZuordnung(liste) {
   var hauptVon = {}, unklar = [];
-  var i;
-  for (i = 0; i < liste.length; i++) {
+  for (var i = 0; i < liste.length; i++) {
     if (!liste[i].verweis) continue;
     var h = ersatzFindeHaupt(liste[i].verweis, liste, i);
     // Verweist das "Hauptmitglied" selbst weiter, gilt dessen Hauptmitglied
@@ -3237,6 +3233,52 @@ function ersatzUebersicht(jahr, mitBank) {
       verweis: liste[i].verweis, grund: h === -2 ? 'mehrdeutig' : 'nicht gefunden'
     });
   }
+  return { hauptVon: hauptVon, unklar: unklar };
+}
+
+// Schreibt in die Mitgliederliste, zu welchem Hauptmitglied jemand gehoert (nur zum
+// Lesen – massgeblich bleibt "Zahlungspflichtiges Mitglied"). Hauptmitglied und
+// Angehoerige bekommen denselben Eintrag, z.B. "Taubmann, Thomas"; "?" = nicht zuzuordnen.
+function ersatzSchreibeFamilien() {
+  var liste = ersatzLadeMitglieder();
+  if (liste.length === 0) return;
+  var sheet = dienstMitgliederSheet();
+  var col = ersatzSpalte(sheet, ERSATZ_SPALTE_FAMILIE);
+  var zeilen = sheet.getLastRow() - 1;
+  var alt = sheet.getRange(2, col + 1, zeilen, 1).getValues();
+  var zu = ersatzZuordnung(liste);
+  var hatAngehoerige = {};
+  for (var k in zu.hauptVon) hatAngehoerige[zu.hauptVon[k]] = true;
+  var neu = [];
+  for (var z = 0; z < zeilen; z++) neu.push(['']);
+  var name = function(m) { return sheetSafe(m.nachname + ', ' + m.vorname); };
+  for (var i = 0; i < liste.length; i++) {
+    var wert = '';
+    if (zu.hauptVon[i] !== undefined) wert = name(liste[zu.hauptVon[i]]);
+    else if (liste[i].verweis) wert = '?';
+    else if (hatAngehoerige[i] || liste[i].status.toLowerCase().indexOf('familie') !== -1) wert = name(liste[i]);
+    neu[liste[i].row - 2] = [wert];
+  }
+  var gleich = true;
+  for (var j = 0; j < zeilen && gleich; j++) gleich = String(alt[j][0]) === String(neu[j][0]);
+  if (!gleich) sheet.getRange(2, col + 1, zeilen, 1).setValues(neu);
+}
+
+// Uebersicht fuer ein Jahr: je Einheit (Person oder Familie) der Stand.
+// mitBank = true liefert zusaetzlich die Einzugsdaten (nur fuer Admins).
+function ersatzUebersicht(jahr, mitBank) {
+  jahr = parseInt(jahr, 10);
+  var aktJahr = new Date().getFullYear();
+  if (!jahr || jahr < 2020 || jahr > aktJahr + 1) jahr = aktJahr;
+
+  var liste = ersatzLadeMitglieder();
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var dsheet = ss.getSheetByName(DIENSTE_TAB);
+  var drows = dsheet ? dienstRows(dsheet) : [];
+
+  var zu = ersatzZuordnung(liste);
+  var hauptVon = zu.hauptVon, unklar = zu.unklar;
+  var i;
 
   var angehoerige = {};
   for (var k in hauptVon) {
