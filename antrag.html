@@ -147,6 +147,15 @@
     font-size: 18px; pointer-events: none; opacity: 0; transition: opacity 0.2s;
   }
   .iban-ico.show { opacity: 1; }
+  .hd-wahl { margin: 4px 0 12px; padding: 14px 16px; border: 1px solid var(--dark-border); border-radius: var(--radius); }
+  .hd-wahl.missing { border-color: var(--error); background: var(--error-bg); }
+  .hd-wahl[hidden] { display: none; }
+  .hd-wahl-titel { font-weight: 600; color: var(--cream); margin-bottom: 6px; }
+  .hd-wahl-text { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 10px; }
+  .hd-wahl-fuss { margin: 6px 0 0; }
+  .hd-wahl-text a { color: var(--yellow); }
+  .hd-wahl-opt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; font-size: 14px; line-height: 1.45; cursor: pointer; color: var(--text); }
+  .hd-wahl-opt input { width: 18px; height: 18px; min-width: 18px; margin-top: 2px; accent-color: var(--yellow); }
   .hint { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
   .ferr { font-size: 12px; color: var(--error); margin-top: 3px; display: none; }
   .ferr.show { display: block; }
@@ -508,11 +517,13 @@
           Ich erteile das oben genannte SEPA-Lastschriftmandat. <span class="req">*</span>
         </label>
       </div>
-      <div class="cb-group">
-        <input type="checkbox" id="arbeitsdienst" name="arbeitsdienst" required>
-        <label for="arbeitsdienst">
-          Ich verpflichte mich, mindestens einmal im Jahr an einem Arbeitsdienst teilzunehmen. <span class="req">*</span>
-        </label>
+      <div class="hd-wahl" id="hdWahl">
+        <div class="hd-wahl-titel">Helferdienst <span class="req">*</span></div>
+        <p class="hd-wahl-text">Der Verein lebt vom Mithelfen. Ab <span id="ebStart">2027</span> gilt: Jedes Vollmitglied leistet pro Kalenderjahr mindestens einen Helfer- oder Hallendienst – bei Familien reicht ein Dienst für die ganze Familie. Wer keinen Dienst leistet, zahlt für das Jahr einen Ersatzbeitrag (<span id="ebBetraege">siehe Beitragsordnung</span>).</p>
+        <label class="hd-wahl-opt"><input type="radio" name="helferdienst" value="dienst"> <span>Ich leiste mindestens einen Helfer- oder Hallendienst pro Jahr.</span></label>
+        <label class="hd-wahl-opt"><input type="radio" name="helferdienst" value="ersatz"> <span>Ich möchte keinen Dienst leisten und zahle stattdessen jedes Jahr den Ersatzbeitrag per Lastschrift.</span></label>
+        <p class="hd-wahl-text hd-wahl-fuss">Die Wahl gilt, bis du sie beim Vorstand änderst. <a href="info.html#beitragsordnung" target="_blank" rel="noopener">Beitragsordnung</a></p>
+        <div class="ferr" id="hdWahlErr">Bitte wähle eine der beiden Möglichkeiten.</div>
       </div>
     </div>
 
@@ -609,9 +620,42 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(isFamily()) famSec.classList.add('show');
     else famSec.classList.remove('show');
   }
+  // Helferdienst-Wahl: nur fuer Vollmitglieder (Foerdermitglieder haben keine Dienstpflicht)
+  const hdWahl=document.getElementById('hdWahl');
+  function hdWahlNoetig(){
+    const sel=f.querySelector('input[name="kategorie"]:checked');
+    return !sel || !sel.value.startsWith('Förder');
+  }
+  function hdWahlWert(){
+    const sel=f.querySelector('input[name="helferdienst"]:checked');
+    return sel?sel.value:'';
+  }
+  function toggleHdWahl(){ hdWahl.hidden=!hdWahlNoetig(); }
+  f.querySelectorAll('input[name="helferdienst"]').forEach(el=>{
+    el.addEventListener('change',()=>{
+      hdWahl.classList.remove('missing');
+      document.getElementById('hdWahlErr').classList.remove('show');
+    });
+  });
+  // Aktuelle Betraege vom Server holen (im internen Bereich einstellbar)
+  (async function(){
+    try{
+      const r=await fetch(SCRIPT_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'ersatzInfo'})});
+      const j=await r.json();
+      if(!j||!j.ok) return;
+      const eur=n=>Number(n).toLocaleString('de-DE',{minimumFractionDigits:Number.isInteger(Number(n))?0:2,maximumFractionDigits:2})+' €';
+      const teile=[];
+      if(j.erwachsen>0) teile.push('Erwachsene '+eur(j.erwachsen));
+      if(j.familie>0) teile.push('Familien '+eur(j.familie));
+      if(j.jugend>0) teile.push('Jugendliche ab 16 '+eur(j.jugend));
+      if(teile.length) document.getElementById('ebBetraege').textContent='derzeit '+teile.join(', ');
+      if(j.startJahr) document.getElementById('ebStart').textContent=j.startJahr;
+    }catch(e){}
+  })();
   f.querySelectorAll('input[name="kategorie"]').forEach(el=>{
     el.addEventListener('change',()=>{
       toggleFamily();
+      toggleHdWahl();
       document.getElementById('katErr').classList.remove('show');
     });
   });
@@ -711,6 +755,10 @@ document.addEventListener('DOMContentLoaded',()=>{
         if(!f.querySelector(`input[name="${el.name}"]:checked`)){err=true;document.getElementById('katErr').classList.add('show');}
       }else if(!el.value.trim()){err=true;el.classList.add('invalid');}
     });
+    if(hdWahlNoetig()&&!hdWahlWert()){
+      err=true;hdWahl.classList.add('missing','error');
+      document.getElementById('hdWahlErr').classList.add('show');
+    }
     if(isFamily()){
       famSec.querySelectorAll('.family-member input[required]').forEach(el=>{
         if(!el.value.trim()){err=true;el.classList.add('invalid');}
@@ -732,7 +780,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       bic:f.bic.value.trim().toUpperCase(),
       satzung:f.satzung.checked?'Ja':'Nein',dsgvo:f.dsgvo.checked?'Ja':'Nein',
       sepa_consent:f.sepa_consent.checked?'Ja':'Nein',
-      arbeitsdienst:f.arbeitsdienst.checked?'Ja':'Nein',
+      ...(hdWahlNoetig()?{helferdienst:hdWahlWert()}:{}),
       familienmitglieder:isFamily()?getFamilyMembers():[],
       datum:new Date().toLocaleDateString('de-DE'),
       zeitstempel:new Date().toISOString()
@@ -783,6 +831,8 @@ document.addEventListener('DOMContentLoaded',()=>{
       if(!el.checked){ok=false;if(formTouched&&grp)grp.classList.add('missing');}
       else{if(grp)grp.classList.remove('missing');}
     });
+    if(hdWahlNoetig()&&!hdWahlWert()){ok=false;if(formTouched)hdWahl.classList.add('missing');}
+    else hdWahl.classList.remove('missing');
     if(em.value&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.value))ok=false;
     const ic=ib.value.replace(/\s/g,'');
     if(!ic||!valIBAN(ic).ok)ok=false;

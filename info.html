@@ -359,6 +359,7 @@
     <button class="tab-btn active" data-tab="haftung">Haftungsausschluss</button>
     <button class="tab-btn" data-tab="jugend">Einverständnis Jugendliche</button>
     <button class="tab-btn" data-tab="satzung">Satzung</button>
+    <button class="tab-btn" data-tab="beitragsordnung">Beitragsordnung</button>
     <button class="tab-btn" data-tab="datenschutz">Datenschutz</button>
   </div>
 
@@ -814,6 +815,49 @@
     </div>
   </div>
 
+  <!-- ==================== BEITRAGSORDNUNG ==================== -->
+  <div class="tab-panel" id="tab-beitragsordnung">
+    <div class="text-content">
+      <h2>Beitragsordnung — Boulderverein Zugzwang e.V.</h2>
+      <p><em>Finanz- und Gebührenordnung nach § 5 der Satzung. Entwurf, Stand November 2026 – noch nicht beschlossen.</em></p>
+
+      <h3>§ 1 Jahresbeiträge</h3>
+      <p>Die Beiträge gelten je Kalenderjahr und werden per SEPA-Lastschrift eingezogen.</p>
+      <p><strong>Vollmitgliedschaft</strong> (Mitgliedsbeitrag einschließlich Jahreskarte): Erwachsene 150,00 €, Ermäßigt (Schüler/Studenten) 90,00 €, Familien 300,00 €. Kinder unter 10 Jahren sind bei Mitgliedschaft eines Elternteils beitragsfrei.</p>
+      <p><strong>Fördermitgliedschaft</strong> (ohne Jahreskarte): Erwachsene 20,00 €, Ermäßigt (Schüler/Studenten) 16,00 €, Familien 40,00 €.</p>
+      <p>Wer ab dem 1. Oktober eintritt, zahlt den Beitrag erst ab dem folgenden Kalenderjahr.</p>
+
+      <h3>§ 2 Helferdienst</h3>
+      <p>Der Betrieb der Boulderhalle ist nur durch die Mithilfe der Mitglieder möglich. Ab dem Kalenderjahr 2027 leistet deshalb pro Kalenderjahr mindestens einen Helfer- oder Hallendienst:</p>
+      <ul>
+        <li>jedes erwachsene Vollmitglied,</li>
+        <li>jede Familie mit Familienmitgliedschaft – ein Dienst für die ganze Familie, gleich welches Familienmitglied ihn leistet,</li>
+        <li>jedes jugendliche Vollmitglied ab dem Kalenderjahr, in dem es 16 Jahre alt wird, soweit es nicht zu einer Familienmitgliedschaft gehört.</li>
+      </ul>
+      <p>Als Dienst zählen die auf der Vereinsseite ausgeschriebenen Hallen- und Helferdienste, für die sich das Mitglied eingetragen und die es geleistet hat.</p>
+
+      <h3>§ 3 Ersatzbeitrag</h3>
+      <p>Wer in einem Kalenderjahr keinen Dienst nach § 2 leistet, zahlt für dieses Jahr einen Ersatzbeitrag:</p>
+      <ul>
+        <li>Erwachsene: 100,00 €</li>
+        <li>Familien: 100,00 € für die ganze Familie</li>
+        <li>Jugendliche ab 16: 40,00 €</li>
+      </ul>
+      <p>Der Ersatzbeitrag wird nach Ablauf des Kalenderjahres per SEPA-Lastschrift eingezogen.</p>
+      <p>Mitglieder können im Mitgliedsantrag oder später gegenüber dem Vorstand erklären, dass sie dauerhaft keinen Dienst leisten und stattdessen jährlich den Ersatzbeitrag zahlen. Die Erklärung gilt, bis das Mitglied sie gegenüber dem Vorstand widerruft.</p>
+
+      <h3>§ 4 Ausnahmen</h3>
+      <ul>
+        <li>Fördermitglieder sowie Kinder und Jugendliche unter 16 Jahren haben keine Dienstpflicht.</li>
+        <li>Wer ab dem 1. November eintritt, ist im Eintrittsjahr von der Dienstpflicht befreit.</li>
+        <li>Der Vorstand kann Mitglieder befreien, die sich auf andere Weise regelmäßig für den Verein einsetzen (zum Beispiel Vorstandsmitglieder, Trainer und Routenschrauber), sowie in Härtefällen.</li>
+      </ul>
+
+      <h3>§ 5 Inkrafttreten</h3>
+      <p>Diese Beitragsordnung tritt mit Beschluss in Kraft. Die Regelungen zu Helferdienst und Ersatzbeitrag gelten erstmals für das Kalenderjahr 2027.</p>
+    </div>
+  </div>
+
   <!-- ==================== DATENSCHUTZ ==================== -->
   <div class="tab-panel" id="tab-datenschutz">
     <div class="text-content">
@@ -860,7 +904,7 @@
 
 <script>
 // ===== TAB NAVIGATION =====
-const HASH_TO_TAB = { haftungsausschluss: 'haftung', jugendliche: 'jugend', satzung: 'satzung', datenschutz: 'datenschutz' };
+const HASH_TO_TAB = { haftungsausschluss: 'haftung', jugendliche: 'jugend', satzung: 'satzung', beitragsordnung: 'beitragsordnung', datenschutz: 'datenschutz' };
 
 function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));

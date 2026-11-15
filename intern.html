@@ -490,6 +490,23 @@
     font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 12px;
     white-space: nowrap;
   }
+  /* ===== Dienste / Ersatzbeitrag ===== */
+  .dn-chip { padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; white-space: nowrap; }
+  .dn-chip strong { color: var(--yellow); font-variant-numeric: tabular-nums; }
+  .dn-wrap { overflow-x: auto; }
+  .dn-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .dn-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .dn-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .dn-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dn-sub { font-size: 12px; color: var(--text-dim); }
+  .dn-stand { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .dn-stand.offen { background: rgba(231,76,60,0.15); color: #e74c3c; }
+  .dn-stand.gewaehlt { background: rgba(230,126,34,0.15); color: #e67e22; }
+  .dn-stand.erfuellt { background: rgba(46,204,113,0.15); color: #2ecc71; }
+  .dn-stand.befreit, .dn-stand.neu, .dn-stand.kind, .dn-stand.foerder { background: rgba(138,134,128,0.18); color: var(--text-dim); }
+  .dn-btn { padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: inherit; cursor: pointer; white-space: nowrap; margin: 0 4px 4px 0; }
+  .dn-btn:hover { border-color: var(--yellow); }
+  .dn-unklar { margin-bottom: 12px; padding: 10px 12px; border: 1px solid #e67e22; border-radius: 6px; font-size: 13px; }
   .ev-cal.events { background: rgba(52,152,219,0.15); color: #3498db; }
   .ev-cal.training { background: rgba(46,204,113,0.15); color: #2ecc71; }
   .ev-cal.arbeitsdienst { background: rgba(230,126,34,0.15); color: #e67e22; }
@@ -700,6 +717,7 @@
         <button class="app-tab" data-section="news">News</button>
         <button class="app-tab" data-section="newsletter">Newsletter</button>
         <button class="app-tab" data-section="team">Team</button>
+        <button class="app-tab" data-section="dienste" id="tabDienste" style="display:none">Dienste</button>
         <button class="app-tab" data-section="bilder" id="tabBilder" style="display:none">Bilder</button>
         <button class="app-tab" data-section="config" id="tabConfig" style="display:none">Config</button>
       </div>
@@ -1143,6 +1161,33 @@
     </div>
   </div>
 
+  <!-- Sektion: Dienste / Ersatzbeitrag (nur Admin) -->
+  <div class="section" id="sectionDienste">
+    <div class="event-form">
+      <h3>Dienste und Ersatzbeitrag</h3>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Pro Jahr ein Hallen- oder Helferdienst je Erwachsenem, je Familie und je Jugendlichem ab 16. Wer keinen leistet, zahlt den Ersatzbeitrag.</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <label for="dnJahr" style="margin:0;">Jahr</label>
+        <select id="dnJahr" onchange="dnLoad()" style="width:auto;"></select>
+        <label for="dnFilter" style="margin:0 0 0 8px;">Anzeigen</label>
+        <select id="dnFilter" onchange="dnRender()" style="width:auto;">
+          <option value="zahlen">Zahlt Ersatzbeitrag (offen + gewählt)</option>
+          <option value="offen">Noch kein Dienst</option>
+          <option value="gewaehlt">Ersatzbeitrag gewählt</option>
+          <option value="erfuellt">Dienst geleistet</option>
+          <option value="befreit">Befreit</option>
+          <option value="alle">Alle</option>
+        </select>
+        <input type="search" id="dnSuche" placeholder="Name suchen" oninput="dnRender()" style="flex:1;min-width:140px;max-width:240px;">
+        <button class="submit-btn" onclick="dnExportCSV()" style="padding:8px 16px;white-space:nowrap;">Einzug exportieren (CSV)</button>
+      </div>
+      <div id="dnHinweis" class="event-result" style="display:none;"></div>
+      <div id="dnSumme" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+      <div id="dnUnklar"></div>
+      <div id="dnListe"><div class="loading"><div class="spinner"></div>Wird geladen...</div></div>
+    </div>
+  </div>
+
   <!-- Sektion: Hallendienst -->
   <div class="section" id="sectionHallendienst">
     <div class="section-header">
@@ -1323,6 +1368,7 @@ function enterApp(data) {
   if (currentUser && currentUser.rolle === 'admin') {
     document.getElementById('tabConfig').style.display = '';
     document.getElementById('tabBilder').style.display = '';
+    document.getElementById('tabDienste').style.display = '';
     document.getElementById('ezToggle').style.display = '';
   }
   if (data.jugend) jtInit(data.jugend);
@@ -1503,6 +1549,10 @@ function switchTab(section) {
   if (section === 'team' && !tmLoaded) {
     tmLoaded = true;
     tmLoadTeam();
+  }
+  if (section === 'dienste' && !dnLoaded) {
+    dnLoaded = true;
+    dnLoad();
   }
   if (section === 'config') {
     if (!cfgLoaded) {
@@ -1757,6 +1807,180 @@ function escCsvField(s) {
   s = s.toString();
   if (s.indexOf(';') !== -1 || s.indexOf('"') !== -1) return '"' + s.replace(/"/g, '""') + '"';
   return s;
+}
+
+// ═══════════════════════════════════════════════════
+// DIENSTE / ERSATZBEITRAG (nur Admin)
+// ═══════════════════════════════════════════════════
+
+var dnLoaded = false;
+var dnData = null;
+var DN_STAND = { offen: 'Kein Dienst', gewaehlt: 'Ersatzbeitrag gewählt', erfuellt: 'Dienst geleistet',
+  befreit: 'Befreit', neu: 'Neu (ab 1.11.)', kind: 'Unter 16', foerder: 'Fördermitglied' };
+var DN_TYP = { erwachsen: 'Erwachsene', familie: 'Familie', jugend: 'Jugend ab 16', kind: 'Kind' };
+
+function dnEuro(n) {
+  return Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function dnLoad() {
+  var sel = document.getElementById('dnJahr');
+  if (!sel.options.length) {
+    var akt = new Date().getFullYear();
+    [akt + 1, akt, akt - 1].forEach(function(j) {
+      var o = document.createElement('option'); o.value = j; o.textContent = j; sel.appendChild(o);
+    });
+    sel.value = akt;
+  }
+  document.getElementById('dnListe').innerHTML = '<div class="loading"><div class="spinner"></div>Wird geladen...</div>';
+  evPost('dienstUebersicht', { jahr: parseInt(sel.value, 10) }).then(function(data) {
+    if (!data || data.error || !data.ok) {
+      document.getElementById('dnListe').innerHTML = '<div class="no-results">' + escHtml((data && data.error) || 'Die Übersicht konnte nicht geladen werden.') + '</div>';
+      return;
+    }
+    dnData = data;
+    dnRender();
+  }).catch(function() {
+    document.getElementById('dnListe').innerHTML = '<div class="no-results">Verbindungsfehler</div>';
+  });
+}
+
+function dnGefiltert() {
+  if (!dnData) return [];
+  var f = document.getElementById('dnFilter').value;
+  var q = document.getElementById('dnSuche').value.trim().toLowerCase();
+  return dnData.einheiten.filter(function(e) {
+    if (f === 'zahlen' && e.stand !== 'offen' && e.stand !== 'gewaehlt') return false;
+    if (f === 'befreit' && ['befreit', 'neu', 'kind', 'foerder'].indexOf(e.stand) === -1) return false;
+    if (['offen', 'gewaehlt', 'erfuellt'].indexOf(f) !== -1 && e.stand !== f) return false;
+    if (q && (e.vorname + ' ' + e.nachname + ' ' + e.angehoerige.join(' ')).toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  }).sort(function(a, b) {
+    return (a.nachname + a.vorname).localeCompare(b.nachname + b.vorname, 'de');
+  });
+}
+
+function dnRender() {
+  if (!dnData) return;
+  var d = dnData, s = d.summe;
+
+  var hin = document.getElementById('dnHinweis');
+  if (!d.aktiv) {
+    hin.textContent = 'Die Regelung gilt erst ab ' + d.startJahr + '. Für ' + d.jahr + ' ist das nur eine Vorschau – bitte noch nichts einziehen.';
+    hin.className = 'event-result error'; hin.style.display = 'block';
+  } else { hin.style.display = 'none'; }
+
+  document.getElementById('dnSumme').innerHTML =
+    '<span class="dn-chip">Kein Dienst <strong>' + s.offen + '</strong></span>' +
+    '<span class="dn-chip">Ersatzbeitrag gewählt <strong>' + s.gewaehlt + '</strong></span>' +
+    '<span class="dn-chip">Dienst geleistet <strong>' + s.erfuellt + '</strong></span>' +
+    '<span class="dn-chip">Befreit <strong>' + s.befreit + '</strong></span>' +
+    '<span class="dn-chip">Neu ab 1.11. <strong>' + s.neu + '</strong></span>' +
+    '<span class="dn-chip">Ersatzbeiträge gesamt <strong>' + dnEuro(s.betrag) + '</strong></span>';
+
+  var un = '';
+  if (d.unklar.length) {
+    un = '<div class="dn-unklar"><strong>' + d.unklar.length + ' Familienmitglied(er) ohne eindeutiges Hauptmitglied</strong> – sie sind unten nicht berücksichtigt. Bitte in der Mitgliederliste die Spalte „Zahlungspflichtiges Mitglied“ korrigieren (Mandatsreferenz des Hauptmitglieds eintragen):<br>';
+    un += d.unklar.map(function(u) {
+      return 'Zeile ' + u.row + ': ' + escHtml(u.vorname + ' ' + u.nachname) + ' → „' + escHtml(u.verweis) + '“ (' + escHtml(u.grund) + ')';
+    }).join('<br>') + '</div>';
+  }
+  document.getElementById('dnUnklar').innerHTML = un;
+
+  var liste = dnGefiltert();
+  if (!liste.length) {
+    document.getElementById('dnListe').innerHTML = '<div class="no-results">Keine Einträge für diese Auswahl</div>';
+    return;
+  }
+  var html = '<div class="dn-wrap"><table class="dn-table"><thead><tr><th>Name</th><th>Gruppe</th><th>Dienste ' + d.jahr + '</th><th>Stand</th><th>Betrag</th><th></th></tr></thead><tbody>';
+  liste.forEach(function(e) {
+    var idx = d.einheiten.indexOf(e);
+    html += '<tr><td>' + escHtml(e.nachname + ', ' + e.vorname);
+    if (e.angehoerige.length) html += '<div class="dn-sub">mit ' + escHtml(e.angehoerige.join(', ')) + '</div>';
+    html += '</td><td>' + escHtml(DN_TYP[e.typ] || e.typ) + '<div class="dn-sub">' + escHtml(e.status) + '</div></td>';
+    html += '<td class="num">' + e.dienste + '</td>';
+    html += '<td><span class="dn-stand ' + escHtml(e.stand) + '">' + escHtml(DN_STAND[e.stand] || e.stand) + '</span>';
+    if (e.befreiungFamilie) html += '<div class="dn-sub">' + escHtml(e.befreiungFamilie) + '</div>';
+    html += '</td><td class="num">' + (e.betrag > 0 ? dnEuro(e.betrag) : '–') + '</td><td>';
+    html += '<button class="dn-btn" data-dn="befreiung" data-idx="' + idx + '">' + (e.befreiung ? 'Befreiung aufheben' : 'Befreien') + '</button>';
+    html += '<button class="dn-btn" data-dn="gewaehlt" data-idx="' + idx + '">' + (e.gewaehlt ? 'Leistet wieder Dienst' : 'Zahlt Ersatzbeitrag') + '</button>';
+    html += '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('dnListe').innerHTML = html;
+}
+
+document.getElementById('dnListe').addEventListener('click', function(ev) {
+  var btn = ev.target.closest('button[data-dn]');
+  if (!btn || !dnData) return;
+  var e = dnData.einheiten[parseInt(btn.dataset.idx, 10)];
+  if (!e) return;
+  var feld = btn.dataset.dn, wert;
+  var name = e.vorname + ' ' + e.nachname;
+  if (feld === 'befreiung') {
+    if (e.befreiung) {
+      if (!confirm('Befreiung von ' + name + ' aufheben?')) return;
+      wert = '';
+    } else {
+      wert = prompt('Grund der Befreiung für ' + name + ' (z. B. Vorstand, Trainer):', 'Vorstand');
+      if (wert === null) return;
+      wert = wert.trim();
+      if (!wert) { alert('Bitte einen Grund angeben.'); return; }
+    }
+  } else {
+    if (!confirm(e.gewaehlt
+      ? name + ' leistet künftig wieder einen Dienst (kein fester Ersatzbeitrag mehr)?'
+      : name + ' zahlt künftig jedes Jahr den Ersatzbeitrag statt einen Dienst zu leisten?')) return;
+    wert = !e.gewaehlt;
+  }
+  btn.disabled = true;
+  evPost('dienstBefreien', { row: e.row, key: e.key, feld: feld, wert: wert }).then(function(data) {
+    if (!data || data.error) { alert((data && data.error) || 'Speichern fehlgeschlagen'); btn.disabled = false; return; }
+    dnLoad();
+  }).catch(function() { alert('Verbindungsfehler'); btn.disabled = false; });
+});
+
+// Einzugsdatei im selben Format wie der Beitragseinzug in der Mitgliederliste
+function dnExportCSV() {
+  if (!dnData) return;
+  var zahler = dnData.einheiten.filter(function(e) { return (e.stand === 'offen' || e.stand === 'gewaehlt') && e.betrag > 0; });
+  if (!zahler.length) { alert('Für ' + dnData.jahr + ' ist kein Ersatzbeitrag fällig.'); return; }
+  if (!dnData.aktiv && !confirm('Die Regelung gilt erst ab ' + dnData.startJahr + '. Trotzdem eine Datei für ' + dnData.jahr + ' erzeugen?')) return;
+  var ohneMandat = zahler.filter(function(e) { return !e.mandatsreferenz || !e.iban; });
+  var header = 'Bezeichnung;Zahlungspflichtiger;;Firma;Zahler-Iban;BIC;Betrag;Verwendungszweck1;Verwendungszweck2;IBAN des Zahlungsempfängers;Zahlungsempfänger;Mandatsreferenz;Unterschrieben am';
+  var empfIban = 'DE28760693690000000566';
+  var empfName = 'Boulderverein Zugzwang e. V.';
+  var lines = [header];
+  zahler.forEach(function(e) {
+    if (!e.mandatsreferenz || !e.iban) return;
+    lines.push([
+      escCsvField('Ersatzbeitrag ' + (DN_TYP[e.typ] || e.typ)),
+      escCsvField(e.nachname),
+      escCsvField(e.vorname),
+      '',
+      escCsvField(e.iban),
+      escCsvField(e.bic || ''),
+      String(e.betrag).replace('.', ','),
+      escCsvField('Ersatzbeitrag Helferdienst ' + dnData.jahr),
+      escCsvField(e.stand === 'gewaehlt' ? 'gewählt' : 'kein Dienst geleistet'),
+      empfIban,
+      empfName,
+      escCsvField(e.mandatsreferenz),
+      escCsvField(e.mandatDatum || '')
+    ].join(';'));
+  });
+  if (ohneMandat.length) {
+    alert(ohneMandat.length + ' Einträge haben keine IBAN oder Mandatsreferenz und fehlen in der Datei:\n' +
+      ohneMandat.map(function(e) { return e.vorname + ' ' + e.nachname; }).join('\n'));
+  }
+  if (lines.length < 2) return;
+  var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = new Date().toISOString().slice(0, 10).replace(/-/g, '') + '_Ersatzbeitrag_' + dnData.jahr + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ═══════════════════════════════════════════════════
@@ -3148,6 +3372,17 @@ function cfgRender() {
     html += '<input type="number" min="0" max="365" step="1" inputmode="numeric" id="cfg_' + f[0] + '" value="' + escHtml(cfgGetVal(f[0]) || '') + '" placeholder="' + f[2] + '" style="width:90px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
     html += '</div>';
   });
+  // Ersatzbeitrag (leer = Standardwert, 0 = kein Ersatzbeitrag)
+  html += '<div style="margin:16px 0 6px;font-weight:600;">Ersatzbeitrag, wenn im Jahr kein Dienst geleistet wurde</div>';
+  [['ersatz_betrag_erwachsene', 'Erwachsene (Euro)', '100', '9999'],
+   ['ersatz_betrag_familie', 'Familien, pauschal für die ganze Familie (Euro)', '100', '9999'],
+   ['ersatz_betrag_jugend', 'Jugendliche ab 16 (Euro)', '40', '9999'],
+   ['ersatz_start_jahr', 'Gilt ab Jahr', '2027', '2099']].forEach(function(f) {
+    html += '<div style="margin-bottom:10px;">';
+    html += '<label for="cfg_' + f[0] + '" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">' + f[1] + '</label>';
+    html += '<input type="number" min="0" max="' + f[3] + '" step="1" inputmode="numeric" id="cfg_' + f[0] + '" value="' + escHtml(cfgGetVal(f[0]) || '') + '" placeholder="' + f[2] + '" style="width:110px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
+    html += '</div>';
+  });
   html += '</div>';
 
   // ── E-Mail-Texte ──
@@ -3240,7 +3475,8 @@ function cfgSave() {
   if (oezEl) items.push({ key: 'oez_hinweis', value: oezEl.value });
   var dienstTelEl = document.getElementById('cfg_dienste_kontakt_telefon');
   if (dienstTelEl) items.push({ key: 'dienste_kontakt_telefon', value: dienstTelEl.value.trim() });
-  ['dienste_limit', 'dienste_hd_sperre_tage', 'dienste_austragen_tage'].forEach(function(key) {
+  ['dienste_limit', 'dienste_hd_sperre_tage', 'dienste_austragen_tage',
+   'ersatz_betrag_erwachsene', 'ersatz_betrag_familie', 'ersatz_betrag_jugend', 'ersatz_start_jahr'].forEach(function(key) {
     var el = document.getElementById('cfg_' + key);
     if (el) items.push({ key: key, value: el.value.trim() });
   });

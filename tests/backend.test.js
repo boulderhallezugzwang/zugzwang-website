@@ -364,4 +364,83 @@ ok(r.ok&&sh.Helferdienste.rows.length===1&&sh.Dienste.rows[1][8]==='gestrichen',
 r=post(c,{...A,action:'createEvent',kalender:'events',titel:'Normal',datum:isoIn(5),zeitVon:'18:00',zeitBis:'19:00',beschreibung:'',mailMode:'none',remindHours:'0'});
 ok(r.ok&&!/Helferdienst/.test(r.message),'normaler Termin unveraendert');
 
+// ---- Ersatzbeitrag: Familien-Zuordnung, Uebersicht, Befreiung, Antrag
+{
+const Y=new Date().getFullYear();
+const EH=['Nachname','Vorname','Ort','E-Mail','Geburtsdatum','Mandatsreferenz','Status','Eintritt','Zahlungspflichtiges Mitglied','Adresse','PLZ','Telefon Mobil','Bemerkungen','IBAN','BIC','Kontoinhaber','SEPA-Lastschrift erlauben','Mandat Unterschriftsdatum','Lastschriftart','Chip','ChipNr.','Dienst-Befreiung','Ersatzbeitrag gewählt'];
+const M=(nn,vn,geb,ref,status,eintritt,zm,bef,gew)=>[nn,vn,'Ort','x@example.org',geb,ref,status,eintritt,zm,'Weg 1','91275','','',ref?'DE89370400440532013000':'',ref?'GENODEM1GLS':'',ref?vn+' '+nn:'','Ja','04.01.2026','Erst-Lastschrift','','',bef||'',gew||''];
+const es={Mitglieder:mkSheet([EH.slice(),
+  M('Taubmann','Thomas','27.03.1988','BVZUGZWANG00518','Mitglied Familie','04.01.2026',''),
+  M('Taubmann','Carolin','04.08.1990','','Mitglied','04.01.2026',518),
+  M('Taubmann','Jacobo','19.05.2023','','Mitglied','04.01.2026',518),
+  M('Berg','Anna','01.01.1985','ZZ-2026-0001','Mitglied Familie','10.02.2026',''),
+  M('Berg','Ben','01.01.2012','','Mitglied Familie','10.02.2026','Anna Berg'),
+  M('Clar','Cora','01.01.1985','ZZ-2026-0002','Mitglied Familie','10.02.2026',''),
+  M('Clar','Cid','01.01.2012','','Mitglied Familie','10.02.2026','ZZ-2026-0002'),
+  M('Dorn','Dirk','01.01.1980','ZZ-2026-0518','Mitglied','10.02.2026',''),
+  M('Eck','Emil','01.06.'+(Y-16),'ZZ-2026-0004','Mitglied ermäßigt','10.02.2026',''),
+  M('Fux','Fina','01.06.'+(Y-10),'ZZ-2026-0005','Mitglied ermäßigt','10.02.2026',''),
+  M('Gans','Gerd','01.01.1970','ZZ-2026-0006','Fördermitglied','10.02.2026',''),
+  M('Hahn','Hans','01.01.1970','ZZ-2026-0007','Mitglied','05.11.'+Y,''),
+  M('Igel','Ina','01.01.1970','ZZ-2026-0008','Mitglied','10.02.2020','','Vorstand'),
+  M('Jost','Jan','01.01.1970','ZZ-2026-0009','Mitglied','10.02.2020','','','Ja'),
+  M('Kurz','Kai','01.01.2010','','Mitglied','10.02.2020','Niemand Da'),
+  M('Lang','Lea','01.01.1970','ZZ-2026-0010','Mitglied','10.02.'+(Y+1),'')
+ ]),Config:mkSheet([['Key','Value','B']]),
+ Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein'],['tom','Tom','mitglied','pass1234','Nein']])};
+const ec=ctx(es); load(ec,'apps-script/mitgliederliste/Mitgliederliste.gs');
+const AD={username:'anna',password:'geheim12'};
+const key=vm.runInContext('dienstMitgliedKey',ec)('Taubmann','Carolin','04.08.1990');
+es.Dienste=mkSheet([['ID','Art','Dienst','Datum','Mitglied','Nachname','Vorname','E-Mail','Status','E','G'],
+  ['d1','hallendienst','x',new Date(Y,5,1),key,'Taubmann','Carolin','','eingetragen','',''],
+  ['d2','hallendienst','x',new Date(Y-1,5,1),vm.runInContext('dienstMitgliedKey',ec)('Dorn','Dirk','01.01.1980'),'Dorn','Dirk','','eingetragen','','']]);
+ok(post(ec,{action:'dienstUebersicht',username:'tom',password:'pass1234'}).error==='Keine Berechtigung','Uebersicht: nur Admin');
+ok(!!post(ec,{action:'dienstUebersicht'}).error,'Uebersicht: ohne Anmeldung abgelehnt');
+let u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y});
+const E=(nn)=>u.einheiten.find(e=>e.nachname===nn);
+ok(u.ok&&u.einheiten.length===10,'Uebersicht: 10 Einheiten (Angehoerige zaehlen beim Hauptmitglied, kuenftiges Mitglied fehlt): '+u.einheiten.length);
+ok(E('Taubmann').typ==='familie'&&E('Taubmann').personen===3&&E('Taubmann').dienste===1&&E('Taubmann').stand==='erfuellt','alte Nummer 518 -> Familie; Dienst der Ehefrau zaehlt fuer die Familie');
+ok(E('Berg').personen===2&&E('Berg').stand==='offen'&&E('Berg').betrag===100,'Verweis per Name -> Familie, offen, 100');
+ok(E('Clar').personen===2&&E('Clar').typ==='familie','Verweis per Mandatsreferenz -> Familie');
+ok(E('Dorn').personen===1&&E('Dorn').typ==='erwachsen'&&E('Dorn').stand==='offen'&&E('Dorn').dienste===0,'ZZ-…-0518 wird nicht mit alter Nummer 518 verwechselt; Dienst aus dem Vorjahr zaehlt nicht');
+ok(E('Eck').typ==='jugend'&&E('Eck').betrag===40,'Jugend ab 16: 40');
+ok(E('Fux').stand==='kind'&&E('Fux').betrag===0,'unter 16: keine Pflicht');
+ok(E('Gans').stand==='foerder'&&E('Gans').betrag===0,'Foerdermitglied: keine Pflicht');
+ok(E('Hahn').stand==='neu'&&E('Hahn').betrag===0,'Eintritt ab 1.11.: im Eintrittsjahr befreit');
+ok(E('Igel').stand==='befreit'&&E('Igel').betrag===0,'von Hand befreit');
+ok(E('Jost').stand==='gewaehlt'&&E('Jost').betrag===100,'Ersatzbeitrag gewaehlt: zahlt');
+ok(u.unklar.length===1&&u.unklar[0].nachname==='Kurz'&&!E('Kurz'),'unklarer Verweis wird gemeldet, nicht berechnet');
+ok(u.summe.betrag===440&&u.summe.offen===4&&u.summe.erfuellt===1,'Summe 440: '+JSON.stringify(u.summe));
+ok(E('Dorn').iban&&E('Dorn').mandatsreferenz==='ZZ-2026-0518','Einzugsdaten fuer Admin');
+ok(u.aktiv===(Y>=2027)&&u.startJahr===2027,'Startjahr 2027');
+u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y+1});
+ok(E('Hahn').stand==='offen'&&!!E('Lang'),'Folgejahr: Neumitglied ist pflichtig, kuenftiges Mitglied erscheint');
+es.Config.rows.push(['ersatz_betrag_jugend','0',''],['ersatz_betrag_familie','120,50',''],['ersatz_start_jahr',String(Y),'']);
+u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y});
+ok(E('Eck').betrag===0&&E('Berg').betrag===120.5&&u.aktiv===true,'Betraege und Startjahr aus Config');
+r=post(ec,{action:'ersatzInfo'});
+ok(r.ok&&r.erwachsen===100&&r.familie===120.5&&r.jugend===0,'ersatzInfo oeffentlich');
+// Befreien / Wahl setzen
+const dorn=E('Dorn');
+ok(!!post(ec,{action:'dienstBefreien',username:'tom',password:'pass1234',row:dorn.row,key:dorn.key,feld:'befreiung',wert:'x'}).error,'Befreien: nur Admin');
+ok(!!post(ec,{...AD,action:'dienstBefreien',row:dorn.row,key:'falsch',feld:'befreiung',wert:'x'}).error,'Befreien: falscher Schluessel abgelehnt');
+ok(!!post(ec,{...AD,action:'dienstBefreien',row:dorn.row,key:dorn.key,feld:'iban',wert:'x'}).error,'Befreien: fremdes Feld abgelehnt');
+r=post(ec,{...AD,action:'dienstBefreien',row:dorn.row,key:dorn.key,feld:'befreiung',wert:'=Trainer'});
+ok(r.ok&&es.Mitglieder.rows[dorn.row-1][21]==="'=Trainer",'Befreiung gespeichert (Formel neutralisiert)');
+u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y}); ok(E('Dorn').stand==='befreit','… Stand befreit');
+post(ec,{...AD,action:'dienstBefreien',row:dorn.row,key:dorn.key,feld:'befreiung',wert:''});
+post(ec,{...AD,action:'dienstBefreien',row:dorn.row,key:dorn.key,feld:'gewaehlt',wert:true});
+u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y}); ok(E('Dorn').stand==='gewaehlt'&&es.Mitglieder.rows[dorn.row-1][22]==='Ja','Wahl Ersatzbeitrag von Hand gesetzt');
+// Antrag: Wahl + Verweis per Mandatsreferenz; Zusatzspalten werden angelegt
+const as={Mitglieder:mkSheet([MH.slice()]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B']])};
+const ac=ctx(as); load(ac,'apps-script/mitgliederliste/Mitgliederliste.gs');
+r=post(ac,{...antrag,nachname:'Muster',kategorie:'Mitglied Familie',helferdienst:'ersatz'});
+const gi=as.Mitglieder.rows[0].indexOf('Ersatzbeitrag gewählt');
+ok(r.status==='ok'&&gi===MH.length&&as.Mitglieder.rows[1][gi]==='Ja'&&!as.Mitglieder.rows[2][gi],'Antrag: Wahl Ersatzbeitrag beim Hauptmitglied vermerkt');
+ok(as.Mitglieder.rows[2][8]===as.Mitglieder.rows[1][5]&&/^ZZ-/.test(as.Mitglieder.rows[2][8]),'Antrag: Angehoerige verweisen per Mandatsreferenz');
+ok(ac.mails.some(m=>/Ersatzbeitrag statt Helferdienst/.test(m.body)),'Antrag: Wahl steht in der Mail');
+ok(post(ac,{...antrag,helferdienst:'quatsch'}).status==='error','Antrag: ungueltige Wahl abgelehnt');
+ok(post(ac,{...antrag,nachname:'Alt'}).status==='ok','Antrag ohne Wahl (alte Seite im Cache) geht weiter');
+}
+
 console.log(fails?('\n'+fails+' FEHLGESCHLAGEN'):'\nalle Tests bestanden'); process.exit(fails?1:0);

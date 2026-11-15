@@ -225,11 +225,26 @@ function doPost(e) {
     if (action === 'dienstInfo') return jsonResponse(helferDienstInfo(body.c));
     if (action === 'dienstAustragen') return jsonResponse(helferDienstAustragen(body.c));
 
+    // Oeffentlich: aktuelle Ersatzbeitraege (fuer Mitgliedsantrag und Vereinsseite)
+    if (action === 'ersatzInfo') {
+      return jsonResponse({ ok: true, startJahr: ersatzStartJahr(), erwachsen: ersatzBetrag('erwachsen'),
+        familie: ersatzBetrag('familie'), jugend: ersatzBetrag('jugend') });
+    }
+
     // Intern: einzelnen Helfer streichen
     if (action === 'helferStreichen') {
       var hsUser = authenticateUser(body.username, body.password);
       if (!hsUser) return jsonResponse({ error: 'Nicht authentifiziert' });
       return jsonResponse(helferStreichen((body.dienstId || '').toString()));
+    }
+
+    // Intern (nur Admin): Übersicht "wer hat noch keinen Dienst", Befreiung, Ersatzbeitrag
+    if (action === 'dienstUebersicht' || action === 'dienstBefreien') {
+      var ebUser = authenticateUser(body.username, body.password);
+      if (!ebUser) return jsonResponse({ error: 'Nicht authentifiziert' });
+      if (ebUser.rolle !== 'admin') return jsonResponse({ error: 'Keine Berechtigung' });
+      if (action === 'dienstUebersicht') return jsonResponse(ersatzUebersicht(body.jahr, true));
+      return jsonResponse(ersatzSetze(body.row, (body.key || '').toString(), (body.feld || '').toString(), body.wert));
     }
 
     if (action === 'login') {
@@ -1864,6 +1879,7 @@ function maValidate(data) {
   if (!maIsEmail(data.email)) return 'Ungültige E-Mail-Adresse';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data.geburtsdatum)) return 'Ungültiges Geburtsdatum';
   if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(data.iban.replace(/\s+/g, '').toUpperCase())) return 'Ungültige IBAN';
+  if (data.helferdienst !== undefined && data.helferdienst !== 'dienst' && data.helferdienst !== 'ersatz') return 'Ungültige Auswahl beim Helferdienst';
   var fam = data.familienmitglieder;
   if (fam !== undefined && fam !== null) {
     if (!Array.isArray(fam) || fam.length > 10) return 'Ungültige Familienmitglieder';
@@ -1956,13 +1972,17 @@ function handleMitgliedsantrag(data) {
       S(data.kommentar || ''), S(data.iban), S(data.bic || ''), S(data.kontoinhaber),
       'Ja', eintrittDe, 'Erst-Lastschrift', '', ''
     ]);
+    // Wahl "Ersatzbeitrag statt Helferdienst" beim Hauptmitglied vermerken (gilt dauerhaft)
+    if (data.helferdienst === 'ersatz') {
+      sheet.getRange(sheet.getLastRow(), ersatzSpalte(sheet, ERSATZ_SPALTE_GEWAEHLT) + 1).setValue('Ja');
+    }
 
     if (data.familienmitglieder && data.familienmitglieder.length > 0) {
       data.familienmitglieder.forEach(function(fm) {
         sheet.appendRow([
           S(fm.nachname), S(fm.vorname), S(data.ort), S(data.email), maToDe(fm.geburtsdatum),
           '', S(data.kategorie), eintrittDe,
-          S(fullName), S(data.strasse), S(data.plz), '',
+          mandatsRef, S(data.strasse), S(data.plz), '',  // Verweis aufs Hauptmitglied (eindeutig)
           '', '', '', '',
           '', '', 'Erst-Lastschrift', '', ''
         ]);
@@ -1995,6 +2015,12 @@ function handleMitgliedsantrag(data) {
   return jsonResponse({ status: 'ok', mailBestaetigung: mailBestaetigung });
 }
 
+function maHelferdienstText(data) {
+  if (data.helferdienst === 'ersatz') return 'Ersatzbeitrag statt Helferdienst';
+  if (data.helferdienst === 'dienst') return 'mindestens ein Helfer- oder Hallendienst pro Jahr';
+  return data.arbeitsdienst || '–';
+}
+
 function maSendConfirmation(data, eintrittDe, mandatsRef) {
   var geburtsDe = maToDe(data.geburtsdatum);
 
@@ -2021,6 +2047,7 @@ function maSendConfirmation(data, eintrittDe, mandatsRef) {
     '  Kontoinhaber:   ' + data.kontoinhaber + '\n' +
     '  IBAN:           ' + data.iban + '\n' +
     '  Mandatsreferenz: ' + mandatsRef + '\n' +
+    '  Helferdienst:   ' + maHelferdienstText(data) + '\n' +
     familyText + '\n' +
     'Bei Fragen erreichst du uns unter ' + (getConfigValue('kontakt_mitgliedsantrag_email') || VEREIN_EMAIL_FALLBACK) + '.\n\n' +
     'Sportliche Grüße,\n' +
@@ -2069,7 +2096,7 @@ function maSendNotification(data, eintrittDe, mandatsRef, mailBestaetigung) {
     '  Satzung:        ' + data.satzung + '\n' +
     '  DSGVO:          ' + data.dsgvo + '\n' +
     '  SEPA-Mandat:    ' + data.sepa_consent + '\n' +
-    '  Arbeitsdienst:  ' + (data.arbeitsdienst || '–') + '\n' +
+    '  Helferdienst:   ' + maHelferdienstText(data) + '\n' +
     '  Kommentar:      ' + (data.kommentar || '–') + '\n\n' +
     'Eingegangen am: ' + eintrittDe +
     (mailBestaetigung === false
@@ -3031,6 +3058,244 @@ function sendEventReminders() {
 
   if (totalSent > 0) {
     Logger.log('Gesamt: ' + totalSent + ' Erinnerungs-Mail(s) gesendet.');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// ERSATZBEITRAG (wer keinen Dienst leistet, zahlt)
+// ═══════════════════════════════════════════════════
+//
+// Pflicht je Kalenderjahr: ein Hallen- oder Helferdienst
+//   - je erwachsenem Mitglied,
+//   - je Familie (egal, wer aus der Familie ihn leistet),
+//   - je Jugendlichem ab 16 (wird im Jahr 16 oder 17), der nicht zu einer Familie gehoert.
+// Keine Pflicht: Kinder unter 16, Foerdermitglieder, Eintritt ab 1.11. (im Eintrittsjahr),
+// von Hand Befreite (Spalte "Dienst-Befreiung").
+// Wer im Antrag "Ersatzbeitrag" gewaehlt hat (Spalte "Ersatzbeitrag gewählt"), zahlt jedes Jahr.
+// Betraege und Startjahr stehen im Config-Tab (ersatz_betrag_*, ersatz_start_jahr).
+//
+// Familien: Angehoerige verweisen in "Zahlungspflichtiges Mitglied" auf das Hauptmitglied –
+// per Mandatsreferenz (neu), per Name (Online-Antraege bis 2026) oder per alter Nummer
+// (518 → BVZUGZWANG00518).
+
+var ERSATZ_SPALTE_BEFREIUNG = 'Dienst-Befreiung';
+var ERSATZ_SPALTE_GEWAEHLT = 'Ersatzbeitrag gewählt';
+var ERSATZ_START_JAHR = 2027;
+var ERSATZ_BETRAEGE = { erwachsen: 100, familie: 100, jugend: 40 };
+var ERSATZ_CONFIG_KEYS = { erwachsen: 'ersatz_betrag_erwachsene', familie: 'ersatz_betrag_familie', jugend: 'ersatz_betrag_jugend' };
+
+// Betrag in Euro; leer oder ungueltig → Standardwert, 0 = kein Ersatzbeitrag
+function ersatzBetrag(typ) {
+  if (!ERSATZ_CONFIG_KEYS[typ]) return 0;
+  var roh = (getConfigValue(ERSATZ_CONFIG_KEYS[typ]) || '').toString().trim().replace(',', '.');
+  if (!/^\d{1,4}(\.\d{1,2})?$/.test(roh)) return ERSATZ_BETRAEGE[typ];
+  return parseFloat(roh);
+}
+
+function ersatzStartJahr() {
+  var roh = (getConfigValue('ersatz_start_jahr') || '').toString().trim();
+  return /^20\d{2}$/.test(roh) ? parseInt(roh, 10) : ERSATZ_START_JAHR;
+}
+
+// Spaltenindex (0-basiert) einer Zusatzspalte; legt sie rechts an, wenn sie fehlt
+function ersatzSpalte(sheet, name) {
+  var lastCol = sheet.getLastColumn();
+  var headers = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  for (var i = 0; i < headers.length; i++) {
+    if (String(headers[i]).trim() === name) return i;
+  }
+  sheet.getRange(1, headers.length + 1).setValue(name).setFontWeight('bold');
+  return headers.length;
+}
+
+function ersatzLadeMitglieder() {
+  var sheet = dienstMitgliederSheet();
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  var headers = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  var colIdx = {};
+  headers.forEach(function(h, i) { colIdx[String(h).trim()] = i; });
+  var liste = [];
+  if (lastRow < 2 || colIdx['Nachname'] === undefined || colIdx['Vorname'] === undefined) return liste;
+  var data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  var zelle = function(row, name) { return colIdx[name] === undefined ? '' : row[colIdx[name]]; };
+  var text = function(row, name) { var v = zelle(row, name); return String(v === null || v === undefined ? '' : v).trim(); };
+  for (var i = 0; i < data.length; i++) {
+    var nach = text(data[i], 'Nachname'), vor = text(data[i], 'Vorname');
+    if (!nach && !vor) continue;
+    liste.push({
+      row: i + 2,
+      nachname: nach,
+      vorname: vor,
+      geburt: dienstDatumObj(zelle(data[i], 'Geburtsdatum')),
+      key: dienstMitgliedKey(nach, vor, zelle(data[i], 'Geburtsdatum')),
+      status: text(data[i], 'Status'),
+      eintritt: dienstDatumObj(zelle(data[i], 'Eintritt')),
+      mandatsref: text(data[i], 'Mandatsreferenz'),
+      verweis: text(data[i], 'Zahlungspflichtiges Mitglied'),
+      iban: text(data[i], 'IBAN'),
+      bic: text(data[i], 'BIC'),
+      kontoinhaber: text(data[i], 'Kontoinhaber'),
+      mandatDatum: dienstDatumDE(zelle(data[i], 'Mandat Unterschriftsdatum')) || text(data[i], 'Mandat Unterschriftsdatum'),
+      befreiung: text(data[i], ERSATZ_SPALTE_BEFREIUNG),
+      gewaehlt: /^(ja|x|true|1)$/i.test(text(data[i], ERSATZ_SPALTE_GEWAEHLT))
+    });
+  }
+  return liste;
+}
+
+// Sucht das Hauptmitglied, auf das ein Angehoeriger verweist.
+// Ergebnis: Index in der Liste, -1 = nicht gefunden, -2 = mehrdeutig.
+function ersatzFindeHaupt(verweis, liste, selbst) {
+  var v = String(verweis || '').trim();
+  if (!v) return -1;
+  var treffer = [];
+  var i;
+  // 1. Mandatsreferenz (eindeutig, so schreibt es der Antrag seit Nov. 2026)
+  for (i = 0; i < liste.length; i++) {
+    if (i !== selbst && liste[i].mandatsref && liste[i].mandatsref.toLowerCase() === v.toLowerCase()) treffer.push(i);
+  }
+  // 2. Alte Nummer: Endziffern der Mandatsreferenz aus dem frueheren System (nicht ZZ-JJJJ-NNNN)
+  if (treffer.length === 0 && /^\d{1,8}$/.test(v)) {
+    var nr = parseInt(v, 10);
+    for (i = 0; i < liste.length; i++) {
+      if (i === selbst || !liste[i].mandatsref || /^ZZ-/i.test(liste[i].mandatsref)) continue;
+      var end = liste[i].mandatsref.match(/(\d+)$/);
+      if (end && parseInt(end[1], 10) === nr) treffer.push(i);
+    }
+  }
+  // 3. Name "Vorname Nachname" (oder umgekehrt); Hauptmitglieder haben selbst keinen Verweis
+  if (treffer.length === 0) {
+    var nv = dienstNorm(v);
+    for (i = 0; i < liste.length; i++) {
+      if (i === selbst || liste[i].verweis) continue;
+      if (dienstNorm(liste[i].vorname + liste[i].nachname) === nv ||
+          dienstNorm(liste[i].nachname + liste[i].vorname) === nv) treffer.push(i);
+    }
+  }
+  if (treffer.length === 1) return treffer[0];
+  return treffer.length === 0 ? -1 : -2;
+}
+
+// Uebersicht fuer ein Jahr: je Einheit (Person oder Familie) der Stand.
+// mitBank = true liefert zusaetzlich die Einzugsdaten (nur fuer Admins).
+function ersatzUebersicht(jahr, mitBank) {
+  jahr = parseInt(jahr, 10);
+  var aktJahr = new Date().getFullYear();
+  if (!jahr || jahr < 2020 || jahr > aktJahr + 1) jahr = aktJahr;
+
+  var liste = ersatzLadeMitglieder();
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var dsheet = ss.getSheetByName(DIENSTE_TAB);
+  var drows = dsheet ? dienstRows(dsheet) : [];
+
+  var hauptVon = {}, unklar = [];
+  var i;
+  for (i = 0; i < liste.length; i++) {
+    if (!liste[i].verweis) continue;
+    var h = ersatzFindeHaupt(liste[i].verweis, liste, i);
+    // Verweist das "Hauptmitglied" selbst weiter, gilt dessen Hauptmitglied
+    var schritte = 0;
+    while (h >= 0 && liste[h].verweis && schritte++ < 3) {
+      var weiter = ersatzFindeHaupt(liste[h].verweis, liste, h);
+      if (weiter < 0 || weiter === i) break;
+      h = weiter;
+    }
+    if (h >= 0) hauptVon[i] = h;
+    else unklar.push({
+      row: liste[i].row, nachname: liste[i].nachname, vorname: liste[i].vorname,
+      verweis: liste[i].verweis, grund: h === -2 ? 'mehrdeutig' : 'nicht gefunden'
+    });
+  }
+
+  var angehoerige = {};
+  for (var k in hauptVon) {
+    (angehoerige[hauptVon[k]] || (angehoerige[hauptVon[k]] = [])).push(parseInt(k, 10));
+  }
+
+  var einheiten = [];
+  var summe = { offen: 0, gewaehlt: 0, erfuellt: 0, befreit: 0, neu: 0, betrag: 0 };
+  for (i = 0; i < liste.length; i++) {
+    var m = liste[i];
+    if (m.verweis) continue;                                     // Angehoerige zaehlen beim Hauptmitglied
+    if (m.eintritt && m.eintritt.getFullYear() > jahr) continue; // in dem Jahr noch kein Mitglied
+    var fam = angehoerige[i] || [];
+    var statusKlein = m.status.toLowerCase();
+    var foerder = statusKlein.indexOf('förder') !== -1 || statusKlein.indexOf('foerder') !== -1;
+    var typ;
+    if (fam.length > 0 || statusKlein.indexOf('familie') !== -1) typ = 'familie';
+    else if (m.geburt && jahr - m.geburt.getFullYear() < 16) typ = 'kind';
+    else if (m.geburt && jahr - m.geburt.getFullYear() < 18) typ = 'jugend';
+    else typ = 'erwachsen';
+
+    var personen = [m].concat(fam.map(function(x) { return liste[x]; }));
+    var dienste = 0, befreiung = '', gewaehlt = false;
+    personen.forEach(function(p) {
+      dienste += dienstAnzahl(drows, p.key, jahr);
+      if (p.befreiung && !befreiung) befreiung = p.befreiung;
+      if (p.gewaehlt) gewaehlt = true;
+    });
+
+    var stand;
+    if (foerder) stand = 'foerder';
+    else if (typ === 'kind') stand = 'kind';
+    else if (m.eintritt && m.eintritt.getFullYear() === jahr && m.eintritt.getMonth() >= 10) stand = 'neu';
+    else if (befreiung) stand = 'befreit';
+    else if (gewaehlt) stand = 'gewaehlt';
+    else if (dienste >= 1) stand = 'erfuellt';
+    else stand = 'offen';
+
+    var betrag = (stand === 'offen' || stand === 'gewaehlt') ? ersatzBetrag(typ) : 0;
+    if (summe[stand] !== undefined) summe[stand]++;
+    summe.betrag += betrag;
+
+    var e = {
+      row: m.row, key: m.key, typ: typ, nachname: m.nachname, vorname: m.vorname,
+      personen: personen.length,
+      angehoerige: fam.map(function(x) { return liste[x].vorname; }),
+      status: m.status, eintritt: dienstDatumDE(m.eintritt),
+      dienste: dienste, stand: stand, betrag: betrag,
+      befreiung: m.befreiung, befreiungFamilie: befreiung, gewaehlt: m.gewaehlt
+    };
+    if (mitBank) {
+      e.iban = m.iban; e.bic = m.bic; e.mandatsreferenz = m.mandatsref;
+      e.kontoinhaber = m.kontoinhaber; e.mandatDatum = m.mandatDatum;
+    }
+    einheiten.push(e);
+  }
+
+  return {
+    ok: true, jahr: jahr, startJahr: ersatzStartJahr(), aktiv: jahr >= ersatzStartJahr(),
+    betraege: { erwachsen: ersatzBetrag('erwachsen'), familie: ersatzBetrag('familie'), jugend: ersatzBetrag('jugend') },
+    summe: summe, einheiten: einheiten, unklar: unklar
+  };
+}
+
+// Befreiung bzw. "Ersatzbeitrag gewaehlt" von Hand setzen (nur Admin).
+// key sichert ab, dass die Zeile noch dieselbe Person ist (Liste kann sortiert worden sein).
+function ersatzSetze(row, key, feld, wert) {
+  row = parseInt(row, 10);
+  if (feld !== 'befreiung' && feld !== 'gewaehlt') return { error: 'Ungültiges Feld' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var liste = ersatzLadeMitglieder();
+    var m = null;
+    for (var i = 0; i < liste.length; i++) {
+      if (liste[i].row === row && liste[i].key === key) { m = liste[i]; break; }
+    }
+    if (!m) return { error: 'Mitglied nicht gefunden – bitte Übersicht neu laden.' };
+    var sheet = dienstMitgliederSheet();
+    if (feld === 'befreiung') {
+      var grund = String(wert === null || wert === undefined ? '' : wert).trim().slice(0, 100);
+      sheet.getRange(row, ersatzSpalte(sheet, ERSATZ_SPALTE_BEFREIUNG) + 1).setValue(sheetSafe(grund));
+    } else {
+      sheet.getRange(row, ersatzSpalte(sheet, ERSATZ_SPALTE_GEWAEHLT) + 1).setValue(wert ? 'Ja' : '');
+    }
+    SpreadsheetApp.flush();
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
   }
 }
 
