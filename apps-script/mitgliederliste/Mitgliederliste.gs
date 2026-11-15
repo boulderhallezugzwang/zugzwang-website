@@ -2802,7 +2802,7 @@ function helferStreichen(dienstId) {
 }
 
 // Taeglich: Eingetragene vor ihrem Dienst erinnern (Vorlauf wie beim Termin
-// eingestellt, mindestens 24 Stunden).
+// eingestellt, mindestens drei Tage).
 function helferErinnerungen() {
   var sheet = helferSheet(true);
   var rows = helferRows(sheet);
@@ -2815,7 +2815,7 @@ function helferErinnerungen() {
     if (!helferIstDatum(start)) continue;
     if (start.getTime() < jetzt - 60 * 86400000) { sheet.deleteRow(i + 2); continue; }   // alte Dienste aufraeumen
     if (start.getTime() <= jetzt || rows[i][8]) continue;
-    var vorlauf = Math.max(parseInt(rows[i][7], 10) || 0, 24);
+    var vorlauf = Math.max(parseInt(rows[i][7], 10) || 0, QUITT_ERINNERUNG_TAGE * 24);   // mindestens drei Tage vorher
     if (jetzt < start.getTime() - vorlauf * 3600000) continue;
     var liste = helferStand(drows, rows[i][0]).liste.filter(function(e) { return e.status !== 'warteliste'; });
     for (var j = 0; j < liste.length; j++) {
@@ -3404,7 +3404,7 @@ function ersatzErinnerungText(e, jahr, letzte) {
     text += 'ein kurzer Zwischenstand zu den Helfer- und Hallendiensten ' + jahr + ':\n\n' +
       'Bei ' + (familie ? 'Euch als Familie' : 'Dir') + ' ' + (e.dienste === 1 ? 'ist 1 geleisteter Dienst' : 'sind ' + e.dienste + ' geleistete Dienste') + ' vermerkt – ' +
       'damit ist für ' + jahr + ' alles erledigt. Vielen Dank fürs Mithelfen, ohne ' + (familie ? 'Euch' : 'Dich') + ' ginge es nicht!\n\n' +
-      'Wer Lust hat, darf natürlich gern öfter dabei sein. Die nächsten Termine:\n' + links;
+      'Natürlich ' + (familie ? 'dürft Ihr' : 'darfst Du') + ' gern noch einmal mithelfen – wir freuen uns über jede Unterstützung, und jeder zusätzliche Dienst ist herzlich willkommen. Die nächsten Termine:\n' + links;
   } else {
     betreff = (letzte ? 'Zum Jahresende: ' : 'Kleine Erinnerung: ') + (familie ? 'Euer' : 'Dein') + ' Helferdienst ' + jahr;
     text += 'unsere Halle lebt davon, dass alle ein bisschen mit anpacken – schön, dass ' + (familie ? 'Ihr' : 'Du') + ' dabei ' + (familie ? 'seid' : 'bist') + '! ' +
@@ -3573,27 +3573,31 @@ var QUITT_SPALTE = 12;   // Tab "Dienste", Spalte L: Link zur Unterschrift
 var QUITT_SPALTE_ERINNERT = 13;   // Spalte M: Erinnerung an den Hallendienst verschickt am
 var QUITT_HINWEIS = 'Eine kleine Bitte: Quittiere Deinen Dienst vor Ort kurz am iPad („Dienst quittieren“, mit Unterschrift) – erst dann wird er Dir gutgeschrieben.';
 
-// Erinnerung am Vortag an alle, die fuer den Hallendienst von morgen eingetragen sind
-// (laeuft im taeglichen Trigger). Bewusst ohne Link zum Austragen.
+// Erinnerung drei Tage vorher an alle, die fuer einen Hallendienst eingetragen sind
+// (laeuft im taeglichen Trigger). Wer sich spaeter eintraegt, bekommt sie am naechsten Morgen.
+// Bewusst ohne Link zum Austragen.
+var QUITT_ERINNERUNG_TAGE = 3;
+
 function hdErinnerungen() {
   var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
   if (!dsheet) return 0;
   var last = dsheet.getLastRow();
   if (last < 2) return 0;
-  var heute = new Date();
-  var morgen = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() + 1);
-  var morgenDE = dienstDatumDE(morgen);
   var rows = dsheet.getRange(2, 1, last - 1, QUITT_SPALTE_ERINNERT).getValues();
   var n = 0;
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     if (r[1] !== 'hallendienst' || (r[8] !== 'eingetragen' && r[8] !== 'ohne_platz')) continue;
-    if (dienstDatumDE(r[3]) !== morgenDE || r[QUITT_SPALTE_ERINNERT - 1]) continue;
-    if (!maIsEmail(String(r[7]))) continue;
-    var start = QUITT_HD_START[morgen.getDay()];
-    helferMail(String(r[7]), 'Erinnerung Hallendienst – morgen, ' + morgenDE,
-      'Hallo ' + r[6] + ',\n\nschön, dass Du morgen den Hallendienst übernimmst! Hier noch einmal die Eckdaten:\n\n  ' +
-      WOCHENTAGE_LANG[morgen.getDay()] + ', ' + morgenDE + (start ? ', ab ' + start + ' Uhr' : '') + '\n\n' +
+    if (r[QUITT_SPALTE_ERINNERT - 1] || !maIsEmail(String(r[7]))) continue;
+    var tag = dienstDatumObj(r[3]);
+    var tage = dienstTageBis(tag);
+    if (!tag || tage < 1 || tage > QUITT_ERINNERUNG_TAGE) continue;
+    var start = QUITT_HD_START[tag.getDay()];
+    var wann = WOCHENTAGE_LANG[tag.getDay()] + ', ' + dienstDatumDE(tag);
+    helferMail(String(r[7]), 'Erinnerung Hallendienst – ' + wann,
+      'Hallo ' + r[6] + ',\n\nschön, dass Du ' + (tage === 1 ? 'morgen' : 'am ' + WOCHENTAGE_LANG[tag.getDay()]) +
+      ' den Hallendienst übernimmst! Hier noch einmal die Eckdaten:\n\n  ' +
+      wann + (start ? ', ab ' + start + ' Uhr' : '') + '\n\n' +
       QUITT_HINWEIS + '\n\nVielen Dank fürs Mithelfen und viel Spaß!');
     if (!String(dsheet.getRange(1, QUITT_SPALTE_ERINNERT).getValue())) dsheet.getRange(1, QUITT_SPALTE_ERINNERT).setValue('Erinnert').setFontWeight('bold');
     dsheet.getRange(i + 2, QUITT_SPALTE_ERINNERT).setValue(new Date());
