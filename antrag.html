@@ -523,7 +523,7 @@
       </div>
       <div class="hd-wahl" id="hdWahl">
         <div class="hd-wahl-titel">Helferdienst <span class="req">*</span></div>
-        <p class="hd-wahl-text">Der Verein lebt vom Mithelfen. Ab <span id="ebStart">2027</span> gilt: Jedes Vollmitglied leistet pro Kalenderjahr mindestens einen Helfer- oder Hallendienst – bei Familien reicht ein Dienst für die ganze Familie. Wer keinen Dienst leistet, zahlt für das Jahr einen Ersatzbeitrag (<span id="ebBetraege">siehe Beitragsordnung</span>).</p>
+        <p class="hd-wahl-text">Der Verein lebt vom Mithelfen. Ab <span id="ebStart">2027</span> gilt: Jedes Vollmitglied ab 16 Jahren leistet pro Kalenderjahr mindestens einen Helfer- oder Hallendienst – bei Familien reicht ein Dienst für die ganze Familie. Wer keinen Dienst leistet, zahlt für das Jahr einen Ersatzbeitrag (<span id="ebBetraege">siehe Beitragsordnung</span>).</p>
         <label class="hd-wahl-opt"><input type="radio" name="helferdienst" value="dienst"> <span>Ich leiste mindestens einen Helfer- oder Hallendienst pro Jahr.</span></label>
         <label class="hd-wahl-opt"><input type="radio" name="helferdienst" value="ersatz"> <span>Ich möchte keinen Dienst leisten und zahle stattdessen jedes Jahr den Ersatzbeitrag per Lastschrift<span id="ebOptBetrag"></span>.</span></label>
         <p class="hd-wahl-text hd-wahl-fuss">Die Wahl gilt, bis du sie beim Vorstand änderst. <a href="info.html#beitragsordnung" target="_blank" rel="noopener">Beitragsordnung</a></p>
@@ -657,9 +657,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   function ersatzFuer(kat){
     if(kat.startsWith('Förder')) return 0;
     if(kat.includes('Familie')) return BI.familie;
-    const gd=f.geburtsdatum.value, alter=gd?new Date().getFullYear()-parseInt(gd.slice(0,4),10):99;
-    if(alter<16) return 0;
+    const alter=alterHeute();
     return (kat.includes('ermäßigt')||alter<18)?BI.jugend:BI.erwachsen;
+  }
+  // Alter in vollen Jahren heute (99 = Geburtsdatum noch nicht eingetragen)
+  function alterHeute(){
+    const gd=f.geburtsdatum.value; if(!/^\d{4}-\d{2}-\d{2}$/.test(gd)) return 99;
+    const h=new Date(), y=+gd.slice(0,4), m=+gd.slice(5,7), d=+gd.slice(8,10);
+    let a=h.getFullYear()-y; if(h.getMonth()+1<m||(h.getMonth()+1===m&&h.getDate()<d)) a--;
+    return a;
   }
   function zeigeBetraege(){
     f.querySelectorAll('input[name="kategorie"]').forEach(el=>{
@@ -681,7 +687,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     const eb=ersatzFuer(sel.value);
     ebOpt.textContent=eb>0?' ('+eur(eb)+' pro Jahr'+(sel.value.includes('Familie')?' für die ganze Familie':'')+')':'';
     let html='<strong>Dein Jahresbeitrag: '+eur(jahresbeitrag(sel.value))+'</strong>';
-    if(hdWahlNoetig()&&eb>0){
+    if(hdWahlNoetig()&&eb>0&&!sel.value.includes('Familie')&&alterHeute()<16){
+      html+='<br>Helferdienst und Ersatzbeitrag gelten erst ab 16 Jahren – im Eintrittsjahr noch nicht.';
+    }else if(hdWahlNoetig()&&eb>0){
       html+=hdWahlWert()==='ersatz'
         ?'<br>Zuzüglich Ersatzbeitrag: '+eur(eb)+' pro Jahr (ab '+BI.startJahr+')'
         :'<br>Ersatzbeitrag nur, wenn du in einem Jahr keinen Dienst leistest: '+eur(eb)+' (ab '+BI.startJahr+')';

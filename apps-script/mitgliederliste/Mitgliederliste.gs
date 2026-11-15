@@ -3067,7 +3067,7 @@ function sendEventReminders() {
 //   - je Familie (egal, wer aus der Familie ihn leistet),
 //   - je ermaessigtem Mitglied ab 16 (Status "ermäßigt", z.B. Schueler/Studenten – auch ueber 18 –
 //     sowie alle 16- und 17-Jaehrigen), das nicht zu einer Familie gehoert. Typ-Kuerzel: 'jugend'.
-// Keine Pflicht: Kinder unter 16, Foerdermitglieder, Eintritt ab 1.11. (im Eintrittsjahr),
+// Keine Pflicht: Kinder unter 16 (wer beim Eintritt noch keine 16 ist: auch im ganzen Eintrittsjahr), Foerdermitglieder, Eintritt ab 1.11. (im Eintrittsjahr),
 // von Hand Befreite (Spalte "Dienst-Befreiung").
 // Wer im Antrag "Ersatzbeitrag" gewaehlt hat (Spalte "Ersatzbeitrag gewählt"), zahlt jedes Jahr.
 // Betraege und Startjahr stehen im Config-Tab (ersatz_betrag_*, ersatz_start_jahr).
@@ -3197,6 +3197,14 @@ function ersatzFindeHaupt(verweis, liste, selbst) {
   return treffer.length === 0 ? -1 : -2;
 }
 
+// Alter in vollen Jahren an einem Stichtag
+function ersatzAlterAm(geburt, stichtag) {
+  var a = stichtag.getFullYear() - geburt.getFullYear();
+  if (stichtag.getMonth() < geburt.getMonth() ||
+      (stichtag.getMonth() === geburt.getMonth() && stichtag.getDate() < geburt.getDate())) a--;
+  return a;
+}
+
 // Uebersicht fuer ein Jahr: je Einheit (Person oder Familie) der Stand.
 // mitBank = true liefert zusaetzlich die Einzugsdaten (nur fuer Admins).
 function ersatzUebersicht(jahr, mitBank) {
@@ -3260,6 +3268,8 @@ function ersatzUebersicht(jahr, mitBank) {
     var stand;
     if (foerder) stand = 'foerder';
     else if (typ === 'kind') stand = 'kind';
+    else if (typ !== 'familie' && m.geburt && m.eintritt && m.eintritt.getFullYear() === jahr &&
+             ersatzAlterAm(m.geburt, m.eintritt) < 16) stand = 'kind';   // beim Eintritt noch keine 16: Eintrittsjahr frei
     else if (m.eintritt && m.eintritt.getFullYear() === jahr && m.eintritt.getMonth() >= 10) stand = 'neu';
     else if (befreiung) stand = 'befreit';
     else if (gewaehlt) stand = 'gewaehlt';

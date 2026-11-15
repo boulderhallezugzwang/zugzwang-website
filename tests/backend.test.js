@@ -378,7 +378,8 @@ const es={Mitglieder:mkSheet([EH.slice(),
   M('Clar','Cora','01.01.1985','ZZ-2026-0002','Mitglied Familie','10.02.2026',''),
   M('Clar','Cid','01.01.2012','','Mitglied Familie','10.02.2026','ZZ-2026-0002'),
   M('Dorn','Dirk','01.01.1980','ZZ-2026-0518','Mitglied','10.02.2026',''),
-  M('Eck','Emil','01.06.'+(Y-16),'ZZ-2026-0004','Mitglied ermäßigt','10.02.2026',''),
+  M('Eck','Emil','01.06.'+(Y-16),'ZZ-2026-0004','Mitglied ermäßigt','10.02.2020',''),
+  M('Noll','Nils','31.12.'+(Y-16),'ZZ-2026-0012','Mitglied ermäßigt','10.02.'+Y,''),
   M('Fux','Fina','01.06.'+(Y-10),'ZZ-2026-0005','Mitglied ermäßigt','10.02.2026',''),
   M('Mohn','Mia','01.01.1999','ZZ-2026-0011','Mitglied ermäßigt','10.02.2026',''),
   M('Gans','Gerd','01.01.1970','ZZ-2026-0006','Fördermitglied','10.02.2026',''),
@@ -399,13 +400,14 @@ ok(post(ec,{action:'dienstUebersicht',username:'tom',password:'pass1234'}).error
 ok(!!post(ec,{action:'dienstUebersicht'}).error,'Uebersicht: ohne Anmeldung abgelehnt');
 let u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y});
 const E=(nn)=>u.einheiten.find(e=>e.nachname===nn);
-ok(u.ok&&u.einheiten.length===11,'Uebersicht: 11 Einheiten (Angehoerige zaehlen beim Hauptmitglied, kuenftiges Mitglied fehlt): '+u.einheiten.length);
+ok(u.ok&&u.einheiten.length===12,'Uebersicht: 12 Einheiten (Angehoerige zaehlen beim Hauptmitglied, kuenftiges Mitglied fehlt): '+u.einheiten.length);
 ok(E('Taubmann').typ==='familie'&&E('Taubmann').personen===3&&E('Taubmann').dienste===1&&E('Taubmann').stand==='erfuellt','alte Nummer 518 -> Familie; Dienst der Ehefrau zaehlt fuer die Familie');
 ok(E('Berg').personen===2&&E('Berg').stand==='offen'&&E('Berg').betrag===100,'Verweis per Name -> Familie, offen, 100');
 ok(E('Clar').personen===2&&E('Clar').typ==='familie','Verweis per Mandatsreferenz -> Familie');
 ok(E('Dorn').personen===1&&E('Dorn').typ==='erwachsen'&&E('Dorn').stand==='offen'&&E('Dorn').dienste===0,'ZZ-…-0518 wird nicht mit alter Nummer 518 verwechselt; Dienst aus dem Vorjahr zaehlt nicht');
 ok(E('Eck').typ==='jugend'&&E('Eck').betrag===40,'Jugend ab 16: 40');
 ok(E('Mohn').typ==='jugend'&&E('Mohn').betrag===40,'Ermaessigt ueber 18 (Student): 40');
+ok(E('Noll').stand==='kind'&&E('Noll').betrag===0,'beim Eintritt noch keine 16: Eintrittsjahr frei');
 ok(E('Fux').stand==='kind'&&E('Fux').betrag===0,'unter 16: keine Pflicht');
 ok(E('Gans').stand==='foerder'&&E('Gans').betrag===0,'Foerdermitglied: keine Pflicht');
 ok(E('Hahn').stand==='neu'&&E('Hahn').betrag===0,'Eintritt ab 1.11.: im Eintrittsjahr befreit');
@@ -416,6 +418,7 @@ ok(u.summe.betrag===480&&u.summe.offen===5&&u.summe.erfuellt===1,'Summe 440: '+J
 ok(E('Dorn').iban&&E('Dorn').mandatsreferenz==='ZZ-2026-0518','Einzugsdaten fuer Admin');
 ok(u.aktiv===(Y>=2027)&&u.startJahr===2027,'Startjahr 2027');
 u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y+1});
+ok(E('Noll').stand==='offen'&&E('Noll').betrag===40,'… im Folgejahr pflichtig (40)');
 ok(E('Hahn').stand==='offen'&&!!E('Lang'),'Folgejahr: Neumitglied ist pflichtig, kuenftiges Mitglied erscheint');
 es.Config.rows.push(['ersatz_betrag_jugend','0',''],['ersatz_betrag_familie','120,50',''],['ersatz_start_jahr',String(Y),'']);
 u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y});
