@@ -464,7 +464,16 @@ setNow(Y,10,1); vm.runInContext('ersatzErinnerungen()',ec); ok(ec.mails.slice(E1
 const E2=ec.mails.length; es.Config.rows.find(x=>x[0]==='ersatz_start_jahr')[1]=String(Y+1); setNow(Y,8,1); vm.runInContext('ersatzErinnerungen()',ec); ok(ec.mails.length===E2,'vor dem Startjahr keine Erinnerung');
 es.Config.rows.find(x=>x[0]==='ersatz_start_jahr')[1]=String(Y); ec.gmailQuota=25; setNow(Y,8,1); er=vm.runInContext('ersatzErinnerungen()',ec);
 ok(er.gesendet===3&&er.offen>0,'knappes Mailkontingent: Rest folgt am naechsten Tag (Reserve bleibt frei): '+JSON.stringify(er));
-vm.runInContext('Date=Date.__real',ec); ec.gmailQuota=100;
+ec.gmailQuota=100;
+// Jahresabschluss Anfang Januar fuer das Vorjahr
+const A0=ec.mails.length; setNow(Y+1,1,1); vm.runInContext('ersatzAbschlussMails()',ec); ok(ec.mails.length===A0,'Abschluss: am 1.1. noch keine Mail');
+setNow(Y+1,1,2); let ar=vm.runInContext('ersatzAbschlussMails()',ec); const am=ec.mails.slice(A0), aan=n=>am.find(m=>new RegExp('Hallo '+n+',').test(m.body));
+ok(ar.gesendet===am.length&&aan('Anna')&&new RegExp('für '+Y+' kein geleisteter Dienst').test(aan('Anna').body)&&/nicht am iPad in der Halle quittiert/.test(aan('Anna').body)&&/Ersatzbeitrag von 100 € für die Familie/.test(aan('Anna').body)&&/bis zum 31\. Januar/.test(aan('Anna').body),'Abschluss am 2.1.: Mail an Familie ohne Dienst mit Betrag und Frist');
+ok(aan('Mia')&&/40 €/.test(aan('Mia').body)&&!aan('Thomas')&&!aan('Ina')&&!aan('Jan')&&!aan('Gerd')&&!aan('Hans'),'Abschluss: nur wer offen ist (nicht erfuellt, befreit, gewaehlt, Foerder, neu)');
+ok(es.Mitglieder.rows.find(x=>x[1]==='Anna')[mi()]===Y+'-Abschluss','Abschluss in Spalte Dienst-Erinnerung vermerkt');
+const A1=ec.mails.length; setNow(Y+1,1,3); vm.runInContext('ersatzAbschlussMails()',ec); ok(ec.mails.length===A1,'Abschluss nicht doppelt');
+setNow(Y+1,2,2); vm.runInContext('ersatzAbschlussMails()',ec); ok(ec.mails.length===A1,'Abschluss: im Februar nichts');
+vm.runInContext('Date=Date.__real',ec);
 }
 // Antrag: Wahl + Verweis per Mandatsreferenz; Zusatzspalten werden angelegt
 const as={Mitglieder:mkSheet([MH.slice()]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B']])};

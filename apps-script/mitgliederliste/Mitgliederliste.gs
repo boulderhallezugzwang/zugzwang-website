@@ -2964,6 +2964,8 @@ function sendEventReminders() {
   try { hdErinnerungen(); } catch (eHdRem) { console.error('Hallendienst-Erinnerung fehlgeschlagen: ' + eHdRem); }
   // Anfang April/August/Oktober: Zwischenstand und Erinnerung an die Dienstpflicht.
   try { ersatzErinnerungen(); } catch (eErin) { console.error('Dienst-Erinnerung fehlgeschlagen: ' + eErin); }
+  // Anfang Januar: Hinweis an alle ohne Dienst im Vorjahr, bevor der Ersatzbeitrag eingezogen wird.
+  try { ersatzAbschlussMails(); } catch (eAbs) { console.error('Dienst-Abschluss fehlgeschlagen: ' + eAbs); }
   // Lesbare Familien-Zuordnung in der Mitgliederliste auffrischen.
   try { ersatzSchreibeFamilien(); } catch (eFam) { console.error('Familien-Spalte: ' + eFam); }
   // Eingetragene Helfer vor ihrem Dienst erinnern.
@@ -3463,6 +3465,66 @@ function ersatzErinnerungen() {
     } else { offen++; }
   }
   if (gesendet || offen) console.log('Dienst-Erinnerung ' + marke + ': ' + gesendet + ' gesendet, ' + offen + ' folgen am naechsten Tag');
+  return { gesendet: gesendet, offen: offen };
+}
+
+// ── Jahresabschluss: Hinweis vor dem Einzug des Ersatzbeitrags ──
+// Ab dem 2. Januar bekommt jede Einheit, die im Vorjahr keinen geleisteten Dienst hat
+// (Stand "offen"), eine Mail: Der Ersatzbeitrag wird eingezogen – wer meint, dass etwas
+// nicht stimmt (z.B. Quittieren vergessen), soll sich bis Ende Januar melden.
+// Vermerk in Spalte "Dienst-Erinnerung" als "JJJJ-Abschluss" (JJJJ = Vorjahr).
+var ERSATZ_ABSCHLUSS_AB_TAG = 2;
+var ERSATZ_ABSCHLUSS_BIS_TAG = 12;
+
+function ersatzAbschlussText(e, jahr) {
+  var familie = e.typ === 'familie';
+  var kontakt = getConfigValue('kontakt_hallendienst_email') || VEREIN_EMAIL_FALLBACK;
+  var tel = (getConfigValue('dienste_kontakt_telefon') || '').toString().trim();
+  var text = 'Hallo ' + e.vorname + ',\n\n' +
+    'das Jahr ' + jahr + ' ist vorbei, und wir schließen die Helfer- und Hallendienste ab.\n\n' +
+    'Bei ' + (familie ? 'Euch als Familie' : 'Dir') + ' ist für ' + jahr + ' kein geleisteter Dienst vermerkt.' +
+    (e.eingetragen > 0
+      ? ' ' + (familie ? 'Ihr wart' : 'Du warst') + ' zwar für ' + (e.eingetragen === 1 ? '1 Dienst' : e.eingetragen + ' Dienste') +
+        ' eingetragen, er wurde aber nicht am iPad in der Halle quittiert.'
+      : '') + '\n\n' +
+    'Nach unserer Beitragsordnung wird deshalb der Ersatzbeitrag von ' + ersatzEuro(e.betrag) +
+    (familie ? ' für die Familie' : '') + ' fällig. Wir ziehen ihn im Februar per SEPA-Lastschrift ein.\n\n' +
+    'Stimmt etwas nicht? Wenn ' + (familie ? 'Ihr' : 'Du') + ' ' + jahr + ' doch einen Dienst geleistet ' + (familie ? 'habt' : 'hast') +
+    ' (zum Beispiel, weil das Quittieren vergessen wurde), antworte bitte bis zum 31. Januar auf diese Mail oder schreib an ' + kontakt +
+    (tel ? ' bzw. ' + tel : '') + ' – mit Datum und Art des Dienstes. Wir prüfen das und tragen den Dienst nach.\n\n' +
+    'Ohne Rückmeldung bis zum 31. Januar gehen wir davon aus, dass alles stimmt.\n\n' +
+    'Beitragsordnung: ' + DIENST_SITE + '/info.html#beitragsordnung\n';
+  var signatur = getConfigValue('mail_signatur') || 'Sportliche Grüße,\nBoulderverein Zugzwang e.V.';
+  return { subject: 'Helferdienst ' + jahr + ': Ersatzbeitrag – bitte prüfen', body: text + '\n' + signatur };
+}
+
+// Laeuft taeglich mit; verschickt nur Anfang Januar fuer das Vorjahr.
+function ersatzAbschlussMails() {
+  var heute = new Date();
+  if (heute.getMonth() !== 0 || heute.getDate() < ERSATZ_ABSCHLUSS_AB_TAG || heute.getDate() > ERSATZ_ABSCHLUSS_BIS_TAG) return { gesendet: 0 };
+  var jahr = heute.getFullYear() - 1;
+  if (jahr < ersatzStartJahr()) return { gesendet: 0 };
+  var marke = jahr + '-Abschluss';
+
+  var u = ersatzUebersicht(jahr, true);
+  var sheet = dienstMitgliederSheet();
+  var col = ersatzSpalte(sheet, ERSATZ_SPALTE_ERINNERUNG) + 1;
+  var zeilen = sheet.getLastRow() - 1;
+  var marken = zeilen > 0 ? sheet.getRange(2, col, zeilen, 1).getValues() : [];
+  var frei = mailCapacityNow() - ERSATZ_ERINNERUNG_RESERVE;
+  var gesendet = 0, offen = 0;
+  for (var i = 0; i < u.einheiten.length; i++) {
+    var e = u.einheiten[i];
+    if (e.stand !== 'offen' || !(e.betrag > 0) || !maIsEmail(e.email)) continue;
+    if (String((marken[e.row - 2] || [''])[0]) === marke) continue;
+    if (gesendet >= frei) { offen++; continue; }
+    var mail = ersatzAbschlussText(e, jahr);
+    var res = sendMailChunk({ subject: mail.subject, body: mail.body, name: 'Boulderverein Zugzwang e.V.' }, [e.email]);
+    if (res.sent === 1) { sheet.getRange(e.row, col).setValue(marke); gesendet++; }
+    else if (res.failed && res.failed.length) { sheet.getRange(e.row, col).setValue(marke); console.error('Abschluss-Mail an Zeile ' + e.row + ' fehlgeschlagen'); }
+    else { offen++; }
+  }
+  if (gesendet || offen) console.log('Dienst-Abschluss ' + jahr + ': ' + gesendet + ' gesendet, ' + offen + ' folgen am naechsten Tag');
   return { gesendet: gesendet, offen: offen };
 }
 
