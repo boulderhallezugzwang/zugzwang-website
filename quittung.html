@@ -90,7 +90,7 @@
 </head>
 <body>
 <div class="kiosk-header">
-  <a class="kiosk-btn" href="kiosk.html">‹ Start</a>
+  <a class="kiosk-btn" href="haftung.html">‹ Haftungsausschluss</a>
   <div class="kiosk-title">Dienst quittieren</div>
   <button class="kiosk-btn" type="button" id="neuLaden">↻ Neu laden</button>
 </div>
@@ -309,9 +309,9 @@ $('neuLaden').addEventListener('click', laden);
 setInterval(() => {
   if ($('ovBestaetigen').hidden && $('ovSpontan').hidden && $('ovErfolg').hidden && $('einrichten').hidden) laden();
 }, 60000);
-// Nach 3 Minuten ohne Beruehrung zurueck zur Startseite
+// Nach 3 Minuten ohne Beruehrung zurueck zum Haftungsausschluss (Startseite des iPads)
 let ruhe;
-function ruheNeu() { clearTimeout(ruhe); ruhe = setTimeout(() => { location.href = 'kiosk.html'; }, 180000); }
+function ruheNeu() { clearTimeout(ruhe); ruhe = setTimeout(() => { location.href = 'haftung.html'; }, 180000); }
 ['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, ruheNeu));
 ruheNeu();
 laden();

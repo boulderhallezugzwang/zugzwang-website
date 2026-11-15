@@ -60,6 +60,12 @@
   .kiosk-refresh:hover, .kiosk-refresh:active {
     background: var(--yellow); color: var(--black);
   }
+  .kiosk-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 640px) {
+    .kiosk-header { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+    .kiosk-logo-img { height: 36px; }
+    .kiosk-actions { width: 100%; justify-content: space-between; }
+  }
   .kiosk-title {
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 800; font-size: 28px;
@@ -273,10 +279,12 @@
 
 <!-- KIOSK HEADER -->
 <div class="kiosk-header">
-  <img src="img/logo.png" alt="Zugzwang Logo" class="kiosk-logo-img" id="kioskLogo">
-  <a class="kiosk-refresh" id="kioskHome" href="kiosk.html" style="display:none;text-decoration:none;">‹ Start</a>
+  <img src="img/logo.png" alt="Zugzwang Logo" class="kiosk-logo-img">
   <div class="kiosk-title">Haftungsausschluss</div>
-  <button class="kiosk-refresh" onclick="resetForm()" title="Formular zurücksetzen"><span>&#x21bb;</span> Refresh</button>
+  <div class="kiosk-actions">
+    <a class="kiosk-refresh" href="quittung.html" style="text-decoration:none;">Dienst quittieren ›</a>
+    <button class="kiosk-refresh" onclick="resetForm()" title="Formular zurücksetzen"><span>&#x21bb;</span> Refresh</button>
+  </div>
 </div>
 
 <div class="page-container">
@@ -532,12 +540,6 @@ function startProgress(fillId, stepIds) {
       box.classList.remove('active');
     }
   };
-}
-
-// Von der Kiosk-Startseite aus geoeffnet (haftung.html?kiosk=1): Knopf zurueck zur Startseite zeigen
-if (new URLSearchParams(location.search).get('kiosk') === '1') {
-  document.getElementById('kioskLogo').style.display = 'none';
-  document.getElementById('kioskHome').style.display = '';
 }
 
 // ===== HAFTUNGSAUSSCHLUSS FORM (KIOSK) =====

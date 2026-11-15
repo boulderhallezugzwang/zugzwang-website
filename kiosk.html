@@ -2,82 +2,12 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=haftung.html">
 <title>Boulderhalle Zugzwang</title>
-<link rel="apple-touch-icon" href="img/logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --black: #141414; --dark: #1c1c1c; --dark-card: #232323; --dark-border: #333;
-    --yellow: #D4A020; --yellow-light: #E8B930; --cream: #E8DCC8; --cream-dim: #c4b9a6;
-    --text: #d4d0c8; --text-dim: #8a8680;
-    --error: #e74c3c; --error-bg: rgba(231,76,60,0.1);
-    --success: #2ecc71; --success-bg: rgba(46,204,113,0.12);
-    --radius: 8px;
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'DM Sans', sans-serif; font-size: 17px; line-height: 1.55;
-    color: var(--text); background: var(--black);
-    -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
-    min-height: 100vh;
-  }
-  .kiosk-header {
-    position: sticky; top: 0; z-index: 100; background: var(--black);
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 12px 24px; border-bottom: 2px solid var(--yellow); margin-bottom: 24px;
-  }
-  .kiosk-logo-img { height: 50px; width: auto; }
-  .kiosk-title {
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 28px;
-    text-transform: uppercase; letter-spacing: 1px; color: var(--cream); text-align: center;
-  }
-  .kiosk-btn {
-    background: none; border: 2px solid var(--yellow); color: var(--yellow);
-    border-radius: var(--radius); padding: 8px 16px; font-size: 15px; font-weight: 600;
-    font-family: 'DM Sans', sans-serif; cursor: pointer; text-decoration: none; flex-shrink: 0;
-    min-height: 44px; display: inline-flex; align-items: center;
-  }
-  .kiosk-btn:active { background: var(--yellow); color: var(--black); }
-  .page { max-width: 800px; margin: 0 auto; padding: 0 24px 48px; }
-  [hidden] { display: none !important; }
-  .kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 8vh; }
-  .kachel {
-    display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
-    min-height: 240px; padding: 28px; text-decoration: none;
-    background: var(--dark-card); border: 2px solid var(--dark-border); border-radius: 14px;
-    transition: border-color 0.15s;
-  }
-  .kachel:active { border-color: var(--yellow); }
-  .kachel-titel {
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 36px; line-height: 1.1;
-    text-transform: uppercase; letter-spacing: 0.5px; color: var(--yellow);
-  }
-  .kachel-text { margin-top: 12px; color: var(--cream-dim); font-size: 17px; }
-</style>
 </head>
-<body>
-<div class="kiosk-header">
-  <img src="img/logo.png" alt="Zugzwang Logo" class="kiosk-logo-img">
-  <div class="kiosk-title">Boulderhalle Zugzwang</div>
-  <span style="width:50px"></span>
-</div>
-<div class="page">
-  <div class="kacheln">
-    <a class="kachel" href="haftung.html?kiosk=1">
-      <span class="kachel-titel">Haftungs&shy;ausschluss</span>
-      <span class="kachel-text">Zum ersten Mal hier? Bitte vor dem Bouldern ausfüllen.</span>
-    </a>
-    <a class="kachel" href="quittung.html">
-      <span class="kachel-titel">Dienst quittieren</span>
-      <span class="kachel-text">Hallen- oder Helferdienst von heute abhaken.</span>
-    </a>
-  </div>
-</div>
+<body style="background:#141414;color:#d4d0c8;font-family:sans-serif;padding:24px">
+<p><a href="haftung.html" style="color:#D4A020">Weiter zum Haftungsausschluss</a></p>
+<script>location.replace('haftung.html');</script>
 </body>
 </html>

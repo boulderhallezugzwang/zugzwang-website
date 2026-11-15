@@ -3404,7 +3404,7 @@ function cfgRender() {
   });
   // Geraetecode fuer das iPad in der Halle (Dienst quittieren)
   html += '<div style="margin:16px 0 10px;">';
-  html += '<label for="cfg_kiosk_code" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">Gerätecode für „Dienst quittieren“ am iPad (mindestens 6 Zeichen). Wird einmal auf dem iPad eingegeben; leer = Quittieren abgeschaltet. iPad-Startseite: zugzwang-auerbach.de/kiosk.html</label>';
+  html += '<label for="cfg_kiosk_code" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">Gerätecode für „Dienst quittieren“ am iPad (mindestens 6 Zeichen). Wird einmal auf dem iPad eingegeben; leer = Quittieren abgeschaltet. Am iPad auf der Haftungsausschluss-Seite oben „Dienst quittieren“ antippen</label>';
   html += '<input type="text" id="cfg_kiosk_code" value="' + escHtml(cfgGetVal('kiosk_code') || '') + '" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;max-width:320px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;font-family:monospace;">';
   html += '</div>';
 
