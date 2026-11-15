@@ -225,10 +225,10 @@ function doPost(e) {
     if (action === 'dienstInfo') return jsonResponse(helferDienstInfo(body.c));
     if (action === 'dienstAustragen') return jsonResponse(helferDienstAustragen(body.c));
 
-    // iPad in der Halle (mit Geraetecode): Dienste von heute ansehen und abhaken
-    if (action === 'quittListe') return jsonResponse(quittListe(body.code));
-    if (action === 'quittieren') return jsonResponse(quittieren(body.code, body.id));
-    if (action === 'quittSpontan') return jsonResponse(quittSpontan(body.code, body));
+    // iPad in der Halle: Dienste von heute ansehen und mit Unterschrift abhaken
+    if (action === 'quittListe') return jsonResponse(quittListe());
+    if (action === 'quittieren') return jsonResponse(quittieren(body.id, body.unterschrift));
+    if (action === 'quittSpontan') return jsonResponse(quittSpontan(body));
 
     // Oeffentlich: aktuelle Ersatzbeitraege (fuer Mitgliedsantrag und Vereinsseite)
     if (action === 'ersatzInfo' || action === 'beitragsInfo') return jsonResponse(beitragsInfo());
@@ -3392,25 +3392,36 @@ function ersatzSetze(row, key, feld, wert) {
 // Helferdienst am iPad ab (quittung.html). Der Eintrag im Tab "Dienste" bekommt
 // dann den Status "geleistet" – nur das zaehlt fuer den Ersatzbeitrag.
 // Wer nicht eingetragen war, kann sich mit Name und Geburtsdatum nachtragen.
-// Die Seite braucht den Geraetecode aus dem Config-Tab (kiosk_code), damit die
-// Namensliste nicht oeffentlich ist und niemand von zu Hause quittiert.
+// Jede Quittung wird unterschrieben; das Bild liegt in Drive, der Link im Tab "Dienste".
+// Bewusst ohne Geraetecode (Detlef, 15.11.2026): soll einfach bleiben, es gibt Zeugen.
 
 var QUITT_HD_START = { 3: '18:00', 5: '18:00', 0: '14:00' };   // Hallendienst: Mi, Fr, So (wie im Hallendienst-Skript)
-var QUITT_MAX_FAILS = 20;
-var QUITT_LOCK_SECONDS = 900;
+var QUITT_ORDNER = 'Zugzwang_Dienst_Quittungen';
+var QUITT_SPALTE = 12;   // Tab "Dienste", Spalte L: Link zur Unterschrift
 
-// Prueft den Geraetecode. Ergebnis: '' = in Ordnung, sonst Fehlermeldung.
-function quittCodeFehler(code) {
-  var soll = (getConfigValue('kiosk_code') || '').toString().trim();
-  if (soll.length < 6) return 'Das Quittieren ist noch nicht eingerichtet (Gerätecode fehlt in der Config).';
-  var cache = CacheService.getScriptCache();
-  var fails = parseInt(cache.get('kiosk_fails') || '0', 10);
-  if (fails >= QUITT_MAX_FAILS) return 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.';
-  if (typeof code !== 'string' || code.trim() !== soll) {
-    cache.put('kiosk_fails', String(fails + 1), QUITT_LOCK_SECONDS);
-    return 'Gerätecode falsch';
+// Legt das Unterschriftsbild in Drive ab (Ordner "Zugzwang_Dienst_Quittungen") und
+// vermerkt den Link in Spalte L des Tabs "Dienste". Ein Fehler dabei verhindert das
+// Quittieren nicht – dann steht dort ein Hinweis.
+function quittUnterschriftGueltig(u) {
+  return typeof u === 'string' && u.length > 500 && u.length < 600000 && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(u);
+}
+
+function quittSpeichereUnterschrift(dsheet, row, v, dataUrl) {
+  var vermerk;
+  try {
+    var bytes = Utilities.base64Decode(dataUrl.replace(/^data:image\/png;base64,/, ''));
+    var name = Utilities.formatDate(new Date(), 'Europe/Berlin', 'yyyy-MM-dd') + '_' +
+      String(v[5]).replace(/[^A-Za-zÄÖÜäöüß0-9-]/g, '') + '_' + String(v[6]).replace(/[^A-Za-zÄÖÜäöüß0-9-]/g, '') +
+      '_' + String(v[0]).slice(1, 9) + '.png';
+    var it = DriveApp.getFoldersByName(QUITT_ORDNER);
+    var ordner = it.hasNext() ? it.next() : DriveApp.createFolder(QUITT_ORDNER);
+    vermerk = ordner.createFile(Utilities.newBlob(bytes, 'image/png', name)).getUrl();
+  } catch (e) {
+    console.error('Unterschrift nicht gespeichert: ' + e);
+    vermerk = 'unterschrieben (Bild nicht gespeichert)';
   }
-  return '';
+  if (!String(dsheet.getRange(1, QUITT_SPALTE).getValue())) dsheet.getRange(1, QUITT_SPALTE).setValue('Unterschrift').setFontWeight('bold');
+  dsheet.getRange(row, QUITT_SPALTE).setValue(vermerk);
 }
 
 function quittName(vorname, nachname) {
@@ -3469,9 +3480,7 @@ function quittFindeDienst(dienste, art, ref) {
 }
 
 // Liste fuer das iPad: Dienste von heute mit den Eingetragenen (Vorname + Anfangsbuchstabe)
-function quittListe(code) {
-  var fehler = quittCodeFehler(code);
-  if (fehler) return { error: fehler };
+function quittListe() {
   var dienste = quittDiensteHeute();
   var heuteDE = dienstDatumDE(new Date());
   var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
@@ -3491,9 +3500,8 @@ function quittListe(code) {
 }
 
 // Eine Eintragung abhaken
-function quittieren(code, id) {
-  var fehler = quittCodeFehler(code);
-  if (fehler) return { error: fehler };
+function quittieren(id, unterschrift) {
+  if (!quittUnterschriftGueltig(unterschrift)) return { error: 'Bitte unterschreiben.' };
   if (!dienstGueltigeId(id)) return { error: 'Eintrag nicht gefunden' };
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -3509,6 +3517,7 @@ function quittieren(code, id) {
     if (hit.v[8] === 'geleistet') return { ok: true, schon: true, name: name };
     if (hit.v[8] !== 'eingetragen' && hit.v[8] !== 'ohne_platz' && hit.v[8] !== 'warteliste') return { error: 'Diese Eintragung ist nicht mehr aktiv.' };
     dienstSetStatus(dsheet, hit.row, 'geleistet');
+    quittSpeichereUnterschrift(dsheet, hit.row, hit.v, unterschrift);
     SpreadsheetApp.flush();
     try { dienstSyncMitgliederliste(); } catch (e) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e); }
     return { ok: true, name: name };
@@ -3518,10 +3527,9 @@ function quittieren(code, id) {
 }
 
 // Spontaner Helfer: war nicht eingetragen, weist sich mit Name und Geburtsdatum als Mitglied aus
-function quittSpontan(code, data) {
-  var fehler = quittCodeFehler(code);
-  if (fehler) return { error: fehler };
+function quittSpontan(data) {
   data = data || {};
+  if (!quittUnterschriftGueltig(data.unterschrift)) return { error: 'Bitte unterschreiben.' };
   var vor = String(data.vorname || '').trim(), nach = String(data.nachname || '').trim();
   var geb = dienstDatumDE(data.geburtsdatum);
   if (!vor || !nach || vor.length > 100 || nach.length > 100) return { error: 'Bitte Vor- und Nachnamen angeben.' };
@@ -3545,12 +3553,14 @@ function quittSpontan(code, data) {
       if (r[8] === 'geleistet') return { ok: true, schon: true, name: name };
       if (r[8] === 'eingetragen' || r[8] === 'ohne_platz' || r[8] === 'warteliste') {
         dienstSetStatus(dsheet, i + 2, 'geleistet');
+        quittSpeichereUnterschrift(dsheet, i + 2, r, data.unterschrift);
         SpreadsheetApp.flush();
         try { dienstSyncMitgliederliste(); } catch (e1) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e1); }
         return { ok: true, name: name };
       }
     }
-    dienstEintragen(dsheet, d.art, d.ref, new Date(), m, 'geleistet');
+    var neueId = dienstEintragen(dsheet, d.art, d.ref, new Date(), m, 'geleistet');
+    quittSpeichereUnterschrift(dsheet, dsheet.getLastRow(), [neueId, '', '', '', '', m.nachname, m.vorname], data.unterschrift);
     SpreadsheetApp.flush();
     try { dienstSyncMitgliederliste(); } catch (e2) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e2); }
     return { ok: true, name: name };
@@ -3571,7 +3581,11 @@ function quittAdmin(id, geleistet) {
     var st = hit.v[8];
     if (geleistet) {
       if (st !== 'eingetragen' && st !== 'ohne_platz' && st !== 'warteliste' && st !== 'geleistet') return { error: 'Diese Eintragung ist ausgetragen oder gestrichen.' };
-      if (st !== 'geleistet') dienstSetStatus(dsheet, hit.row, 'geleistet');
+      if (st !== 'geleistet') {
+        dienstSetStatus(dsheet, hit.row, 'geleistet');
+        if (!String(dsheet.getRange(1, QUITT_SPALTE).getValue())) dsheet.getRange(1, QUITT_SPALTE).setValue('Unterschrift').setFontWeight('bold');
+        dsheet.getRange(hit.row, QUITT_SPALTE).setValue('vom Vorstand nachgetragen');
+      }
     } else {
       if (st !== 'geleistet') return { error: 'Dieser Dienst ist nicht als geleistet vermerkt.' };
       dienstSetStatus(dsheet, hit.row, 'eingetragen');

@@ -478,10 +478,8 @@ qs.Dienste=mkSheet([['ID','Art','Dienst','Datum','Mitglied','Nachname','Vorname'
   [did(3),'helferdienst','hX',gestern,K('Kern','Karl','04.06.1985'),'Kern','Karl','','eingetragen','',''],
   [did(4),'helferdienst','hA',T0,K('Kern','Karl','04.06.1985'),'Kern','Karl','','ausgetragen','','']]);
 const st=n=>qs.Dienste.rows[n][8];
-ok(/nicht eingerichtet/.test(post(qc,{action:'quittListe',code:'x'}).error),'Quittieren: ohne Geraetecode in der Config gesperrt');
-qs.Config.rows.push(['kiosk_code','halle-2026','']);
-ok(post(qc,{action:'quittListe',code:'falsch'}).error==='Gerätecode falsch'&&!!post(qc,{action:'quittieren',id:did(1)}).error,'Quittieren: falscher/fehlender Geraetecode abgelehnt');
-const C={code:'halle-2026'};
+const SIG='data:image/png;base64,'+'A'.repeat(800); const drive=[]; qc.DriveApp={getFoldersByName(){return{hasNext(){return false}}},createFolder(n){return{createFile(b){drive.push(b.getName());return{getUrl(){return 'https://drive.example/'+drive.length}}}}}}; qc.Utilities.base64Decode=x=>[...Buffer.from(x,'base64')];
+const C={unterschrift:SIG};
 r=post(qc,{...C,action:'quittListe'});
 const hA=r.dienste.find(d=>d.ref==='hA'), hB=r.dienste.find(d=>d.ref==='hB');
 ok(r.ok&&hA&&hA.begonnen&&hA.personen.length===1&&hA.personen[0].name==='Eva M.'&&!hA.personen[0].geleistet,'Liste: heutiger Dienst, Name gekuerzt, Ausgetragene fehlen');
@@ -507,12 +505,14 @@ const AD2={username:'anna',password:'geheim12'};
 ok(!!post(qc,{action:'dienstQuittAdmin',dienstId:did(3),geleistet:true}).error,'Nachtragen: nur mit Anmeldung');
 r=post(qc,{...AD2,action:'dienstQuittAdmin',dienstId:did(3),geleistet:true});
 ok(r.ok&&st(3)==='geleistet','Admin traegt vergangenen Dienst als geleistet nach');
-r=post(qc,{...AD2,action:'dienstQuittAdmin',dienstId:did(3),geleistet:false});
-ok(r.ok&&st(3)==='eingetragen','Admin nimmt das Abhaken zurueck');
 ok(!!post(qc,{...AD2,action:'dienstQuittAdmin',dienstId:did(4),geleistet:true}).error,'Admin: ausgetragene Eintragung nicht nachtragbar');
-// Sperre nach vielen Fehlversuchen
-for(let i=0;i<25;i++) post(qc,{action:'quittListe',code:'raten'+i});
-ok(/Zu viele Fehlversuche/.test(post(qc,{...C,action:'quittListe'}).error),'Geraetecode: Sperre nach vielen Fehlversuchen');
+ok(drive.length===3&&/_Mller_Eva_|_Müller_Eva_/.test(drive[0])&&/^https:\/\/drive/.test(String(qs.Dienste.rows[1][11]))&&qs.Dienste.rows[0][11]==='Unterschrift','Unterschriften liegen in Drive, Link in Spalte L');
+ok(qs.Dienste.rows[3][11]==='vom Vorstand nachgetragen','Nachtragen vermerkt in Spalte Unterschrift');
+qs.Dienste.rows[1][8]='eingetragen';
+ok(post(qc,{action:'quittieren',id:did(1)}).error==='Bitte unterschreiben.'&&post(qc,{action:'quittieren',id:did(1),unterschrift:'data:image/png;base64,<script>'}).error==='Bitte unterschreiben.'&&st(1)==='eingetragen','ohne gueltige Unterschrift kein Abhaken');
+qc.DriveApp={getFoldersByName(){throw new Error('drive')}};
+r=post(qc,{...C,action:'quittieren',id:did(1)});
+ok(r.ok&&st(1)==='geleistet'&&/Bild nicht gespeichert/.test(qs.Dienste.rows[1][11]),'Drive-Fehler verhindert das Quittieren nicht');
 }
 
 console.log(fails?('\n'+fails+' FEHLGESCHLAGEN'):'\nalle Tests bestanden'); process.exit(fails?1:0);

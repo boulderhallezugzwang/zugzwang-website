@@ -1165,7 +1165,7 @@
   <div class="section" id="sectionDienste">
     <div class="event-form">
       <h3>Dienste und Ersatzbeitrag</h3>
-      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Pro Jahr ein Hallen- oder Helferdienst je Erwachsenem, je Familie und je ermäßigtem Mitglied ab 16. Es zählen nur Dienste, die am Tag selbst am iPad in der Halle quittiert (oder hier nachgetragen) wurden. Wer keinen leistet, zahlt den Ersatzbeitrag.</p>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Pro Jahr ein Hallen- oder Helferdienst je Erwachsenem, je Familie und je ermäßigtem Mitglied ab 16. Es zählen nur Dienste, die am Tag selbst am iPad in der Halle mit Unterschrift quittiert (oder hier nachgetragen) wurden. Die Unterschriften liegen im Drive-Ordner „Zugzwang_Dienst_Quittungen“, der Link steht im Sheet-Tab „Dienste“. Wer keinen leistet, zahlt den Ersatzbeitrag.</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
         <label for="dnJahr" style="margin:0;">Jahr</label>
         <select id="dnJahr" onchange="dnLoad()" style="width:auto;"></select>
@@ -3402,12 +3402,6 @@ function cfgRender() {
     html += '<input type="number" min="0" max="365" step="1" inputmode="numeric" id="cfg_' + f[0] + '" value="' + escHtml(cfgGetVal(f[0]) || '') + '" placeholder="' + f[2] + '" style="width:90px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
     html += '</div>';
   });
-  // Geraetecode fuer das iPad in der Halle (Dienst quittieren)
-  html += '<div style="margin:16px 0 10px;">';
-  html += '<label for="cfg_kiosk_code" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">Gerätecode für „Dienst quittieren“ am iPad (mindestens 6 Zeichen). Wird einmal auf dem iPad eingegeben; leer = Quittieren abgeschaltet. Am iPad auf der Haftungsausschluss-Seite oben „Dienst quittieren“ antippen</label>';
-  html += '<input type="text" id="cfg_kiosk_code" value="' + escHtml(cfgGetVal('kiosk_code') || '') + '" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;max-width:320px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;font-family:monospace;">';
-  html += '</div>';
-
   // Mitgliedsbeitraege (leer = Standardwert); erscheinen im Mitgliedsantrag, auf der Vereinsseite und im Einzug
   html += '<div style="margin:16px 0 6px;font-weight:600;">Mitgliedsbeiträge pro Jahr (Euro)</div>';
   html += '<p style="color:var(--text-dim);font-size:13px;margin-bottom:10px;">Vollmitglieder zahlen Mitgliedsbeitrag plus Jahreskarte, Fördermitglieder nur den Beitrag. Die Werte erscheinen im Mitgliedsantrag, auf der Vereinsseite, in der Beitragsordnung und im Einzug.</p>';
@@ -3551,12 +3545,6 @@ function cfgSave() {
   if (tickerTextEl) items.push({ key: 'ticker_text', value: tickerTextEl.value.trim() });
   var oezEl = document.getElementById('cfg_oez_hinweis');
   if (oezEl) items.push({ key: 'oez_hinweis', value: oezEl.value });
-  var kioskEl = document.getElementById('cfg_kiosk_code');
-  if (kioskEl) {
-    var kioskCode = kioskEl.value.trim();
-    if (kioskCode && kioskCode.length < 6) { alert('Der Gerätecode fürs iPad braucht mindestens 6 Zeichen.'); return; }
-    items.push({ key: 'kiosk_code', value: kioskCode });
-  }
   var dienstTelEl = document.getElementById('cfg_dienste_kontakt_telefon');
   if (dienstTelEl) items.push({ key: 'dienste_kontakt_telefon', value: dienstTelEl.value.trim() });
   ['dienste_limit', 'dienste_hd_sperre_tage', 'dienste_austragen_tage',

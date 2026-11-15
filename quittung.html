@@ -80,6 +80,7 @@
   }
   .btn.haupt { background: var(--yellow); border-color: var(--yellow); color: var(--black); }
   .btn:disabled { opacity: 0.55; }
+  .sig-canvas { width: 100%; height: 190px; background: #fff; border: 2px solid var(--dark-border); border-radius: var(--radius); touch-action: none; display: block; }
   .overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; padding: 20px; }
   .dialog { width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; background: var(--dark-card); border: 1px solid var(--dark-border); border-radius: 14px; padding: 26px; }
   .dialog p { color: var(--cream-dim); margin-top: 8px; }
@@ -98,17 +99,6 @@
 <div class="page">
   <div class="msg err" id="fehler" role="alert" hidden></div>
 
-  <!-- Einmalige Einrichtung des Geraets -->
-  <div class="card" id="einrichten" hidden>
-    <h2>Gerät einrichten</h2>
-    <p class="dienst-hinweis" style="margin-top:6px">Dieses Gerät ist noch nicht freigeschaltet. Bitte den Gerätecode eingeben, den der Vorstand im internen Bereich unter Config festgelegt hat. Er wird auf diesem Gerät gespeichert.</p>
-    <form id="codeForm">
-      <label for="codeFeld">Gerätecode</label>
-      <input type="password" id="codeFeld" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" required>
-      <div class="aktionen"><button class="btn haupt" type="submit">Freischalten</button></div>
-    </form>
-  </div>
-
   <div id="inhalt" hidden>
     <div class="datum" id="datum"></div>
     <div id="dienste"></div>
@@ -116,15 +106,19 @@
   <p class="leer" id="laden">Dienste werden geladen …</p>
 </div>
 
-<!-- Bestaetigen -->
+<!-- Bestaetigen mit Unterschrift -->
 <div class="overlay" id="ovBestaetigen" hidden>
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bestTitel">
     <h2 id="bestTitel">Dienst geleistet?</h2>
     <div class="gross" id="bestName"></div>
     <p id="bestDienst"></p>
+    <p style="margin:14px 0 6px">Bitte hier unterschreiben:</p>
+    <canvas class="sig-canvas" id="sigCanvas"></canvas>
+    <button type="button" class="spontan-btn" id="sigClear" style="margin-top:2px">Unterschrift löschen</button>
+    <div class="msg err" id="bestFehler" role="alert" hidden style="margin-top:8px"></div>
     <div class="aktionen">
       <button class="btn" type="button" id="bestNein">Abbrechen</button>
-      <button class="btn haupt" type="button" id="bestJa">Ja, das bin ich</button>
+      <button class="btn haupt" type="button" id="bestJa" disabled>Quittieren</button>
     </div>
   </div>
 </div>
@@ -134,7 +128,7 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="spTitel">
     <h2 id="spTitel">Nicht in der Liste?</h2>
     <p id="spDienst"></p>
-    <p>Trag Deinen Namen und Dein Geburtsdatum ein – wir prüfen, ob Du Mitglied bist, und vermerken den Dienst.</p>
+    <p>Trag Deinen Namen und Dein Geburtsdatum ein – wir prüfen, ob Du Mitglied bist. Danach unterschreibst Du.</p>
     <div class="msg err" id="spFehler" role="alert" hidden style="margin-top:14px"></div>
     <form id="spForm" novalidate>
       <label for="spVorname">Vorname</label>
@@ -145,7 +139,7 @@
       <input type="date" id="spGeburt" required>
       <div class="aktionen">
         <button class="btn" type="button" id="spAbbrechen">Abbrechen</button>
-        <button class="btn haupt" type="submit" id="spSenden">Dienst quittieren</button>
+        <button class="btn haupt" type="submit" id="spSenden">Weiter zur Unterschrift</button>
       </div>
     </form>
   </div>
@@ -162,46 +156,34 @@
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec';
-const CODE_KEY = 'zz_kiosk_code';
 const $ = id => document.getElementById(id);
 let stand = null;          // letzte Liste vom Server
 let auswahl = null;        // { id, name, dienst } bzw. { dienst } fuer "nicht in der Liste"
 let laedt = false;
 
-function code() { try { return localStorage.getItem(CODE_KEY) || ''; } catch (e) { return ''; } }
 function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
 
 async function post(body) {
   const resp = await fetch(API_URL, {
     method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(Object.assign({ code: code() }, body))
+    body: JSON.stringify(body)
   });
   return resp.json();
 }
 
 function zeigeFehler(text) { $('fehler').textContent = text; $('fehler').hidden = false; }
 
-function zeigeEinrichten(hinweis) {
-  $('laden').hidden = true; $('inhalt').hidden = true; $('einrichten').hidden = false;
-  if (hinweis) zeigeFehler(hinweis);
-}
-
 async function laden() {
   if (laedt) return;
-  if (!code()) { zeigeEinrichten(); return; }
   laedt = true;
   try {
     const r = await post({ action: 'quittListe' });
     if (!r || !r.ok) {
-      const text = (r && r.error) || 'Die Dienste konnten nicht geladen werden.';
-      if (text === 'Gerätecode falsch') {
-        try { localStorage.removeItem(CODE_KEY); } catch (e) {}
-        zeigeEinrichten('Der gespeicherte Gerätecode stimmt nicht mehr. Bitte neu eingeben.');
-      } else { $('laden').hidden = true; zeigeFehler(text); }
+      $('laden').hidden = true; zeigeFehler((r && r.error) || 'Die Dienste konnten nicht geladen werden.');
       return;
     }
     stand = r;
-    $('fehler').hidden = true; $('einrichten').hidden = true; $('laden').hidden = true; $('inhalt').hidden = false;
+    $('fehler').hidden = true; $('laden').hidden = true; $('inhalt').hidden = false;
     zeichne();
   } catch (e) {
     $('laden').hidden = true;
@@ -242,22 +224,47 @@ function erfolg(name, schon) {
   setTimeout(() => { $('ovErfolg').hidden = true; laden(); }, 3500);
 }
 
+// ===== Unterschriftsfeld =====
+const sig = $('sigCanvas'), sctx = sig.getContext('2d');
+let sigMalt = false, sigLeer = true;
+function sigNeu() {
+  const r = sig.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  sig.width = Math.round(r.width * dpr); sig.height = Math.round(r.height * dpr);
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  sctx.fillStyle = '#fff'; sctx.fillRect(0, 0, r.width, r.height);
+  sctx.strokeStyle = '#1a1a1a'; sctx.lineWidth = 3; sctx.lineCap = 'round'; sctx.lineJoin = 'round';
+  sigLeer = true; $('bestJa').disabled = true;
+}
+function sigPos(e) { const r = sig.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+sig.addEventListener('pointerdown', e => { sigMalt = true; const p = sigPos(e); sctx.beginPath(); sctx.moveTo(p.x, p.y); sig.setPointerCapture(e.pointerId); });
+sig.addEventListener('pointermove', e => {
+  if (!sigMalt) return;
+  const p = sigPos(e); sctx.lineTo(p.x, p.y); sctx.stroke();
+  if (sigLeer) { sigLeer = false; $('bestJa').disabled = false; }
+});
+['pointerup', 'pointercancel'].forEach(t => sig.addEventListener(t, () => { sigMalt = false; }));
+$('sigClear').addEventListener('click', sigNeu);
+
+function oeffneUnterschrift(name, dienst) {
+  $('bestName').textContent = name;
+  $('bestDienst').textContent = dienst.titel + ', heute ab ' + dienst.zeit + ' Uhr';
+  $('bestFehler').hidden = true;
+  $('ovBestaetigen').hidden = false;
+  sigNeu();                      // erst nach dem Einblenden: braucht die echte Groesse
+}
+
 $('dienste').addEventListener('click', ev => {
   const nb = ev.target.closest('.name-btn');
   if (nb && !nb.disabled) {
-    const d = stand.dienste[+nb.dataset.dienst];
     auswahl = { id: nb.dataset.id, name: nb.dataset.name };
-    $('bestName').textContent = auswahl.name;
-    $('bestDienst').textContent = d.titel + ', heute ab ' + d.zeit + ' Uhr';
-    $('bestJa').disabled = false;
-    $('ovBestaetigen').hidden = false;
+    oeffneUnterschrift(auswahl.name, stand.dienste[+nb.dataset.dienst]);
     return;
   }
   const sb = ev.target.closest('[data-spontan]');
   if (sb) {
     const d = stand.dienste[+sb.dataset.spontan];
     auswahl = { dienst: d };
-    $('spForm').reset(); $('spFehler').hidden = true; $('spSenden').disabled = false;
+    $('spForm').reset(); $('spFehler').hidden = true;
     $('spDienst').textContent = d.titel + ', heute ab ' + d.zeit + ' Uhr';
     $('ovSpontan').hidden = false;
     $('spVorname').focus();
@@ -266,48 +273,36 @@ $('dienste').addEventListener('click', ev => {
 
 $('bestNein').addEventListener('click', () => { $('ovBestaetigen').hidden = true; });
 $('bestJa').addEventListener('click', async () => {
-  $('bestJa').disabled = true;
+  if (sigLeer) return;
+  $('bestJa').disabled = true; $('bestFehler').hidden = true;
+  const unterschrift = sig.toDataURL('image/png');
   try {
-    const r = await post({ action: 'quittieren', id: auswahl.id });
-    if (!r || !r.ok) throw new Error((r && r.error) || 'Das hat nicht geklappt.');
-    erfolg(r.name || auswahl.name, r.schon);
+    const r = auswahl.spontan
+      ? await post(Object.assign({ action: 'quittSpontan', art: auswahl.dienst.art, ref: auswahl.dienst.ref, unterschrift: unterschrift }, auswahl.spontan))
+      : await post({ action: 'quittieren', id: auswahl.id, unterschrift: unterschrift });
+    if (r && r.ok) { erfolg(r.name || auswahl.name, r.schon); return; }
+    $('bestFehler').textContent = (r && (r.message || r.error)) || 'Das hat nicht geklappt.';
   } catch (e) {
-    $('ovBestaetigen').hidden = true;
-    zeigeFehler(e.message === 'Failed to fetch' || e.message === 'Load failed' ? 'Keine Verbindung. Bitte noch einmal versuchen.' : e.message);
-    window.scrollTo(0, 0);
+    $('bestFehler').textContent = 'Keine Verbindung. Bitte noch einmal versuchen.';
   }
+  $('bestFehler').hidden = false; $('bestJa').disabled = false;
 });
 
 $('spAbbrechen').addEventListener('click', () => { $('ovSpontan').hidden = true; });
-$('spForm').addEventListener('submit', async ev => {
+$('spForm').addEventListener('submit', ev => {
   ev.preventDefault();
   const vor = $('spVorname').value.trim(), nach = $('spNachname').value.trim(), geb = $('spGeburt').value;
-  const fehler = t => { $('spFehler').textContent = t; $('spFehler').hidden = false; };
-  if (!vor || !nach || !geb) { fehler('Bitte alle drei Felder ausfüllen.'); return; }
-  $('spSenden').disabled = true; $('spFehler').hidden = true;
-  try {
-    const r = await post({ action: 'quittSpontan', art: auswahl.dienst.art, ref: auswahl.dienst.ref, vorname: vor, nachname: nach, geburtsdatum: geb });
-    if (r && r.ok) { erfolg(r.name, r.schon); return; }
-    fehler((r && (r.message || r.error)) || 'Das hat nicht geklappt.');
-  } catch (e) {
-    fehler('Keine Verbindung. Bitte noch einmal versuchen.');
-  }
-  $('spSenden').disabled = false;
-});
-
-$('codeForm').addEventListener('submit', ev => {
-  ev.preventDefault();
-  const c = $('codeFeld').value.trim();
-  if (!c) return;
-  try { localStorage.setItem(CODE_KEY, c); } catch (e) { zeigeFehler('Der Code kann auf diesem Gerät nicht gespeichert werden (privater Modus?).'); return; }
-  $('codeFeld').value = ''; $('fehler').hidden = true; $('einrichten').hidden = true; $('laden').hidden = false;
-  laden();
+  if (!vor || !nach || !geb) { $('spFehler').textContent = 'Bitte alle drei Felder ausfüllen.'; $('spFehler').hidden = false; return; }
+  auswahl.spontan = { vorname: vor, nachname: nach, geburtsdatum: geb };
+  auswahl.name = vor + ' ' + nach;
+  $('ovSpontan').hidden = true;
+  oeffneUnterschrift(auswahl.name, auswahl.dienst);
 });
 
 $('neuLaden').addEventListener('click', laden);
 // Liste frisch halten (neue Eintragungen, Dienstbeginn) – aber nicht, waehrend ein Dialog offen ist
 setInterval(() => {
-  if ($('ovBestaetigen').hidden && $('ovSpontan').hidden && $('ovErfolg').hidden && $('einrichten').hidden) laden();
+  if ($('ovBestaetigen').hidden && $('ovSpontan').hidden && $('ovErfolg').hidden) laden();
 }, 60000);
 // Nach 3 Minuten ohne Beruehrung zurueck zum Haftungsausschluss (Startseite des iPads)
 let ruhe;
