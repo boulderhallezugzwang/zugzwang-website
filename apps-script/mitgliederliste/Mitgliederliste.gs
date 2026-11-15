@@ -3068,7 +3068,8 @@ function sendEventReminders() {
 // Pflicht je Kalenderjahr: ein Hallen- oder Helferdienst
 //   - je erwachsenem Mitglied,
 //   - je Familie (egal, wer aus der Familie ihn leistet),
-//   - je Jugendlichem ab 16 (wird im Jahr 16 oder 17), der nicht zu einer Familie gehoert.
+//   - je ermaessigtem Mitglied ab 16 (Status "ermäßigt", z.B. Schueler/Studenten – auch ueber 18 –
+//     sowie alle 16- und 17-Jaehrigen), das nicht zu einer Familie gehoert. Typ-Kuerzel: 'jugend'.
 // Keine Pflicht: Kinder unter 16, Foerdermitglieder, Eintritt ab 1.11. (im Eintrittsjahr),
 // von Hand Befreite (Spalte "Dienst-Befreiung").
 // Wer im Antrag "Ersatzbeitrag" gewaehlt hat (Spalte "Ersatzbeitrag gewählt"), zahlt jedes Jahr.
@@ -3225,7 +3226,8 @@ function ersatzUebersicht(jahr, mitBank) {
     var typ;
     if (fam.length > 0 || statusKlein.indexOf('familie') !== -1) typ = 'familie';
     else if (m.geburt && jahr - m.geburt.getFullYear() < 16) typ = 'kind';
-    else if (m.geburt && jahr - m.geburt.getFullYear() < 18) typ = 'jugend';
+    else if ((m.geburt && jahr - m.geburt.getFullYear() < 18) ||
+             statusKlein.indexOf('ermäßigt') !== -1 || statusKlein.indexOf('ermaessigt') !== -1) typ = 'jugend';
     else typ = 'erwachsen';
 
     var personen = [m].concat(fam.map(function(x) { return liste[x]; }));

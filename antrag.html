@@ -647,7 +647,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       const teile=[];
       if(j.erwachsen>0) teile.push('Erwachsene '+eur(j.erwachsen));
       if(j.familie>0) teile.push('Familien '+eur(j.familie));
-      if(j.jugend>0) teile.push('Jugendliche ab 16 '+eur(j.jugend));
+      if(j.jugend>0) teile.push('Ermäßigt ab 16 Jahren '+eur(j.jugend));
       if(teile.length) document.getElementById('ebBetraege').textContent='derzeit '+teile.join(', ');
       if(j.startJahr) document.getElementById('ebStart').textContent=j.startJahr;
     }catch(e){}

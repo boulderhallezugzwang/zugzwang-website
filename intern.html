@@ -1165,7 +1165,7 @@
   <div class="section" id="sectionDienste">
     <div class="event-form">
       <h3>Dienste und Ersatzbeitrag</h3>
-      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Pro Jahr ein Hallen- oder Helferdienst je Erwachsenem, je Familie und je Jugendlichem ab 16. Wer keinen leistet, zahlt den Ersatzbeitrag.</p>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Pro Jahr ein Hallen- oder Helferdienst je Erwachsenem, je Familie und je ermäßigtem Mitglied ab 16. Wer keinen leistet, zahlt den Ersatzbeitrag.</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
         <label for="dnJahr" style="margin:0;">Jahr</label>
         <select id="dnJahr" onchange="dnLoad()" style="width:auto;"></select>
@@ -1817,7 +1817,7 @@ var dnLoaded = false;
 var dnData = null;
 var DN_STAND = { offen: 'Kein Dienst', gewaehlt: 'Ersatzbeitrag gewählt', erfuellt: 'Dienst geleistet',
   befreit: 'Befreit', neu: 'Neu (ab 1.11.)', kind: 'Unter 16', foerder: 'Fördermitglied' };
-var DN_TYP = { erwachsen: 'Erwachsene', familie: 'Familie', jugend: 'Jugend ab 16', kind: 'Kind' };
+var DN_TYP = { erwachsen: 'Erwachsene', familie: 'Familie', jugend: 'Ermäßigt ab 16', kind: 'Kind' };
 
 function dnEuro(n) {
   return Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -3376,7 +3376,7 @@ function cfgRender() {
   html += '<div style="margin:16px 0 6px;font-weight:600;">Ersatzbeitrag, wenn im Jahr kein Dienst geleistet wurde</div>';
   [['ersatz_betrag_erwachsene', 'Erwachsene (Euro)', '100', '9999'],
    ['ersatz_betrag_familie', 'Familien, pauschal für die ganze Familie (Euro)', '100', '9999'],
-   ['ersatz_betrag_jugend', 'Jugendliche ab 16 (Euro)', '40', '9999'],
+   ['ersatz_betrag_jugend', 'Ermäßigt ab 16: Schüler, Studenten, Jugendliche (Euro)', '40', '9999'],
    ['ersatz_start_jahr', 'Gilt ab Jahr', '2027', '2099']].forEach(function(f) {
     html += '<div style="margin-bottom:10px;">';
     html += '<label for="cfg_' + f[0] + '" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">' + f[1] + '</label>';
