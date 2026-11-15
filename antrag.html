@@ -147,6 +147,10 @@
     font-size: 18px; pointer-events: none; opacity: 0; transition: opacity 0.2s;
   }
   .iban-ico.show { opacity: 1; }
+  .kat-preis { display: block; font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .radio-opt input:checked + label .kat-preis { color: inherit; }
+  .beitrag-summe { margin: 0 0 14px; padding: 12px 16px; border-left: 3px solid var(--yellow); background: rgba(212,160,32,0.08); border-radius: var(--radius); font-size: 14px; line-height: 1.5; color: var(--cream); }
+  .beitrag-summe[hidden] { display: none; }
   .hd-wahl { margin: 4px 0 12px; padding: 14px 16px; border: 1px solid var(--dark-border); border-radius: var(--radius); }
   .hd-wahl.missing { border-color: var(--error); background: var(--error-bg); }
   .hd-wahl[hidden] { display: none; }
@@ -521,12 +525,13 @@
         <div class="hd-wahl-titel">Helferdienst <span class="req">*</span></div>
         <p class="hd-wahl-text">Der Verein lebt vom Mithelfen. Ab <span id="ebStart">2027</span> gilt: Jedes Vollmitglied leistet pro Kalenderjahr mindestens einen Helfer- oder Hallendienst – bei Familien reicht ein Dienst für die ganze Familie. Wer keinen Dienst leistet, zahlt für das Jahr einen Ersatzbeitrag (<span id="ebBetraege">siehe Beitragsordnung</span>).</p>
         <label class="hd-wahl-opt"><input type="radio" name="helferdienst" value="dienst"> <span>Ich leiste mindestens einen Helfer- oder Hallendienst pro Jahr.</span></label>
-        <label class="hd-wahl-opt"><input type="radio" name="helferdienst" value="ersatz"> <span>Ich möchte keinen Dienst leisten und zahle stattdessen jedes Jahr den Ersatzbeitrag per Lastschrift.</span></label>
+        <label class="hd-wahl-opt"><input type="radio" name="helferdienst" value="ersatz"> <span>Ich möchte keinen Dienst leisten und zahle stattdessen jedes Jahr den Ersatzbeitrag per Lastschrift<span id="ebOptBetrag"></span>.</span></label>
         <p class="hd-wahl-text hd-wahl-fuss">Die Wahl gilt, bis du sie beim Vorstand änderst. <a href="info.html#beitragsordnung" target="_blank" rel="noopener">Beitragsordnung</a></p>
         <div class="ferr" id="hdWahlErr">Bitte wähle eine der beiden Möglichkeiten.</div>
       </div>
     </div>
 
+    <div class="beitrag-summe" id="beitragSumme" hidden></div>
     <button type="submit" class="submit-btn" id="submitBtn" disabled>Mitgliedsantrag absenden</button>
     <div class="progress-box" id="progressBox">
       <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
@@ -637,25 +642,68 @@ document.addEventListener('DOMContentLoaded',()=>{
       document.getElementById('hdWahlErr').classList.remove('show');
     });
   });
-  // Aktuelle Betraege vom Server holen (im internen Bereich einstellbar)
+  // Betraege: Standardwerte, werden vom Server ueberschrieben (im internen Bereich einstellbar)
+  let BI={startJahr:2027,erwachsen:100,familie:100,jugend:40,beitraege:{
+    beitrag_voll_erwachsene:40,beitrag_voll_ermaessigt:20,beitrag_voll_familie:80,
+    jahreskarte_erwachsene:110,jahreskarte_ermaessigt:70,jahreskarte_familie:220,
+    beitrag_foerder_erwachsene:20,beitrag_foerder_ermaessigt:16,beitrag_foerder_familie:40}};
+  const eur=n=>Number(n).toLocaleString('de-DE',{minimumFractionDigits:Number.isInteger(Number(n))?0:2,maximumFractionDigits:2})+' €';
+  function jahresbeitrag(kat){
+    const b=BI.beitraege;
+    const g=kat.includes('Familie')?'familie':kat.includes('ermäßigt')?'ermaessigt':'erwachsene';
+    return kat.startsWith('Förder')?b['beitrag_foerder_'+g]:b['beitrag_voll_'+g]+b['jahreskarte_'+g];
+  }
+  // Ersatzbeitrag passend zu Kategorie und Alter (0 = keiner, z.B. unter 16)
+  function ersatzFuer(kat){
+    if(kat.startsWith('Förder')) return 0;
+    if(kat.includes('Familie')) return BI.familie;
+    const gd=f.geburtsdatum.value, alter=gd?new Date().getFullYear()-parseInt(gd.slice(0,4),10):99;
+    if(alter<16) return 0;
+    return (kat.includes('ermäßigt')||alter<18)?BI.jugend:BI.erwachsen;
+  }
+  function zeigeBetraege(){
+    f.querySelectorAll('input[name="kategorie"]').forEach(el=>{
+      const lab=f.querySelector('label[for="'+el.id+'"]');
+      let p=lab.querySelector('.kat-preis');
+      if(!p){p=document.createElement('span');p.className='kat-preis';lab.appendChild(p);}
+      p.textContent=eur(jahresbeitrag(el.value))+' / Jahr';
+    });
+    const teile=[];
+    if(BI.erwachsen>0) teile.push('Erwachsene '+eur(BI.erwachsen));
+    if(BI.familie>0) teile.push('Familien '+eur(BI.familie));
+    if(BI.jugend>0) teile.push('Ermäßigt ab 16 Jahren '+eur(BI.jugend));
+    document.getElementById('ebBetraege').textContent=teile.length?'derzeit '+teile.join(', '):'siehe Beitragsordnung';
+    document.getElementById('ebStart').textContent=BI.startJahr;
+    const sel=f.querySelector('input[name="kategorie"]:checked');
+    const box=document.getElementById('beitragSumme');
+    const ebOpt=document.getElementById('ebOptBetrag');
+    if(!sel){box.hidden=true;ebOpt.textContent='';return;}
+    const eb=ersatzFuer(sel.value);
+    ebOpt.textContent=eb>0?' ('+eur(eb)+' pro Jahr'+(sel.value.includes('Familie')?' für die ganze Familie':'')+')':'';
+    let html='<strong>Dein Jahresbeitrag: '+eur(jahresbeitrag(sel.value))+'</strong>';
+    if(hdWahlNoetig()&&eb>0){
+      html+=hdWahlWert()==='ersatz'
+        ?'<br>Zuzüglich Ersatzbeitrag: '+eur(eb)+' pro Jahr (ab '+BI.startJahr+')'
+        :'<br>Ersatzbeitrag nur, wenn du in einem Jahr keinen Dienst leistest: '+eur(eb)+' (ab '+BI.startJahr+')';
+    }
+    box.innerHTML=html;box.hidden=false;
+  }
+  f.geburtsdatum.addEventListener('change',zeigeBetraege);
+  f.querySelectorAll('input[name="helferdienst"]').forEach(el=>el.addEventListener('change',zeigeBetraege));
+  zeigeBetraege();
   (async function(){
     try{
-      const r=await fetch(SCRIPT_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'ersatzInfo'})});
+      const r=await fetch(SCRIPT_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'beitragsInfo'})});
       const j=await r.json();
-      if(!j||!j.ok) return;
-      const eur=n=>Number(n).toLocaleString('de-DE',{minimumFractionDigits:Number.isInteger(Number(n))?0:2,maximumFractionDigits:2})+' €';
-      const teile=[];
-      if(j.erwachsen>0) teile.push('Erwachsene '+eur(j.erwachsen));
-      if(j.familie>0) teile.push('Familien '+eur(j.familie));
-      if(j.jugend>0) teile.push('Ermäßigt ab 16 Jahren '+eur(j.jugend));
-      if(teile.length) document.getElementById('ebBetraege').textContent='derzeit '+teile.join(', ');
-      if(j.startJahr) document.getElementById('ebStart').textContent=j.startJahr;
+      if(!j||!j.ok||!j.beitraege) return;
+      BI=j;zeigeBetraege();
     }catch(e){}
   })();
   f.querySelectorAll('input[name="kategorie"]').forEach(el=>{
     el.addEventListener('change',()=>{
       toggleFamily();
       toggleHdWahl();
+      zeigeBetraege();
       document.getElementById('katErr').classList.remove('show');
     });
   });

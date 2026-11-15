@@ -1369,6 +1369,7 @@ function enterApp(data) {
     document.getElementById('tabConfig').style.display = '';
     document.getElementById('tabBilder').style.display = '';
     document.getElementById('tabDienste').style.display = '';
+    ezLadeBetraege();
     document.getElementById('ezToggle').style.display = '';
   }
   if (data.jugend) jtInit(data.jugend);
@@ -3372,6 +3373,18 @@ function cfgRender() {
     html += '<input type="number" min="0" max="365" step="1" inputmode="numeric" id="cfg_' + f[0] + '" value="' + escHtml(cfgGetVal(f[0]) || '') + '" placeholder="' + f[2] + '" style="width:90px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
     html += '</div>';
   });
+  // Mitgliedsbeitraege (leer = Standardwert); erscheinen im Mitgliedsantrag, auf der Vereinsseite und im Einzug
+  html += '<div style="margin:16px 0 6px;font-weight:600;">Mitgliedsbeiträge pro Jahr (Euro)</div>';
+  html += '<p style="color:var(--text-dim);font-size:13px;margin-bottom:10px;">Vollmitglieder zahlen Mitgliedsbeitrag plus Jahreskarte, Fördermitglieder nur den Beitrag. Die Beitragsordnung auf der Website ist fester Text und muss bei einer Änderung getrennt angepasst werden.</p>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:10px;">';
+  CFG_BEITRAG.forEach(function(f) {
+    html += '<div>';
+    html += '<label for="cfg_' + f[0] + '" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">' + f[1] + '</label>';
+    html += '<input type="number" min="0" max="9999" step="0.01" inputmode="decimal" id="cfg_' + f[0] + '" value="' + escHtml(cfgGetVal(f[0]) || '') + '" placeholder="' + f[2] + '" style="width:110px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
+    html += '</div>';
+  });
+  html += '</div>';
+
   // Ersatzbeitrag (leer = Standardwert, 0 = kein Ersatzbeitrag)
   html += '<div style="margin:16px 0 6px;font-weight:600;">Ersatzbeitrag, wenn im Jahr kein Dienst geleistet wurde</div>';
   [['ersatz_betrag_erwachsene', 'Erwachsene (Euro)', '100', '9999'],
@@ -3452,6 +3465,36 @@ function cfgRender() {
 
 var mailTexteKeys = ['mail_mitglied_intro','mail_mitglied_hinweis','mail_haftung_adult_intro','mail_haftung_adult_hinweis','mail_haftung_minor_intro','mail_haftung_minor_hinweis','mail_haftung_jugend_intro','mail_haftung_jugend_hinweis','mail_kuendigung_intro','mail_kuendigung_hinweis','mail_kuendigung_nf_intro','mail_kuendigung_nf_hinweis','mail_jugendtraining_intro','mail_jugendtraining_hinweis','mail_hallendienst_intro','mail_hallendienst_hinweis','mail_signatur'];
 
+var CFG_BEITRAG = [
+  ['beitrag_voll_erwachsene', 'Mitgliedsbeitrag Erwachsene', '40'],
+  ['beitrag_voll_ermaessigt', 'Mitgliedsbeitrag ermäßigt', '20'],
+  ['beitrag_voll_familie', 'Mitgliedsbeitrag Familie', '80'],
+  ['jahreskarte_erwachsene', 'Jahreskarte Erwachsene', '110'],
+  ['jahreskarte_ermaessigt', 'Jahreskarte ermäßigt', '70'],
+  ['jahreskarte_familie', 'Jahreskarte Familie', '220'],
+  ['beitrag_foerder_erwachsene', 'Fördermitglied Erwachsene', '20'],
+  ['beitrag_foerder_ermaessigt', 'Fördermitglied ermäßigt', '16'],
+  ['beitrag_foerder_familie', 'Fördermitglied Familie', '40']
+];
+
+// Betragsfelder des Beitragseinzugs mit den Werten aus der Config vorbelegen
+function ezLadeBetraege() {
+  evPost('beitragsInfo').then(function(j) {
+    if (!j || !j.ok || !j.beitraege) return;
+    var b = j.beitraege;
+    var setze = function(id, wert) {
+      var el = document.getElementById(id);
+      if (el && typeof wert === 'number' && !isNaN(wert)) el.value = String(wert).replace('.', ',');
+    };
+    setze('ezBetragMitglied', b.beitrag_voll_erwachsene + b.jahreskarte_erwachsene);
+    setze('ezBetragMitgliedFamilie', b.beitrag_voll_familie + b.jahreskarte_familie);
+    setze('ezBetragMitgliedErm', b.beitrag_voll_ermaessigt + b.jahreskarte_ermaessigt);
+    setze('ezBetragFoerder', b.beitrag_foerder_erwachsene);
+    setze('ezBetragFoerderFamilie', b.beitrag_foerder_familie);
+    setze('ezBetragFoerderErm', b.beitrag_foerder_ermaessigt);
+  }).catch(function() {});
+}
+
 function cfgSave() {
   var items = [];
   var keys = Object.keys(cfgLabels);
@@ -3476,7 +3519,8 @@ function cfgSave() {
   var dienstTelEl = document.getElementById('cfg_dienste_kontakt_telefon');
   if (dienstTelEl) items.push({ key: 'dienste_kontakt_telefon', value: dienstTelEl.value.trim() });
   ['dienste_limit', 'dienste_hd_sperre_tage', 'dienste_austragen_tage',
-   'ersatz_betrag_erwachsene', 'ersatz_betrag_familie', 'ersatz_betrag_jugend', 'ersatz_start_jahr'].forEach(function(key) {
+   'ersatz_betrag_erwachsene', 'ersatz_betrag_familie', 'ersatz_betrag_jugend', 'ersatz_start_jahr']
+   .concat(CFG_BEITRAG.map(function(f) { return f[0]; })).forEach(function(key) {
     var el = document.getElementById('cfg_' + key);
     if (el) items.push({ key: key, value: el.value.trim() });
   });

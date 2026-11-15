@@ -422,6 +422,9 @@ u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y});
 ok(E('Eck').betrag===0&&E('Berg').betrag===120.5&&u.aktiv===true,'Betraege und Startjahr aus Config');
 r=post(ec,{action:'ersatzInfo'});
 ok(r.ok&&r.erwachsen===100&&r.familie===120.5&&r.jugend===0,'ersatzInfo oeffentlich');
+ok(r.beitraege.beitrag_voll_erwachsene===40&&r.beitraege.jahreskarte_familie===220&&r.beitraege.beitrag_foerder_ermaessigt===16,'beitragsInfo: Standardbeitraege');
+es.Config.rows.push(['jahreskarte_erwachsene','125',''],['beitrag_voll_familie','abc','']); r=post(ec,{action:'beitragsInfo'});
+ok(r.beitraege.jahreskarte_erwachsene===125&&r.beitraege.beitrag_voll_familie===80,'beitragsInfo: Config-Wert gilt, Unsinn -> Standard');
 // Befreien / Wahl setzen
 const dorn=E('Dorn');
 ok(!!post(ec,{action:'dienstBefreien',username:'tom',password:'pass1234',row:dorn.row,key:dorn.key,feld:'befreiung',wert:'x'}).error,'Befreien: nur Admin');

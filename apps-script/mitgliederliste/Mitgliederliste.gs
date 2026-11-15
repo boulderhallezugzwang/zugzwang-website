@@ -226,10 +226,7 @@ function doPost(e) {
     if (action === 'dienstAustragen') return jsonResponse(helferDienstAustragen(body.c));
 
     // Oeffentlich: aktuelle Ersatzbeitraege (fuer Mitgliedsantrag und Vereinsseite)
-    if (action === 'ersatzInfo') {
-      return jsonResponse({ ok: true, startJahr: ersatzStartJahr(), erwachsen: ersatzBetrag('erwachsen'),
-        familie: ersatzBetrag('familie'), jugend: ersatzBetrag('jugend') });
-    }
+    if (action === 'ersatzInfo' || action === 'beitragsInfo') return jsonResponse(beitragsInfo());
 
     // Intern: einzelnen Helfer streichen
     if (action === 'helferStreichen') {
@@ -3091,6 +3088,28 @@ function ersatzBetrag(typ) {
   var roh = (getConfigValue(ERSATZ_CONFIG_KEYS[typ]) || '').toString().trim().replace(',', '.');
   if (!/^\d{1,4}(\.\d{1,2})?$/.test(roh)) return ERSATZ_BETRAEGE[typ];
   return parseFloat(roh);
+}
+
+// Mitgliedsbeitraege (Euro pro Jahr); im internen Bereich unter Config aenderbar.
+// Vollmitglieder zahlen Mitgliedsbeitrag + Jahreskarte, Foerdermitglieder nur den Beitrag.
+var BEITRAG_STANDARD = {
+  beitrag_voll_erwachsene: 40, beitrag_voll_ermaessigt: 20, beitrag_voll_familie: 80,
+  jahreskarte_erwachsene: 110, jahreskarte_ermaessigt: 70, jahreskarte_familie: 220,
+  beitrag_foerder_erwachsene: 20, beitrag_foerder_ermaessigt: 16, beitrag_foerder_familie: 40
+};
+
+// Oeffentlich: alle Betraege fuer Mitgliedsantrag, Vereinsseite und Einzug
+function beitragsInfo() {
+  var cfg = {};
+  var alle = getConfigAll();
+  if (Array.isArray(alle)) alle.forEach(function(c) { cfg[c.key] = c.value; });
+  var beitraege = {};
+  Object.keys(BEITRAG_STANDARD).forEach(function(key) {
+    var roh = (cfg[key] || '').toString().trim().replace(',', '.');
+    beitraege[key] = /^\d{1,4}(\.\d{1,2})?$/.test(roh) ? parseFloat(roh) : BEITRAG_STANDARD[key];
+  });
+  return { ok: true, startJahr: ersatzStartJahr(), erwachsen: ersatzBetrag('erwachsen'),
+    familie: ersatzBetrag('familie'), jugend: ersatzBetrag('jugend'), beitraege: beitraege };
 }
 
 function ersatzStartJahr() {

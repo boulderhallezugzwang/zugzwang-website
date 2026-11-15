@@ -490,25 +490,25 @@
     <div class="info-card">
       <h3>Vollmitgliedschaft</h3>
       <div class="price-section-title">Mitgliedsbeitrag</div>
-      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">40,00 €</span></div>
-      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value">20,00 €</span></div>
-      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">80,00 €</span></div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value" data-b="beitrag_voll_erwachsene">40,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value" data-b="beitrag_voll_ermaessigt">20,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value" data-b="beitrag_voll_familie">80,00 €</span></div>
       <div class="price-section-title">Jahreskarte</div>
-      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">110,00 €</span></div>
-      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value">70,00 €</span></div>
-      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">220,00 €</span></div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value" data-b="jahreskarte_erwachsene">110,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value" data-b="jahreskarte_ermaessigt">70,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value" data-b="jahreskarte_familie">220,00 €</span></div>
       <div class="price-section-title">Gesamtbeitrag (Mitgliedschaft + Jahreskarte)</div>
-      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value price-highlight">150,00 €</span></div>
-      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value price-highlight">90,00 €</span></div>
-      <div class="price-row"><span class="price-label">Familien</span><span class="price-value price-highlight">300,00 €</span></div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value price-highlight" data-b="beitrag_voll_erwachsene+jahreskarte_erwachsene">150,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value price-highlight" data-b="beitrag_voll_ermaessigt+jahreskarte_ermaessigt">90,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value price-highlight" data-b="beitrag_voll_familie+jahreskarte_familie">300,00 €</span></div>
       <div class="price-note"><span>*</span><span>Kinder unter 10 Jahren sind bei elterlicher Mitgliedschaft kostenfrei</span></div>
     </div>
     <div class="info-card">
       <h3>Fördermitgliedschaft</h3>
       <div class="price-section-title">Jahresbeitrag</div>
-      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value">20,00 €</span></div>
-      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value">16,00 €</span></div>
-      <div class="price-row"><span class="price-label">Familien</span><span class="price-value">40,00 €</span></div>
+      <div class="price-row"><span class="price-label">Erwachsene</span><span class="price-value" data-b="beitrag_foerder_erwachsene">20,00 €</span></div>
+      <div class="price-row"><span class="price-label">Ermäßigt (Schüler/Studenten)</span><span class="price-value" data-b="beitrag_foerder_ermaessigt">16,00 €</span></div>
+      <div class="price-row"><span class="price-label">Familien</span><span class="price-value" data-b="beitrag_foerder_familie">40,00 €</span></div>
       <div class="price-note"><span>*</span><span>Fördermitglieder erhalten 1 € Rabatt auf die regulären Eintrittspreise</span></div>
       <div class="price-note"><span>*</span><span>Keine Jahreskarte / kein Zutrittschip</span></div>
     </div>
@@ -881,6 +881,20 @@ hdForm.addEventListener('submit', async (e) => {
 // Beim Laden starten
 document.addEventListener('DOMContentLoaded', loadHallendienst);
 document.addEventListener('DOMContentLoaded', loadHelferdienste);
+
+// Beitraege aus der Config nachladen (die Zahlen im HTML sind die Rueckfallwerte)
+document.addEventListener('DOMContentLoaded', async function() {
+  try {
+    const r = await fetch(HELFER_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'beitragsInfo' }) });
+    const j = await r.json();
+    if (!j || !j.ok || !j.beitraege) return;
+    document.querySelectorAll('[data-b]').forEach(function(el) {
+      let sum = 0, gueltig = true;
+      el.dataset.b.split('+').forEach(function(k) { if (typeof j.beitraege[k] === 'number') sum += j.beitraege[k]; else gueltig = false; });
+      if (gueltig) el.textContent = sum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    });
+  } catch (e) {}
+});
 
 // ===== SUB-NAV POSITION (dynamisch unter Hauptnav) =====
 function positionSubNav() {
