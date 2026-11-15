@@ -225,6 +225,11 @@ function doPost(e) {
     if (action === 'dienstInfo') return jsonResponse(helferDienstInfo(body.c));
     if (action === 'dienstAustragen') return jsonResponse(helferDienstAustragen(body.c));
 
+    // iPad in der Halle (mit Geraetecode): Dienste von heute ansehen und abhaken
+    if (action === 'quittListe') return jsonResponse(quittListe(body.code));
+    if (action === 'quittieren') return jsonResponse(quittieren(body.code, body.id));
+    if (action === 'quittSpontan') return jsonResponse(quittSpontan(body.code, body));
+
     // Oeffentlich: aktuelle Ersatzbeitraege (fuer Mitgliedsantrag und Vereinsseite)
     if (action === 'ersatzInfo' || action === 'beitragsInfo') return jsonResponse(beitragsInfo());
 
@@ -236,7 +241,7 @@ function doPost(e) {
     }
 
     // Intern (nur Admin): Übersicht "wer hat noch keinen Dienst", Befreiung, Ersatzbeitrag
-    if (action === 'dienstUebersicht' || action === 'dienstBefreien') {
+    if (action === 'dienstUebersicht' || action === 'dienstBefreien' || action === 'dienstQuittAdmin') {
       var ebUser = authenticateUser(body.username, body.password);
       if (!ebUser) return jsonResponse({ error: 'Nicht authentifiziert' });
       if (ebUser.rolle !== 'admin') return jsonResponse({ error: 'Keine Berechtigung' });
@@ -244,6 +249,7 @@ function doPost(e) {
         try { ersatzSchreibeFamilien(); } catch (eFam) { console.error('Familien-Spalte: ' + eFam); }
         return jsonResponse(ersatzUebersicht(body.jahr, true));
       }
+      if (action === 'dienstQuittAdmin') return jsonResponse(quittAdmin((body.dienstId || '').toString(), body.geleistet === true));
       return jsonResponse(ersatzSetze(body.row, (body.key || '').toString(), (body.feld || '').toString(), body.wert));
     }
 
@@ -2551,7 +2557,8 @@ function helferBeschreibe(v) {
 }
 
 function helferAustragenText(dienstId) {
-  return 'Falls Du doch nicht kannst: Bis ' + dienstAustragenTage() + ' Tage vorher kannst Du Dich hier selbst wieder austragen:\n' +
+  return 'Wichtig: Bitte hake Deinen Dienst am Tag selbst am iPad in der Halle ab („Dienst quittieren“) – nur abgehakte Dienste zählen.\n\n' +
+    'Falls Du doch nicht kannst: Bis ' + dienstAustragenTage() + ' Tage vorher kannst Du Dich hier selbst wieder austragen:\n' +
     '  ' + DIENST_SITE + '/dienst.html?k=e&c=' + dienstId + '\n';
 }
 
@@ -3302,9 +3309,11 @@ function ersatzUebersicht(jahr, mitBank) {
     else typ = 'erwachsen';
 
     var personen = [m].concat(fam.map(function(x) { return liste[x]; }));
-    var dienste = 0, befreiung = '', gewaehlt = false;
+    var dienste = 0, eingetragen = 0, befreiung = '', gewaehlt = false;
     personen.forEach(function(p) {
-      dienste += dienstAnzahl(drows, p.key, jahr);
+      var geleistet = dienstGeleistetAnzahl(drows, p.key, jahr);   // nur Quittiertes zaehlt
+      dienste += geleistet;
+      eingetragen += dienstAnzahl(drows, p.key, jahr) - geleistet;
       if (p.befreiung && !befreiung) befreiung = p.befreiung;
       if (p.gewaehlt) gewaehlt = true;
     });
@@ -3329,7 +3338,7 @@ function ersatzUebersicht(jahr, mitBank) {
       personen: personen.length,
       angehoerige: fam.map(function(x) { return liste[x].vorname; }),
       status: m.status, eintritt: dienstDatumDE(m.eintritt),
-      dienste: dienste, stand: stand, betrag: betrag,
+      dienste: dienste, eingetragen: eingetragen, stand: stand, betrag: betrag,
       befreiung: m.befreiung, befreiungFamilie: befreiung, gewaehlt: m.gewaehlt
     };
     if (mitBank) {
@@ -3342,7 +3351,8 @@ function ersatzUebersicht(jahr, mitBank) {
   return {
     ok: true, jahr: jahr, startJahr: ersatzStartJahr(), aktiv: jahr >= ersatzStartJahr(),
     betraege: { erwachsen: ersatzBetrag('erwachsen'), familie: ersatzBetrag('familie'), jugend: ersatzBetrag('jugend') },
-    summe: summe, einheiten: einheiten, unklar: unklar
+    summe: summe, einheiten: einheiten, unklar: unklar,
+    offeneQuittungen: quittOffene(drows, jahr)
   };
 }
 
@@ -3374,6 +3384,226 @@ function ersatzSetze(row, key, feld, wert) {
   }
 }
 
+// ═══════════════════════════════════════════════════
+// DIENST QUITTIEREN (iPad in der Halle)
+// ═══════════════════════════════════════════════════
+//
+// Am Tag des Dienstes, ab dessen Beginn, hakt jede Person ihren Hallen- oder
+// Helferdienst am iPad ab (quittung.html). Der Eintrag im Tab "Dienste" bekommt
+// dann den Status "geleistet" – nur das zaehlt fuer den Ersatzbeitrag.
+// Wer nicht eingetragen war, kann sich mit Name und Geburtsdatum nachtragen.
+// Die Seite braucht den Geraetecode aus dem Config-Tab (kiosk_code), damit die
+// Namensliste nicht oeffentlich ist und niemand von zu Hause quittiert.
+
+var QUITT_HD_START = { 3: '18:00', 5: '18:00', 0: '14:00' };   // Hallendienst: Mi, Fr, So (wie im Hallendienst-Skript)
+var QUITT_MAX_FAILS = 20;
+var QUITT_LOCK_SECONDS = 900;
+
+// Prueft den Geraetecode. Ergebnis: '' = in Ordnung, sonst Fehlermeldung.
+function quittCodeFehler(code) {
+  var soll = (getConfigValue('kiosk_code') || '').toString().trim();
+  if (soll.length < 6) return 'Das Quittieren ist noch nicht eingerichtet (Gerätecode fehlt in der Config).';
+  var cache = CacheService.getScriptCache();
+  var fails = parseInt(cache.get('kiosk_fails') || '0', 10);
+  if (fails >= QUITT_MAX_FAILS) return 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.';
+  if (typeof code !== 'string' || code.trim() !== soll) {
+    cache.put('kiosk_fails', String(fails + 1), QUITT_LOCK_SECONDS);
+    return 'Gerätecode falsch';
+  }
+  return '';
+}
+
+function quittName(vorname, nachname) {
+  var n = String(nachname || '').trim();
+  return String(vorname || '').trim() + (n ? ' ' + n.charAt(0).toUpperCase() + '.' : '');
+}
+
+// Die Dienste von heute: [{ art, ref, titel, zeit, startMs, begonnen }]
+function quittDiensteHeute() {
+  var jetzt = new Date();
+  var heuteDE = dienstDatumDE(jetzt);
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var liste = [];
+
+  // Hallendienst: heute ist ein Hallendienst-Tag und es gibt einen Termin oder eine Eintragung
+  var hdStart = QUITT_HD_START[jetzt.getDay()];
+  if (hdStart) {
+    var gibtEs = false;
+    var hsheet = ss.getSheetByName('Hallendienst');
+    if (hsheet && hsheet.getLastRow() >= 2) {
+      var hd = hsheet.getRange(2, 1, hsheet.getLastRow() - 1, 1).getValues();
+      for (var i = 0; i < hd.length && !gibtEs; i++) gibtEs = dienstDatumDE(hd[i][0]) === heuteDE;
+    }
+    if (!gibtEs) {
+      var dsheet = ss.getSheetByName(DIENSTE_TAB);
+      var drows = dsheet ? dienstRows(dsheet) : [];
+      for (var j = 0; j < drows.length && !gibtEs; j++) {
+        gibtEs = drows[j][1] === 'hallendienst' && dienstDatumDE(drows[j][3]) === heuteDE;
+      }
+    }
+    if (gibtEs) {
+      var hm = hdStart.split(':');
+      var hs = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate(), parseInt(hm[0], 10), parseInt(hm[1], 10));
+      liste.push({ art: 'hallendienst', ref: heuteDE, titel: 'Hallendienst', zeit: hdStart, startMs: hs.getTime() });
+    }
+  }
+
+  // Helferdienste, die heute beginnen
+  var hrows = helferRows(helferSheet(true));
+  for (var k = 0; k < hrows.length; k++) {
+    var start = hrows[k][3];
+    if (!helferIstDatum(start) || dienstDatumDE(start) !== heuteDE) continue;
+    liste.push({ art: 'helferdienst', ref: String(hrows[k][0]), titel: String(hrows[k][2]), zeit: helferZeit(start), startMs: start.getTime() });
+  }
+
+  liste.sort(function(a, b) { return a.startMs - b.startMs; });
+  liste.forEach(function(d) { d.begonnen = jetzt.getTime() >= d.startMs; });
+  return liste;
+}
+
+function quittFindeDienst(dienste, art, ref) {
+  for (var i = 0; i < dienste.length; i++) {
+    if (dienste[i].art === art && dienste[i].ref === String(ref)) return dienste[i];
+  }
+  return null;
+}
+
+// Liste fuer das iPad: Dienste von heute mit den Eingetragenen (Vorname + Anfangsbuchstabe)
+function quittListe(code) {
+  var fehler = quittCodeFehler(code);
+  if (fehler) return { error: fehler };
+  var dienste = quittDiensteHeute();
+  var heuteDE = dienstDatumDE(new Date());
+  var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+  var drows = dsheet ? dienstRows(dsheet) : [];
+  var out = dienste.map(function(d) {
+    var personen = [];
+    for (var i = 0; i < drows.length; i++) {
+      var r = drows[i];
+      if (r[1] !== d.art || String(r[2]) !== d.ref || dienstDatumDE(r[3]) !== heuteDE) continue;
+      if (r[8] !== 'eingetragen' && r[8] !== 'ohne_platz' && r[8] !== 'warteliste' && r[8] !== 'geleistet') continue;
+      personen.push({ id: r[0], name: quittName(r[6], r[5]), geleistet: r[8] === 'geleistet' });
+    }
+    personen.sort(function(a, b) { return a.name.localeCompare(b.name); });
+    return { art: d.art, ref: d.ref, titel: d.titel, zeit: d.zeit, begonnen: d.begonnen, personen: personen };
+  });
+  return { ok: true, datum: heuteDE, dienste: out };
+}
+
+// Eine Eintragung abhaken
+function quittieren(code, id) {
+  var fehler = quittCodeFehler(code);
+  if (fehler) return { error: fehler };
+  if (!dienstGueltigeId(id)) return { error: 'Eintrag nicht gefunden' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+    var hit = dsheet ? dienstFinde(dsheet, id) : null;
+    if (!hit) return { error: 'Eintrag nicht gefunden' };
+    if (dienstDatumDE(hit.v[3]) !== dienstDatumDE(new Date())) return { error: 'Quittieren geht nur am Tag des Dienstes.' };
+    var d = quittFindeDienst(quittDiensteHeute(), hit.v[1], hit.v[2]);
+    if (!d) return { error: 'Dieser Dienst findet heute nicht statt.' };
+    if (!d.begonnen) return { error: 'Quittieren ist erst ab ' + d.zeit + ' Uhr möglich.' };
+    var name = quittName(hit.v[6], hit.v[5]);
+    if (hit.v[8] === 'geleistet') return { ok: true, schon: true, name: name };
+    if (hit.v[8] !== 'eingetragen' && hit.v[8] !== 'ohne_platz' && hit.v[8] !== 'warteliste') return { error: 'Diese Eintragung ist nicht mehr aktiv.' };
+    dienstSetStatus(dsheet, hit.row, 'geleistet');
+    SpreadsheetApp.flush();
+    try { dienstSyncMitgliederliste(); } catch (e) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e); }
+    return { ok: true, name: name };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Spontaner Helfer: war nicht eingetragen, weist sich mit Name und Geburtsdatum als Mitglied aus
+function quittSpontan(code, data) {
+  var fehler = quittCodeFehler(code);
+  if (fehler) return { error: fehler };
+  data = data || {};
+  var vor = String(data.vorname || '').trim(), nach = String(data.nachname || '').trim();
+  var geb = dienstDatumDE(data.geburtsdatum);
+  if (!vor || !nach || vor.length > 100 || nach.length > 100) return { error: 'Bitte Vor- und Nachnamen angeben.' };
+  if (!geb) return { error: 'Bitte das Geburtsdatum angeben.' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var d = quittFindeDienst(quittDiensteHeute(), String(data.art || ''), String(data.ref || ''));
+    if (!d) return { error: 'Dieser Dienst findet heute nicht statt.' };
+    if (!d.begonnen) return { error: 'Quittieren ist erst ab ' + d.zeit + ' Uhr möglich.' };
+    var fund = dienstFindeMitglied(vor, nach, '', geb, '');
+    if (fund.status !== 'ok') return { status: 'unbekannt', message: dienstKontaktHinweis() };
+    var m = fund.mitglied;
+    var dsheet = dienstSheet();
+    var drows = dienstRows(dsheet);
+    var heuteDE = dienstDatumDE(new Date());
+    var name = quittName(m.vorname, m.nachname);
+    for (var i = 0; i < drows.length; i++) {
+      var r = drows[i];
+      if (r[4] !== m.key || r[1] !== d.art || String(r[2]) !== d.ref || dienstDatumDE(r[3]) !== heuteDE) continue;
+      if (r[8] === 'geleistet') return { ok: true, schon: true, name: name };
+      if (r[8] === 'eingetragen' || r[8] === 'ohne_platz' || r[8] === 'warteliste') {
+        dienstSetStatus(dsheet, i + 2, 'geleistet');
+        SpreadsheetApp.flush();
+        try { dienstSyncMitgliederliste(); } catch (e1) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e1); }
+        return { ok: true, name: name };
+      }
+    }
+    dienstEintragen(dsheet, d.art, d.ref, new Date(), m, 'geleistet');
+    SpreadsheetApp.flush();
+    try { dienstSyncMitgliederliste(); } catch (e2) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e2); }
+    return { ok: true, name: name };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Vorstand: Dienst nachtragen ("geleistet") oder das Abhaken zuruecknehmen
+function quittAdmin(id, geleistet) {
+  if (!dienstGueltigeId(id)) return { error: 'Eintrag nicht gefunden' };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var dsheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(DIENSTE_TAB);
+    var hit = dsheet ? dienstFinde(dsheet, id) : null;
+    if (!hit) return { error: 'Eintrag nicht gefunden' };
+    var st = hit.v[8];
+    if (geleistet) {
+      if (st !== 'eingetragen' && st !== 'ohne_platz' && st !== 'warteliste' && st !== 'geleistet') return { error: 'Diese Eintragung ist ausgetragen oder gestrichen.' };
+      if (st !== 'geleistet') dienstSetStatus(dsheet, hit.row, 'geleistet');
+    } else {
+      if (st !== 'geleistet') return { error: 'Dieser Dienst ist nicht als geleistet vermerkt.' };
+      dienstSetStatus(dsheet, hit.row, 'eingetragen');
+    }
+    SpreadsheetApp.flush();
+    try { dienstSyncMitgliederliste(); } catch (e) { console.error('Dienst-Zaehler nicht aktualisiert: ' + e); }
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Fuer die Uebersicht im internen Bereich: vergangene Eintragungen des Jahres, die nicht abgehakt wurden
+function quittOffene(drows, jahr) {
+  var heute = new Date();
+  var grenze = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() + 1).getTime();
+  var titel = {};
+  helferRows(helferSheet(true)).forEach(function(h) { titel[String(h[0])] = String(h[2]); });
+  var out = [];
+  for (var i = 0; i < drows.length; i++) {
+    var r = drows[i];
+    if (r[8] !== 'eingetragen' && r[8] !== 'ohne_platz') continue;
+    var d = dienstDatumObj(r[3]);
+    if (!d || d.getFullYear() !== jahr || d.getTime() >= grenze) continue;
+    out.push({ id: r[0], art: r[1], datum: dienstDatumDE(d), ts: d.getTime(),
+      titel: r[1] === 'hallendienst' ? 'Hallendienst' : (titel[String(r[2])] || 'Helferdienst'),
+      nachname: String(r[5]), vorname: String(r[6]) });
+  }
+  out.sort(function(a, b) { return b.ts - a.ts; });
+  return out;
+}
+
 // >>> DIENSTE-KERN (identisch in mitgliederliste/Mitgliederliste.gs und hallendienst/Code.gs)
 //
 // Vorlage: apps-script/_gemeinsam/dienste-kern.js. Aenderungen dort machen und
@@ -3385,9 +3615,11 @@ function ersatzSetze(row, key, feld, wert) {
 //   H E-Mail | I Status | J Eingetragen am | K Geändert am
 // Art:    hallendienst | helferdienst
 // Dienst: Hallendienst = Datum (TT.MM.JJJJ), Helferdienst = dessen ID
-// Status: eingetragen | ohne_platz | warteliste | ausgetragen | gestrichen
-// Gezaehlt werden "eingetragen" und "ohne_platz", je Kalenderjahr des Dienstes,
-// Hallen- und Helferdienste zusammen.
+// Status: eingetragen | ohne_platz | warteliste | geleistet | ausgetragen | gestrichen
+// "geleistet" = am Tag des Dienstes am iPad in der Halle quittiert (oder vom Vorstand nachgetragen).
+// Fuer die Jahresgrenze (dienste_limit) zaehlen "eingetragen", "ohne_platz" und "geleistet",
+// je Kalenderjahr des Dienstes, Hallen- und Helferdienste zusammen.
+// Fuer den Ersatzbeitrag zaehlt nur "geleistet" (dienstGeleistetAnzahl).
 
 var DIENSTE_TAB = 'Dienste';
 var DIENSTE_HEADERS = ['ID', 'Art', 'Dienst', 'Datum', 'Mitglied', 'Nachname', 'Vorname',
@@ -3564,7 +3796,18 @@ function dienstFindeMitglied(vorname, nachname, email, geburtsdatum, mobil) {
 }
 
 function dienstZaehlt(status) {
-  return status === 'eingetragen' || status === 'ohne_platz';
+  return status === 'eingetragen' || status === 'ohne_platz' || status === 'geleistet';
+}
+
+// Anzahl quittierter Dienste eines Mitglieds im Jahr (rows = dienstRows)
+function dienstGeleistetAnzahl(rows, key, jahr) {
+  var n = 0;
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i][4] !== key || rows[i][8] !== 'geleistet') continue;
+    var d = dienstDatumObj(rows[i][3]);
+    if (d && d.getFullYear() === jahr) n++;
+  }
+  return n;
 }
 
 // Anzahl gezaehlter Dienste eines Mitglieds im Jahr (rows = dienstRows)

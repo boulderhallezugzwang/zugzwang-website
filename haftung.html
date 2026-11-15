@@ -273,7 +273,8 @@
 
 <!-- KIOSK HEADER -->
 <div class="kiosk-header">
-  <img src="img/logo.png" alt="Zugzwang Logo" class="kiosk-logo-img">
+  <img src="img/logo.png" alt="Zugzwang Logo" class="kiosk-logo-img" id="kioskLogo">
+  <a class="kiosk-refresh" id="kioskHome" href="kiosk.html" style="display:none;text-decoration:none;">‹ Start</a>
   <div class="kiosk-title">Haftungsausschluss</div>
   <button class="kiosk-refresh" onclick="resetForm()" title="Formular zurücksetzen"><span>&#x21bb;</span> Refresh</button>
 </div>
@@ -531,6 +532,12 @@ function startProgress(fillId, stepIds) {
       box.classList.remove('active');
     }
   };
+}
+
+// Von der Kiosk-Startseite aus geoeffnet (haftung.html?kiosk=1): Knopf zurueck zur Startseite zeigen
+if (new URLSearchParams(location.search).get('kiosk') === '1') {
+  document.getElementById('kioskLogo').style.display = 'none';
+  document.getElementById('kioskHome').style.display = '';
 }
 
 // ===== HAFTUNGSAUSSCHLUSS FORM (KIOSK) =====

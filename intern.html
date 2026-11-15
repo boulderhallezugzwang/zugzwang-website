@@ -1165,7 +1165,7 @@
   <div class="section" id="sectionDienste">
     <div class="event-form">
       <h3>Dienste und Ersatzbeitrag</h3>
-      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Pro Jahr ein Hallen- oder Helferdienst je Erwachsenem, je Familie und je ermäßigtem Mitglied ab 16. Wer keinen leistet, zahlt den Ersatzbeitrag.</p>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Pro Jahr ein Hallen- oder Helferdienst je Erwachsenem, je Familie und je ermäßigtem Mitglied ab 16. Es zählen nur Dienste, die am Tag selbst am iPad in der Halle quittiert (oder hier nachgetragen) wurden. Wer keinen leistet, zahlt den Ersatzbeitrag.</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
         <label for="dnJahr" style="margin:0;">Jahr</label>
         <select id="dnJahr" onchange="dnLoad()" style="width:auto;"></select>
@@ -1184,6 +1184,7 @@
       <div id="dnHinweis" class="event-result" style="display:none;"></div>
       <div id="dnSumme" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
       <div id="dnUnklar"></div>
+      <div id="dnOffen"></div>
       <div id="dnListe"><div class="loading"><div class="spinner"></div>Wird geladen...</div></div>
     </div>
   </div>
@@ -1893,18 +1894,31 @@ function dnRender() {
   }
   document.getElementById('dnUnklar').innerHTML = un;
 
+  // Vergangene Eintragungen, die am iPad nicht abgehakt wurden
+  var off = '';
+  var offene = d.offeneQuittungen || [];
+  if (offene.length) {
+    off = '<details class="dn-unklar"' + (offene.length <= 8 ? ' open' : '') + '><summary style="cursor:pointer;"><strong>' + offene.length + ' Dienst(e) nicht quittiert</strong> – eingetragen, aber am iPad nicht abgehakt. Sie zählen nicht, bis du sie nachträgst.</summary><div class="dn-wrap" style="margin-top:8px;"><table class="dn-table"><tbody>';
+    offene.forEach(function(o) {
+      off += '<tr><td>' + escHtml(o.datum) + '</td><td>' + escHtml(o.titel) + '</td><td>' + escHtml(o.nachname + ', ' + o.vorname) + '</td>' +
+        '<td><button class="dn-btn" data-quitt="' + escHtml(o.id) + '">War da – als geleistet eintragen</button></td></tr>';
+    });
+    off += '</tbody></table></div></details>';
+  }
+  document.getElementById('dnOffen').innerHTML = off;
+
   var liste = dnGefiltert();
   if (!liste.length) {
     document.getElementById('dnListe').innerHTML = '<div class="no-results">' + (document.getElementById('dnSuche').value.trim() ? 'Niemand gefunden' : 'Keine Einträge für diese Auswahl') + '</div>';
     return;
   }
-  var html = '<div class="dn-wrap"><table class="dn-table"><thead><tr><th>Name</th><th>Gruppe</th><th>Dienste ' + d.jahr + '</th><th>Stand</th><th>Betrag</th><th></th></tr></thead><tbody>';
+  var html = '<div class="dn-wrap"><table class="dn-table"><thead><tr><th>Name</th><th>Gruppe</th><th>Geleistet ' + d.jahr + '</th><th>Stand</th><th>Betrag</th><th></th></tr></thead><tbody>';
   liste.forEach(function(e) {
     var idx = d.einheiten.indexOf(e);
     html += '<tr><td>' + escHtml(e.nachname + ', ' + e.vorname);
     if (e.angehoerige.length) html += '<div class="dn-sub">mit ' + escHtml(e.angehoerige.join(', ')) + '</div>';
     html += '</td><td>' + escHtml(DN_TYP[e.typ] || e.typ) + '<div class="dn-sub">' + escHtml(e.status) + '</div></td>';
-    html += '<td class="num">' + e.dienste + '</td>';
+    html += '<td class="num">' + e.dienste + (e.eingetragen ? '<div class="dn-sub">+ ' + e.eingetragen + ' nur eingetragen</div>' : '') + '</td>';
     html += '<td><span class="dn-stand ' + escHtml(e.stand) + '">' + escHtml(DN_STAND[e.stand] || e.stand) + '</span>';
     if (e.befreiungFamilie) html += '<div class="dn-sub">' + escHtml(e.befreiungFamilie) + '</div>';
     html += '</td><td class="num">' + (e.betrag > 0 ? dnEuro(e.betrag) : '–') + '</td><td>';
@@ -1915,6 +1929,16 @@ function dnRender() {
   html += '</tbody></table></div>';
   document.getElementById('dnListe').innerHTML = html;
 }
+
+document.getElementById('dnOffen').addEventListener('click', function(ev) {
+  var btn = ev.target.closest('button[data-quitt]');
+  if (!btn) return;
+  btn.disabled = true;
+  evPost('dienstQuittAdmin', { dienstId: btn.dataset.quitt, geleistet: true }).then(function(data) {
+    if (!data || data.error) { alert((data && data.error) || 'Speichern fehlgeschlagen'); btn.disabled = false; return; }
+    dnLoad();
+  }).catch(function() { alert('Verbindungsfehler'); btn.disabled = false; });
+});
 
 document.getElementById('dnListe').addEventListener('click', function(ev) {
   var btn = ev.target.closest('button[data-dn]');
@@ -3378,6 +3402,12 @@ function cfgRender() {
     html += '<input type="number" min="0" max="365" step="1" inputmode="numeric" id="cfg_' + f[0] + '" value="' + escHtml(cfgGetVal(f[0]) || '') + '" placeholder="' + f[2] + '" style="width:90px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;">';
     html += '</div>';
   });
+  // Geraetecode fuer das iPad in der Halle (Dienst quittieren)
+  html += '<div style="margin:16px 0 10px;">';
+  html += '<label for="cfg_kiosk_code" style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:3px;">Gerätecode für „Dienst quittieren“ am iPad (mindestens 6 Zeichen). Wird einmal auf dem iPad eingegeben; leer = Quittieren abgeschaltet. iPad-Startseite: zugzwang-auerbach.de/kiosk.html</label>';
+  html += '<input type="text" id="cfg_kiosk_code" value="' + escHtml(cfgGetVal('kiosk_code') || '') + '" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;max-width:320px;padding:8px 12px;border:1px solid #555;border-radius:6px;background:transparent;color:inherit;font-size:14px;font-family:monospace;">';
+  html += '</div>';
+
   // Mitgliedsbeitraege (leer = Standardwert); erscheinen im Mitgliedsantrag, auf der Vereinsseite und im Einzug
   html += '<div style="margin:16px 0 6px;font-weight:600;">Mitgliedsbeiträge pro Jahr (Euro)</div>';
   html += '<p style="color:var(--text-dim);font-size:13px;margin-bottom:10px;">Vollmitglieder zahlen Mitgliedsbeitrag plus Jahreskarte, Fördermitglieder nur den Beitrag. Die Werte erscheinen im Mitgliedsantrag, auf der Vereinsseite, in der Beitragsordnung und im Einzug.</p>';
@@ -3521,6 +3551,12 @@ function cfgSave() {
   if (tickerTextEl) items.push({ key: 'ticker_text', value: tickerTextEl.value.trim() });
   var oezEl = document.getElementById('cfg_oez_hinweis');
   if (oezEl) items.push({ key: 'oez_hinweis', value: oezEl.value });
+  var kioskEl = document.getElementById('cfg_kiosk_code');
+  if (kioskEl) {
+    var kioskCode = kioskEl.value.trim();
+    if (kioskCode && kioskCode.length < 6) { alert('Der Gerätecode fürs iPad braucht mindestens 6 Zeichen.'); return; }
+    items.push({ key: 'kiosk_code', value: kioskCode });
+  }
   var dienstTelEl = document.getElementById('cfg_dienste_kontakt_telefon');
   if (dienstTelEl) items.push({ key: 'dienste_kontakt_telefon', value: dienstTelEl.value.trim() });
   ['dienste_limit', 'dienste_hd_sperre_tage', 'dienste_austragen_tage',

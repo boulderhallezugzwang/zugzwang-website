@@ -394,7 +394,8 @@ const ec=ctx(es); load(ec,'apps-script/mitgliederliste/Mitgliederliste.gs');
 const AD={username:'anna',password:'geheim12'};
 const key=vm.runInContext('dienstMitgliedKey',ec)('Taubmann','Carolin','04.08.1990');
 es.Dienste=mkSheet([['ID','Art','Dienst','Datum','Mitglied','Nachname','Vorname','E-Mail','Status','E','G'],
-  ['d1','hallendienst','x',new Date(Y,5,1),key,'Taubmann','Carolin','','eingetragen','',''],
+  ['d1','hallendienst','x',new Date(Y,5,1),key,'Taubmann','Carolin','','geleistet','',''],
+  ['d3','hallendienst','y',new Date(Y,0,2),vm.runInContext('dienstMitgliedKey',ec)('Berg','Anna','01.01.1985'),'Berg','Anna','','eingetragen','',''],
   ['d2','hallendienst','x',new Date(Y-1,5,1),vm.runInContext('dienstMitgliedKey',ec)('Dorn','Dirk','01.01.1980'),'Dorn','Dirk','','eingetragen','','']]);
 ok(post(ec,{action:'dienstUebersicht',username:'tom',password:'pass1234'}).error==='Keine Berechtigung','Uebersicht: nur Admin');
 ok(!!post(ec,{action:'dienstUebersicht'}).error,'Uebersicht: ohne Anmeldung abgelehnt');
@@ -402,7 +403,8 @@ let u=post(ec,{...AD,action:'dienstUebersicht',jahr:Y});
 const E=(nn)=>u.einheiten.find(e=>e.nachname===nn);
 ok(u.ok&&u.einheiten.length===12,'Uebersicht: 12 Einheiten (Angehoerige zaehlen beim Hauptmitglied, kuenftiges Mitglied fehlt): '+u.einheiten.length);
 ok(E('Taubmann').typ==='familie'&&E('Taubmann').personen===3&&E('Taubmann').dienste===1&&E('Taubmann').stand==='erfuellt','alte Nummer 518 -> Familie; Dienst der Ehefrau zaehlt fuer die Familie');
-ok(E('Berg').personen===2&&E('Berg').stand==='offen'&&E('Berg').betrag===100,'Verweis per Name -> Familie, offen, 100');
+ok(E('Berg').personen===2&&E('Berg').stand==='offen'&&E('Berg').betrag===100&&E('Berg').dienste===0&&E('Berg').eingetragen===1,'Verweis per Name -> Familie; nur eingetragen (nicht quittiert) zaehlt nicht');
+ok(u.offeneQuittungen.length===1&&u.offeneQuittungen[0].nachname==='Berg'&&u.offeneQuittungen[0].titel==='Hallendienst','nicht abgehakter vergangener Dienst steht in offeneQuittungen');
 ok(E('Clar').personen===2&&E('Clar').typ==='familie','Verweis per Mandatsreferenz -> Familie');
 ok(E('Dorn').personen===1&&E('Dorn').typ==='erwachsen'&&E('Dorn').stand==='offen'&&E('Dorn').dienste===0,'ZZ-…-0518 wird nicht mit alter Nummer 518 verwechselt; Dienst aus dem Vorjahr zaehlt nicht');
 ok(E('Eck').typ==='jugend'&&E('Eck').betrag===40,'Jugend ab 16: 40');
@@ -451,6 +453,66 @@ ok(as.Mitglieder.rows[2][8]===as.Mitglieder.rows[1][5]&&/^ZZ-/.test(as.Mitgliede
 ok(ac.mails.some(m=>/Ersatzbeitrag statt Helferdienst/.test(m.body)),'Antrag: Wahl steht in der Mail');
 ok(post(ac,{...antrag,helferdienst:'quatsch'}).status==='error','Antrag: ungueltige Wahl abgelehnt');
 ok(post(ac,{...antrag,nachname:'Alt'}).status==='ok','Antrag ohne Wahl (alte Seite im Cache) geht weiter');
+}
+
+// ---- Dienst quittieren (iPad)
+{
+const now=new Date(), T0=new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0), T1=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59);
+const gestern=new Date(T0.getTime()-86400000);
+const QH=['Nachname','Vorname','Ort','E-Mail','Geburtsdatum','Mandatsreferenz','Status','Eintritt','Zahlungspflichtiges Mitglied','Adresse','PLZ','Telefon Mobil'];
+const did=n=>'d'+String(n).padStart(39,'0');
+const qs={Mitglieder:mkSheet([QH.slice(),
+   ['Müller','Eva','O','eva@example.org','03.05.1990','ZZ-1','Mitglied','01.01.2020','','','',''],
+   ['Kern','Karl','O','karl@example.org','04.06.1985','ZZ-2','Mitglied','01.01.2020','','','',''],
+   ['Spontan','Susi','O','susi@example.org','07.08.1992','ZZ-3','Mitglied','01.01.2020','','','','']]),
+ Config:mkSheet([['Key','Value','B']]),
+ Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein']]),
+ Helferdienste:mkSheet([['ID','Termin-ID','Titel','Start','Ende','Beschreibung','Plätze','Erinnerung (h)','Erinnert','Erstellt'],
+   ['hA','ev1','Umschrauben',T0,T1,'',5,0,'',T0],
+   ['hB','ev2','Abendputz',T1,T1,'',5,0,'',T0]])};
+const qc=ctx(qs); load(qc,'apps-script/mitgliederliste/Mitgliederliste.gs');
+const K=vm.runInContext('dienstMitgliedKey',qc);
+qs.Dienste=mkSheet([['ID','Art','Dienst','Datum','Mitglied','Nachname','Vorname','E-Mail','Status','E','G'],
+  [did(1),'helferdienst','hA',T0,K('Müller','Eva','03.05.1990'),'Müller','Eva','','eingetragen','',''],
+  [did(2),'helferdienst','hB',T0,K('Kern','Karl','04.06.1985'),'Kern','Karl','','eingetragen','',''],
+  [did(3),'helferdienst','hX',gestern,K('Kern','Karl','04.06.1985'),'Kern','Karl','','eingetragen','',''],
+  [did(4),'helferdienst','hA',T0,K('Kern','Karl','04.06.1985'),'Kern','Karl','','ausgetragen','','']]);
+const st=n=>qs.Dienste.rows[n][8];
+ok(/nicht eingerichtet/.test(post(qc,{action:'quittListe',code:'x'}).error),'Quittieren: ohne Geraetecode in der Config gesperrt');
+qs.Config.rows.push(['kiosk_code','halle-2026','']);
+ok(post(qc,{action:'quittListe',code:'falsch'}).error==='Gerätecode falsch'&&!!post(qc,{action:'quittieren',id:did(1)}).error,'Quittieren: falscher/fehlender Geraetecode abgelehnt');
+const C={code:'halle-2026'};
+r=post(qc,{...C,action:'quittListe'});
+const hA=r.dienste.find(d=>d.ref==='hA'), hB=r.dienste.find(d=>d.ref==='hB');
+ok(r.ok&&hA&&hA.begonnen&&hA.personen.length===1&&hA.personen[0].name==='Eva M.'&&!hA.personen[0].geleistet,'Liste: heutiger Dienst, Name gekuerzt, Ausgetragene fehlen');
+ok(hB&&!hB.begonnen&&!JSON.stringify(r).includes('Müller')&&!JSON.stringify(r).includes('example.org'),'Liste: spaeterer Dienst noch nicht begonnen; keine Nachnamen/E-Mails');
+ok(/erst ab 23:59 Uhr/.test(post(qc,{...C,action:'quittieren',id:did(2)}).error)&&st(2)==='eingetragen','vor Beginn: Abhaken abgelehnt');
+ok(/nur am Tag des Dienstes/.test(post(qc,{...C,action:'quittieren',id:did(3)}).error),'Dienst von gestern: Abhaken abgelehnt');
+ok(/nicht mehr aktiv/.test(post(qc,{...C,action:'quittieren',id:did(4)}).error),'ausgetragene Eintragung: Abhaken abgelehnt');
+r=post(qc,{...C,action:'quittieren',id:did(1)});
+ok(r.ok&&r.name==='Eva M.'&&st(1)==='geleistet','Abhaken: Status geleistet');
+ok(post(qc,{...C,action:'quittieren',id:did(1)}).schon===true,'zweites Abhaken: schon erledigt');
+r=post(qc,{...C,action:'quittSpontan',art:'helferdienst',ref:'hA',vorname:'susi',nachname:'SPONTAN',geburtsdatum:'1992-08-07'});
+ok(r.ok&&r.name==='Susi S.'&&qs.Dienste.rows.length===6&&st(5)==='geleistet'&&qs.Dienste.rows[5][2]==='hA','spontaner Helfer: Mitglied erkannt, neue Zeile geleistet');
+ok(post(qc,{...C,action:'quittSpontan',art:'helferdienst',ref:'hA',vorname:'Susi',nachname:'Spontan',geburtsdatum:'1992-08-07'}).schon===true&&qs.Dienste.rows.length===6,'spontan doppelt: keine zweite Zeile');
+r=post(qc,{...C,action:'quittSpontan',art:'helferdienst',ref:'hA',vorname:'Susi',nachname:'Spontan',geburtsdatum:'1990-01-01'});
+ok(r.status==='unbekannt'&&qs.Dienste.rows.length===6,'spontan: falsches Geburtsdatum -> nicht erkannt');
+ok(/erst ab/.test(post(qc,{...C,action:'quittSpontan',art:'helferdienst',ref:'hB',vorname:'Susi',nachname:'Spontan',geburtsdatum:'1992-08-07'}).error),'spontan vor Beginn abgelehnt');
+ok(!!post(qc,{...C,action:'quittSpontan',art:'helferdienst',ref:'gibtsnicht',vorname:'Susi',nachname:'Spontan',geburtsdatum:'1992-08-07'}).error,'spontan: unbekannter Dienst abgelehnt');
+qs.Dienste.rows[1][8]='eingetragen';
+r=post(qc,{...C,action:'quittSpontan',art:'helferdienst',ref:'hA',vorname:'Eva',nachname:'Müller',geburtsdatum:'1990-05-03'});
+ok(r.ok&&st(1)==='geleistet'&&qs.Dienste.rows.length===6,'spontan, obwohl eingetragen: bestehende Zeile wird abgehakt');
+// Nachtragen durch Admin
+const AD2={username:'anna',password:'geheim12'};
+ok(!!post(qc,{action:'dienstQuittAdmin',dienstId:did(3),geleistet:true}).error,'Nachtragen: nur mit Anmeldung');
+r=post(qc,{...AD2,action:'dienstQuittAdmin',dienstId:did(3),geleistet:true});
+ok(r.ok&&st(3)==='geleistet','Admin traegt vergangenen Dienst als geleistet nach');
+r=post(qc,{...AD2,action:'dienstQuittAdmin',dienstId:did(3),geleistet:false});
+ok(r.ok&&st(3)==='eingetragen','Admin nimmt das Abhaken zurueck');
+ok(!!post(qc,{...AD2,action:'dienstQuittAdmin',dienstId:did(4),geleistet:true}).error,'Admin: ausgetragene Eintragung nicht nachtragbar');
+// Sperre nach vielen Fehlversuchen
+for(let i=0;i<25;i++) post(qc,{action:'quittListe',code:'raten'+i});
+ok(/Zu viele Fehlversuche/.test(post(qc,{...C,action:'quittListe'}).error),'Geraetecode: Sperre nach vielen Fehlversuchen');
 }
 
 console.log(fails?('\n'+fails+' FEHLGESCHLAGEN'):'\nalle Tests bestanden'); process.exit(fails?1:0);

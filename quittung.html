@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex">
+<title>Dienst quittieren — Boulderhalle Zugzwang</title>
+<link rel="apple-touch-icon" href="img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #141414; --dark: #1c1c1c; --dark-card: #232323; --dark-border: #333;
+    --yellow: #D4A020; --yellow-light: #E8B930; --cream: #E8DCC8; --cream-dim: #c4b9a6;
+    --text: #d4d0c8; --text-dim: #8a8680;
+    --error: #e74c3c; --error-bg: rgba(231,76,60,0.1);
+    --success: #2ecc71; --success-bg: rgba(46,204,113,0.12);
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif; font-size: 17px; line-height: 1.55;
+    color: var(--text); background: var(--black);
+    -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
+    min-height: 100vh;
+  }
+  .kiosk-header {
+    position: sticky; top: 0; z-index: 100; background: var(--black);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 24px; border-bottom: 2px solid var(--yellow); margin-bottom: 24px;
+  }
+  .kiosk-logo-img { height: 50px; width: auto; }
+  .kiosk-title {
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 28px;
+    text-transform: uppercase; letter-spacing: 1px; color: var(--cream); text-align: center;
+  }
+  .kiosk-btn {
+    background: none; border: 2px solid var(--yellow); color: var(--yellow);
+    border-radius: var(--radius); padding: 8px 16px; font-size: 15px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; text-decoration: none; flex-shrink: 0;
+    min-height: 44px; display: inline-flex; align-items: center;
+  }
+  .kiosk-btn:active { background: var(--yellow); color: var(--black); }
+  .page { max-width: 800px; margin: 0 auto; padding: 0 24px 48px; }
+  [hidden] { display: none !important; }
+  h2 { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 26px; color: var(--cream); line-height: 1.2; overflow-wrap: anywhere; }
+  .datum { color: var(--text-dim); margin-bottom: 18px; }
+  .card { background: var(--dark-card); border: 1px solid var(--dark-border); border-radius: 12px; padding: 20px; margin-bottom: 18px; }
+  .dienst-zeit { color: var(--yellow-light); font-weight: 600; margin: 2px 0 14px; }
+  .dienst-hinweis { color: var(--text-dim); font-size: 15px; }
+  .namen { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  button { font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .name-btn {
+    min-height: 64px; padding: 12px 16px; font-size: 20px; font-weight: 600; text-align: left;
+    background: var(--dark); color: var(--cream); border: 2px solid var(--dark-border); border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; overflow-wrap: anywhere;
+  }
+  .name-btn:active:not(:disabled) { border-color: var(--yellow); }
+  .name-btn:disabled { opacity: 0.5; cursor: default; }
+  .name-btn.fertig { background: var(--success-bg); border-color: var(--success); color: var(--success); opacity: 1; }
+  .spontan-btn { margin-top: 14px; background: none; border: none; color: var(--yellow); font-size: 16px; text-decoration: underline; padding: 10px 0; min-height: 44px; }
+  .msg { border-radius: var(--radius); padding: 14px 16px; margin-bottom: 18px; }
+  .msg.err { background: var(--error-bg); border: 1px solid var(--error); color: var(--cream); }
+  .leer { text-align: center; color: var(--text-dim); padding: 40px 0; }
+  label { display: block; font-size: 14px; color: var(--cream-dim); margin: 12px 0 4px; }
+  input {
+    width: 100%; padding: 14px; font-size: 18px; font-family: 'DM Sans', sans-serif;
+    background: var(--dark); color: var(--cream); border: 2px solid var(--dark-border); border-radius: var(--radius);
+    outline: none; color-scheme: dark;
+  }
+  input:focus { border-color: var(--yellow); }
+  .aktionen { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+  .btn {
+    flex: 1 1 180px; min-height: 60px; padding: 12px 18px; border-radius: var(--radius);
+    font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    background: var(--dark); color: var(--cream); border: 2px solid var(--dark-border);
+  }
+  .btn.haupt { background: var(--yellow); border-color: var(--yellow); color: var(--black); }
+  .btn:disabled { opacity: 0.55; }
+  .overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .dialog { width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; background: var(--dark-card); border: 1px solid var(--dark-border); border-radius: 14px; padding: 26px; }
+  .dialog p { color: var(--cream-dim); margin-top: 8px; }
+  .dialog .gross { font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 800; color: var(--yellow); line-height: 1.1; margin-top: 10px; overflow-wrap: anywhere; }
+  .haken { font-size: 72px; color: var(--success); text-align: center; line-height: 1; }
+  .dialog.erfolg { text-align: center; border-color: var(--success); }
+</style>
+</head>
+<body>
+<div class="kiosk-header">
+  <a class="kiosk-btn" href="kiosk.html">‹ Start</a>
+  <div class="kiosk-title">Dienst quittieren</div>
+  <button class="kiosk-btn" type="button" id="neuLaden">↻ Neu laden</button>
+</div>
+
+<div class="page">
+  <div class="msg err" id="fehler" role="alert" hidden></div>
+
+  <!-- Einmalige Einrichtung des Geraets -->
+  <div class="card" id="einrichten" hidden>
+    <h2>Gerät einrichten</h2>
+    <p class="dienst-hinweis" style="margin-top:6px">Dieses Gerät ist noch nicht freigeschaltet. Bitte den Gerätecode eingeben, den der Vorstand im internen Bereich unter Config festgelegt hat. Er wird auf diesem Gerät gespeichert.</p>
+    <form id="codeForm">
+      <label for="codeFeld">Gerätecode</label>
+      <input type="password" id="codeFeld" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+      <div class="aktionen"><button class="btn haupt" type="submit">Freischalten</button></div>
+    </form>
+  </div>
+
+  <div id="inhalt" hidden>
+    <div class="datum" id="datum"></div>
+    <div id="dienste"></div>
+  </div>
+  <p class="leer" id="laden">Dienste werden geladen …</p>
+</div>
+
+<!-- Bestaetigen -->
+<div class="overlay" id="ovBestaetigen" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bestTitel">
+    <h2 id="bestTitel">Dienst geleistet?</h2>
+    <div class="gross" id="bestName"></div>
+    <p id="bestDienst"></p>
+    <div class="aktionen">
+      <button class="btn" type="button" id="bestNein">Abbrechen</button>
+      <button class="btn haupt" type="button" id="bestJa">Ja, das bin ich</button>
+    </div>
+  </div>
+</div>
+
+<!-- Nicht in der Liste -->
+<div class="overlay" id="ovSpontan" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="spTitel">
+    <h2 id="spTitel">Nicht in der Liste?</h2>
+    <p id="spDienst"></p>
+    <p>Trag Deinen Namen und Dein Geburtsdatum ein – wir prüfen, ob Du Mitglied bist, und vermerken den Dienst.</p>
+    <div class="msg err" id="spFehler" role="alert" hidden style="margin-top:14px"></div>
+    <form id="spForm" novalidate>
+      <label for="spVorname">Vorname</label>
+      <input type="text" id="spVorname" autocomplete="off" required>
+      <label for="spNachname">Nachname</label>
+      <input type="text" id="spNachname" autocomplete="off" required>
+      <label for="spGeburt">Geburtsdatum</label>
+      <input type="date" id="spGeburt" required>
+      <div class="aktionen">
+        <button class="btn" type="button" id="spAbbrechen">Abbrechen</button>
+        <button class="btn haupt" type="submit" id="spSenden">Dienst quittieren</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Erfolg -->
+<div class="overlay" id="ovErfolg" hidden>
+  <div class="dialog erfolg" role="status">
+    <div class="haken">✓</div>
+    <div class="gross" id="erfName"></div>
+    <p id="erfText">Danke fürs Mithelfen! Dein Dienst ist vermerkt.</p>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbxXkHbHkiWKDfk4alZR4iK8tb-Nqj1DysP2fE-q53Sf4Okt4fP0DOs17_nPPhqLdquS9w/exec';
+const CODE_KEY = 'zz_kiosk_code';
+const $ = id => document.getElementById(id);
+let stand = null;          // letzte Liste vom Server
+let auswahl = null;        // { id, name, dienst } bzw. { dienst } fuer "nicht in der Liste"
+let laedt = false;
+
+function code() { try { return localStorage.getItem(CODE_KEY) || ''; } catch (e) { return ''; } }
+function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+async function post(body) {
+  const resp = await fetch(API_URL, {
+    method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(Object.assign({ code: code() }, body))
+  });
+  return resp.json();
+}
+
+function zeigeFehler(text) { $('fehler').textContent = text; $('fehler').hidden = false; }
+
+function zeigeEinrichten(hinweis) {
+  $('laden').hidden = true; $('inhalt').hidden = true; $('einrichten').hidden = false;
+  if (hinweis) zeigeFehler(hinweis);
+}
+
+async function laden() {
+  if (laedt) return;
+  if (!code()) { zeigeEinrichten(); return; }
+  laedt = true;
+  try {
+    const r = await post({ action: 'quittListe' });
+    if (!r || !r.ok) {
+      const text = (r && r.error) || 'Die Dienste konnten nicht geladen werden.';
+      if (text === 'Gerätecode falsch') {
+        try { localStorage.removeItem(CODE_KEY); } catch (e) {}
+        zeigeEinrichten('Der gespeicherte Gerätecode stimmt nicht mehr. Bitte neu eingeben.');
+      } else { $('laden').hidden = true; zeigeFehler(text); }
+      return;
+    }
+    stand = r;
+    $('fehler').hidden = true; $('einrichten').hidden = true; $('laden').hidden = true; $('inhalt').hidden = false;
+    zeichne();
+  } catch (e) {
+    $('laden').hidden = true;
+    zeigeFehler('Keine Verbindung. Bitte WLAN prüfen und „Neu laden“ antippen.');
+  } finally { laedt = false; }
+}
+
+function zeichne() {
+  $('datum').textContent = 'Heute, ' + stand.datum;
+  const box = $('dienste');
+  if (!stand.dienste.length) {
+    box.innerHTML = '<p class="leer">Heute ist kein Hallen- oder Helferdienst eingetragen.</p>';
+    return;
+  }
+  box.innerHTML = stand.dienste.map((d, i) => {
+    let html = '<div class="card"><h2>' + esc(d.titel) + '</h2><div class="dienst-zeit">ab ' + esc(d.zeit) + ' Uhr</div>';
+    if (!d.begonnen) {
+      html += '<p class="dienst-hinweis">Quittieren ist ab ' + esc(d.zeit) + ' Uhr möglich.</p>';
+    } else {
+      if (d.personen.length) {
+        html += '<div class="namen">' + d.personen.map(p =>
+          '<button type="button" class="name-btn' + (p.geleistet ? ' fertig' : '') + '" data-dienst="' + i + '" data-id="' + esc(p.id) + '" data-name="' + esc(p.name) + '"' + (p.geleistet ? ' disabled' : '') + '>' +
+          '<span>' + esc(p.name) + '</span><span aria-hidden="true">' + (p.geleistet ? '✓' : '') + '</span></button>').join('') + '</div>';
+      } else {
+        html += '<p class="dienst-hinweis">Für diesen Dienst hat sich niemand eingetragen.</p>';
+      }
+      html += '<button type="button" class="spontan-btn" data-spontan="' + i + '">Ich stehe nicht in der Liste</button>';
+    }
+    return html + '</div>';
+  }).join('');
+}
+
+function erfolg(name, schon) {
+  $('ovBestaetigen').hidden = true; $('ovSpontan').hidden = true;
+  $('erfName').textContent = name || '';
+  $('erfText').textContent = schon ? 'Dein Dienst war schon vermerkt – alles in Ordnung.' : 'Danke fürs Mithelfen! Dein Dienst ist vermerkt.';
+  $('ovErfolg').hidden = false;
+  setTimeout(() => { $('ovErfolg').hidden = true; laden(); }, 3500);
+}
+
+$('dienste').addEventListener('click', ev => {
+  const nb = ev.target.closest('.name-btn');
+  if (nb && !nb.disabled) {
+    const d = stand.dienste[+nb.dataset.dienst];
+    auswahl = { id: nb.dataset.id, name: nb.dataset.name };
+    $('bestName').textContent = auswahl.name;
+    $('bestDienst').textContent = d.titel + ', heute ab ' + d.zeit + ' Uhr';
+    $('bestJa').disabled = false;
+    $('ovBestaetigen').hidden = false;
+    return;
+  }
+  const sb = ev.target.closest('[data-spontan]');
+  if (sb) {
+    const d = stand.dienste[+sb.dataset.spontan];
+    auswahl = { dienst: d };
+    $('spForm').reset(); $('spFehler').hidden = true; $('spSenden').disabled = false;
+    $('spDienst').textContent = d.titel + ', heute ab ' + d.zeit + ' Uhr';
+    $('ovSpontan').hidden = false;
+    $('spVorname').focus();
+  }
+});
+
+$('bestNein').addEventListener('click', () => { $('ovBestaetigen').hidden = true; });
+$('bestJa').addEventListener('click', async () => {
+  $('bestJa').disabled = true;
+  try {
+    const r = await post({ action: 'quittieren', id: auswahl.id });
+    if (!r || !r.ok) throw new Error((r && r.error) || 'Das hat nicht geklappt.');
+    erfolg(r.name || auswahl.name, r.schon);
+  } catch (e) {
+    $('ovBestaetigen').hidden = true;
+    zeigeFehler(e.message === 'Failed to fetch' || e.message === 'Load failed' ? 'Keine Verbindung. Bitte noch einmal versuchen.' : e.message);
+    window.scrollTo(0, 0);
+  }
+});
+
+$('spAbbrechen').addEventListener('click', () => { $('ovSpontan').hidden = true; });
+$('spForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const vor = $('spVorname').value.trim(), nach = $('spNachname').value.trim(), geb = $('spGeburt').value;
+  const fehler = t => { $('spFehler').textContent = t; $('spFehler').hidden = false; };
+  if (!vor || !nach || !geb) { fehler('Bitte alle drei Felder ausfüllen.'); return; }
+  $('spSenden').disabled = true; $('spFehler').hidden = true;
+  try {
+    const r = await post({ action: 'quittSpontan', art: auswahl.dienst.art, ref: auswahl.dienst.ref, vorname: vor, nachname: nach, geburtsdatum: geb });
+    if (r && r.ok) { erfolg(r.name, r.schon); return; }
+    fehler((r && (r.message || r.error)) || 'Das hat nicht geklappt.');
+  } catch (e) {
+    fehler('Keine Verbindung. Bitte noch einmal versuchen.');
+  }
+  $('spSenden').disabled = false;
+});
+
+$('codeForm').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const c = $('codeFeld').value.trim();
+  if (!c) return;
+  try { localStorage.setItem(CODE_KEY, c); } catch (e) { zeigeFehler('Der Code kann auf diesem Gerät nicht gespeichert werden (privater Modus?).'); return; }
+  $('codeFeld').value = ''; $('fehler').hidden = true; $('einrichten').hidden = true; $('laden').hidden = false;
+  laden();
+});
+
+$('neuLaden').addEventListener('click', laden);
+// Liste frisch halten (neue Eintragungen, Dienstbeginn) – aber nicht, waehrend ein Dialog offen ist
+setInterval(() => {
+  if ($('ovBestaetigen').hidden && $('ovSpontan').hidden && $('ovErfolg').hidden && $('einrichten').hidden) laden();
+}, 60000);
+// Nach 3 Minuten ohne Beruehrung zurueck zur Startseite
+let ruhe;
+function ruheNeu() { clearTimeout(ruhe); ruhe = setTimeout(() => { location.href = 'kiosk.html'; }, 180000); }
+['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, ruheNeu));
+ruheNeu();
+laden();
+</script>
+</body>
+</html>

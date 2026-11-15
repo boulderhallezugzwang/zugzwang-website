@@ -9,9 +9,11 @@
 //   H E-Mail | I Status | J Eingetragen am | K Geändert am
 // Art:    hallendienst | helferdienst
 // Dienst: Hallendienst = Datum (TT.MM.JJJJ), Helferdienst = dessen ID
-// Status: eingetragen | ohne_platz | warteliste | ausgetragen | gestrichen
-// Gezaehlt werden "eingetragen" und "ohne_platz", je Kalenderjahr des Dienstes,
-// Hallen- und Helferdienste zusammen.
+// Status: eingetragen | ohne_platz | warteliste | geleistet | ausgetragen | gestrichen
+// "geleistet" = am Tag des Dienstes am iPad in der Halle quittiert (oder vom Vorstand nachgetragen).
+// Fuer die Jahresgrenze (dienste_limit) zaehlen "eingetragen", "ohne_platz" und "geleistet",
+// je Kalenderjahr des Dienstes, Hallen- und Helferdienste zusammen.
+// Fuer den Ersatzbeitrag zaehlt nur "geleistet" (dienstGeleistetAnzahl).
 
 var DIENSTE_TAB = 'Dienste';
 var DIENSTE_HEADERS = ['ID', 'Art', 'Dienst', 'Datum', 'Mitglied', 'Nachname', 'Vorname',
@@ -188,7 +190,18 @@ function dienstFindeMitglied(vorname, nachname, email, geburtsdatum, mobil) {
 }
 
 function dienstZaehlt(status) {
-  return status === 'eingetragen' || status === 'ohne_platz';
+  return status === 'eingetragen' || status === 'ohne_platz' || status === 'geleistet';
+}
+
+// Anzahl quittierter Dienste eines Mitglieds im Jahr (rows = dienstRows)
+function dienstGeleistetAnzahl(rows, key, jahr) {
+  var n = 0;
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i][4] !== key || rows[i][8] !== 'geleistet') continue;
+    var d = dienstDatumObj(rows[i][3]);
+    if (d && d.getFullYear() === jahr) n++;
+  }
+  return n;
 }
 
 // Anzahl gezaehlter Dienste eines Mitglieds im Jahr (rows = dienstRows)
