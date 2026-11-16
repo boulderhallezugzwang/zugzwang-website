@@ -1054,15 +1054,6 @@
           <div id="tmBildPreview" style="margin-top:6px;"></div>
         </div>
       </div>
-      <div class="form-row" id="tmGhTokenRow">
-        <div class="form-group full">
-          <label>GitHub Token <span style="color:var(--text-dim);font-weight:normal;">(wird lokal gespeichert, einmal eingeben)</span></label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input type="password" id="tmGhToken" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
-            <button class="submit-btn" onclick="tmSaveToken()" style="padding:8px 16px;white-space:nowrap;">Token speichern</button>
-          </div>
-        </div>
-      </div>
       <div class="form-actions">
         <button class="submit-btn" id="tmSubmitBtn" onclick="tmSubmit()">Hinzufügen</button>
         <button class="submit-btn" id="tmCancelBtn" style="display:none; background:#999;" onclick="tmCancelEdit()">Abbrechen</button>
@@ -1104,24 +1095,11 @@
 
   <!-- Sektion: Config -->
   <div class="section" id="sectionConfig">
-    <!-- GitHub-Token (gemeinsam mit Team-Tab, gleicher LocalStorage-Eintrag) -->
-    <div class="event-form" id="cfgGhTokenBox" style="margin-bottom:16px;">
-      <h3>GitHub-Zugriff</h3>
-      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">
-        Wird nur für Änderungen am Team und an den Bildern benötigt. Einstellungen und das Aktuell-Banner funktionieren ohne Token. Token einmal eingeben — wird nur lokal in diesem Browser gespeichert.
-        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener" style="color:var(--yellow);">Token erstellen ↗</a>
-      </p>
-      <div class="form-row">
-        <div class="form-group full">
-          <label>GitHub Token</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input type="password" id="cfgGhToken" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
-            <button class="submit-btn" onclick="cfgSaveToken()" style="padding:8px 16px;white-space:nowrap;">Token speichern</button>
-            <button class="submit-btn" onclick="cfgClearToken()" style="padding:8px 16px;white-space:nowrap;background:#666;" id="cfgGhTokenClearBtn">Löschen</button>
-          </div>
-          <div id="cfgGhTokenStatus" style="margin-top:6px;font-size:12px;"></div>
-        </div>
-      </div>
+    <!-- GitHub-Zugang: liegt zentral im Backend (Skripteigenschaft GITHUB_TOKEN) -->
+    <div class="event-form" id="cfgGhTokenBox" style="margin-bottom:16px;display:none;">
+      <h3>GitHub-Zugang für Team und Bilder</h3>
+      <div id="cfgGhTokenStatus" style="font-size:13px;line-height:1.6;"></div>
+    </div>
     </div>
 
     <div class="event-form">
@@ -2960,34 +2938,10 @@ function tmCleanToken(s) {
   return s.replace(/\s+/g, '').replace(/[^a-zA-Z0-9_]/g, '').trim();
 }
 
-// GitHub Token aus localStorage
+// Alt-Token aus frueheren Versionen (nur noch als Rueckfall, keine Eingabe mehr)
 function tmGetToken() {
-  var saved = localStorage.getItem('zz_gh_token');
-  if (saved) return saved;
-  var inp = document.getElementById('tmGhToken');
-  var t = inp ? tmCleanToken(inp.value) : '';
-  if (t) { localStorage.setItem('zz_gh_token', t); return t; }
-  return '';
+  try { return tmCleanToken(localStorage.getItem('zz_gh_token') || ''); } catch (e) { return ''; }
 }
-
-// Token speichern Button
-function tmSaveToken() {
-  var inp = document.getElementById('tmGhToken');
-  var t = tmCleanToken(inp.value);
-  if (!t) { alert('Bitte Token eingeben!'); return; }
-  localStorage.setItem('zz_gh_token', t);
-  document.getElementById('tmGhTokenRow').style.display = 'none';
-  alert('Token gespeichert!');
-}
-
-// Token-Feld vorbelegen
-(function() {
-  var saved = localStorage.getItem('zz_gh_token');
-  if (saved) {
-    document.getElementById('tmGhToken').value = saved;
-    document.getElementById('tmGhTokenRow').style.display = 'none';
-  }
-})();
 
 // GitHub API: Datei lesen
 function tmGhGet(path) {
@@ -2996,52 +2950,45 @@ function tmGhGet(path) {
   }).then(function(r) { return r.json(); });
 }
 
-// GitHub API: Datei schreiben/aktualisieren
-function tmGhPut(path, content, sha, message) {
-  var token = tmGetToken();
-  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return Promise.reject('no token'); }
-  var body = {
-    message: message,
-    content: btoa(unescape(encodeURIComponent(content))),
-    branch: TM_BRANCH
-  };
-  if (sha) body.sha = sha;
-  return fetch('https://api.github.com/repos/' + TM_REPO + '/contents/' + path, {
-    method: 'PUT',
-    headers: {
-      'Authorization': 'token ' + token,
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  }).then(function(r) {
-    if (!r.ok) return r.json().then(function(e) { throw new Error(e.message || 'GitHub Fehler'); });
-    return r.json();
+// GitHub: Datei schreiben, ersetzen oder loeschen. Laeuft ueber das Backend,
+// dort liegt der Zugang zentral — im Browser ist kein Token noetig.
+function tmGhSchreiben(path, base64, sha, message, loeschen) {
+  return fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'ghDatei', username: sessionCredentials.username, password: sessionCredentials.password,
+      pfad: path, inhalt: base64 || '', sha: sha || '', nachricht: message, loeschen: !!loeschen })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d && d.ok) return d;
+    var alt = tmGetToken();
+    if (d && d.keinToken && alt) return tmGhDirekt(path, base64, sha, message, loeschen, alt);
+    throw new Error((d && d.error) || 'Speichern fehlgeschlagen');
   });
 }
 
-// GitHub API: Binärdatei hochladen
-function tmGhPutBinary(path, base64data, sha, message) {
-  var token = tmGetToken();
-  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return Promise.reject('no token'); }
-  var body = {
-    message: message,
-    content: base64data,
-    branch: TM_BRANCH
-  };
+// Rueckfall fuer Browser, in denen noch ein altes Token liegt.
+function tmGhDirekt(path, base64, sha, message, loeschen, token) {
+  var body = { message: message, branch: TM_BRANCH };
   if (sha) body.sha = sha;
+  if (!loeschen) body.content = base64;
   return fetch('https://api.github.com/repos/' + TM_REPO + '/contents/' + path, {
-    method: 'PUT',
-    headers: {
-      'Authorization': 'token ' + token,
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json'
-    },
+    method: loeschen ? 'DELETE' : 'PUT',
+    headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }).then(function(r) {
-    if (!r.ok) return r.json().then(function(e) { throw new Error(e.message || 'GitHub Fehler'); });
-    return r.json();
+    return r.json().then(function(j) {
+      if (!r.ok) throw new Error('Der GitHub-Zugang ist noch nicht hinterlegt.');
+      return { ok: true, content: { sha: (j.content && j.content.sha) || '' } };
+    });
   });
+}
+
+function tmGhPut(path, content, sha, message) {
+  return tmGhSchreiben(path, btoa(unescape(encodeURIComponent(content))), sha, message);
+}
+
+function tmGhPutBinary(path, base64data, sha, message) {
+  return tmGhSchreiben(path, base64data, sha, message);
 }
 
 // Team laden (von GitHub Pages für Geschwindigkeit, SHA von API)
@@ -3182,8 +3129,6 @@ function tmSubmit() {
   if (!rolle) { result.textContent = 'Bitte Rolle eingeben.'; result.style.color = '#e74c3c'; return; }
   if (!bereich) { result.textContent = 'Bitte Bereich eingeben.'; result.style.color = '#e74c3c'; return; }
 
-  var token = tmGetToken();
-  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
 
   var btn = document.getElementById('tmSubmitBtn');
   btn.disabled = true;
@@ -3251,12 +3196,6 @@ function tmSubmit() {
   }).catch(function(err) {
     btn.disabled = false;
     var errMsg = err.message || String(err);
-    // Token ungültig? Feld wieder zeigen
-    if (errMsg.indexOf('Bad credentials') >= 0) {
-      localStorage.removeItem('zz_gh_token');
-      document.getElementById('tmGhToken').value = '';
-      document.getElementById('tmGhTokenRow').style.display = '';
-    }
     result.textContent = 'Fehler: ' + errMsg;
     result.className = 'event-result error';
     // Revert bei Neuanlage
@@ -3267,8 +3206,6 @@ function tmSubmit() {
 // Löschen
 function tmDelete(idx) {
   var m = tmData[idx];
-  var token = tmGetToken();
-  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
 
   var result = document.getElementById('tmResult');
   result.textContent = 'Wird gelöscht...';
@@ -3313,6 +3250,8 @@ function cfgLoad() {
     .then(function(data) {
       if (data.error) throw new Error(data.error);
       cfgData = data.config || [];
+      cfgGithubOk = data.github === true;
+      cfgRefreshTokenStatus();
       cfgRender();
     })
     .catch(function(err) {
@@ -3590,49 +3529,19 @@ function cfgSave() {
     });
 }
 
-// GitHub-Token im Config-Tab (teilt sich denselben LocalStorage-Eintrag
-// 'zz_gh_token' wie das Team-Tab — einmal eingeben gilt ueberall).
+// GitHub-Zugang: Hinweis im Config-Tab nur, wenn er im Backend fehlt.
+var cfgGithubOk = null;
 function cfgRefreshTokenStatus() {
-  var token = localStorage.getItem('zz_gh_token') || '';
-  var inp = document.getElementById('cfgGhToken');
+  var box = document.getElementById('cfgGhTokenBox');
   var status = document.getElementById('cfgGhTokenStatus');
-  var clearBtn = document.getElementById('cfgGhTokenClearBtn');
-  if (!inp || !status) return;
-  if (token) {
-    inp.value = token;
-    status.textContent = '✓ Token gespeichert (' + token.substring(0, 7) + '…' + token.substring(token.length - 4) + ')';
-    status.style.color = '#2ecc71';
-    if (clearBtn) clearBtn.style.display = '';
-  } else {
-    inp.value = '';
-    status.textContent = 'Kein Token hinterlegt — nur für Team und Bilder nötig';
-    status.style.color = 'var(--text-dim)';
-    if (clearBtn) clearBtn.style.display = 'none';
+  if (!box || !status) return;
+  box.style.display = cfgGithubOk === false ? '' : 'none';
+  if (cfgGithubOk === false) {
+    status.innerHTML = '<span style="color:#e67e22;font-weight:600;">Noch nicht eingerichtet.</span> ' +
+      'Team und Bilder lassen sich erst ändern, wenn der GitHub-Zugang einmal zentral hinterlegt ist ' +
+      '(Apps Script → Projekteinstellungen → Skripteigenschaften → <code>GITHUB_TOKEN</code>). ' +
+      'Danach muss niemand mehr ein Token eingeben. Einstellungen und Aktuell-Banner funktionieren auch so.';
   }
-}
-
-function cfgSaveToken() {
-  var inp = document.getElementById('cfgGhToken');
-  if (!inp) return;
-  var t = (inp.value || '').trim().replace(/\s+/g, '');
-  if (!t) { alert('Bitte Token eingeben!'); return; }
-  localStorage.setItem('zz_gh_token', t);
-  // Auch das Team-Feld synchron halten
-  var tmInp = document.getElementById('tmGhToken');
-  if (tmInp) tmInp.value = t;
-  var tmRow = document.getElementById('tmGhTokenRow');
-  if (tmRow) tmRow.style.display = 'none';
-  cfgRefreshTokenStatus();
-}
-
-function cfgClearToken() {
-  if (!confirm('Token wirklich aus diesem Browser entfernen?')) return;
-  localStorage.removeItem('zz_gh_token');
-  var tmInp = document.getElementById('tmGhToken');
-  if (tmInp) tmInp.value = '';
-  var tmRow = document.getElementById('tmGhTokenRow');
-  if (tmRow) tmRow.style.display = '';
-  cfgRefreshTokenStatus();
 }
 
 // Schreibt den aktuellen Ticker-Stand als statische JSON nach GitHub.
@@ -3641,9 +3550,7 @@ function cfgSyncTickerJson() {
   var tickerAktivEl = document.getElementById('cfg_ticker_aktiv');
   var tickerTextEl = document.getElementById('cfg_ticker_text');
   if (!tickerAktivEl || !tickerTextEl) return Promise.resolve('');
-  var token = tmGetToken();
-  // Ohne Token: die Startseite holt den Banner-Stand direkt aus der Config.
-  if (!token) return Promise.resolve('');
+  // Scheitert das, ist es egal: die Startseite holt den Stand aus der Config.
 
   var payload = {
     aktiv: !!tickerAktivEl.checked,
@@ -3813,8 +3720,6 @@ function imgResize(file, maxWidth, quality) {
 
 function imgUpload(cat, files) {
   if (!files || !files.length) return;
-  var token = tmGetToken();
-  if (!token) { alert('Bitte GitHub Token eingeben!'); document.getElementById('tmGhTokenRow').style.display = ''; return; }
 
   var cfg = imgConfig[cat];
   var total = files.length;
@@ -3874,8 +3779,6 @@ function imgSaveManifest(cat) {
 
 function imgDelete(cat, idx) {
   if (!confirm('Bild wirklich löschen?')) return;
-  var token = tmGetToken();
-  if (!token) { alert('Bitte GitHub Token eingeben!'); return; }
 
   var img = imgData[cat][idx];
   var cfg = imgConfig[cat];
@@ -3887,15 +3790,7 @@ function imgDelete(cat, idx) {
   tmGhGet(path).then(function(file) {
     if (!file.sha) throw new Error('Datei nicht gefunden');
     // Datei löschen
-    return fetch('https://api.github.com/repos/' + TM_REPO + '/contents/' + path, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': 'token ' + token,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ message: 'Bild gelöscht: ' + img.file, sha: file.sha, branch: TM_BRANCH })
-    });
+    return tmGhSchreiben(path, null, file.sha, 'Bild gelöscht: ' + img.file, true);
   }).then(function(r) {
     if (!r.ok) throw new Error('Löschen fehlgeschlagen');
     imgData[cat].splice(idx, 1);

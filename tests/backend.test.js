@@ -563,4 +563,29 @@ r=post(qc,{...C,action:'quittieren',id:did(1)});
 ok(r.ok&&st(1)==='geleistet'&&/Bild nicht gespeichert/.test(qs.Dienste.rows[1][11]),'Drive-Fehler verhindert das Quittieren nicht');
 }
 
+// ---- GitHub-Dateien ueber das Backend
+{
+const gs={Mitglieder:mkSheet([MH.slice()]),Config:mkSheet([['Key','Value','B']]),Benutzer:mkSheet([['B','A','R','P','E'],['anna','Anna','admin','geheim12','Nein'],['tom','Tom','mitglied','geheim34','Nein']])};
+const gc=ctx(gs); load(gc,'apps-script/mitgliederliste/Mitgliederliste.gs');
+const calls=[]; let antw={code:200,body:'{"content":{"sha":"'+'b'.repeat(40)+'"}}'};
+gc.UrlFetchApp={fetch(url,o){ calls.push({url,o,p:JSON.parse(o.payload)}); if(antw.throw) throw new Error('net'); return {getResponseCode(){return antw.code},getContentText(){return antw.body}}; }};
+const A={username:'anna',password:'geheim12',action:'ghDatei'}, D={pfad:'data/team.json',inhalt:'W10K',nachricht:'Team'};
+ok(post(gc,{action:'ghDatei',...D}).error==='Nicht authentifiziert'&&post(gc,{...A,username:'tom',password:'geheim34',...D}).error==='Keine Berechtigung'&&calls.length===0,'GitHub: nur Admins');
+let g=post(gc,{...A,...D}); ok(g.keinToken===true&&calls.length===0,'GitHub: ohne hinterlegtes Token klare Meldung');
+ok(post(gc,{...A,action:'getConfig'}).github===false,'getConfig meldet fehlenden GitHub-Zugang');
+gc.props.GITHUB_TOKEN=' github_pat_AB12\u200b_cd\n';
+ok(post(gc,{...A,action:'getConfig'}).github===true,'getConfig meldet vorhandenen GitHub-Zugang');
+for(const pf of ['intern.html','data/../intern.html','img/vorstand/x.html','.github/workflows/a.yml','data/team.json/x','img/carousel/../../index.html'])
+  ok(!!post(gc,{...A,...D,pfad:pf}).error&&calls.length===0,'GitHub: Pfad abgelehnt: '+pf);
+ok(!!post(gc,{...A,...D,inhalt:'<script>'}).error&&!!post(gc,{...A,...D,sha:'xyz'}).error&&!!post(gc,{...A,pfad:'img/carousel/a.jpg',loeschen:true}).error&&calls.length===0,'GitHub: ungueltiger Inhalt, SHA oder Loeschen ohne SHA abgelehnt');
+g=post(gc,{...A,...D,sha:'a'.repeat(40)}); let k=calls[0];
+ok(g.ok&&g.content.sha==='b'.repeat(40)&&k.url==='https://api.github.com/repos/boulderhallezugzwang/zugzwang-website/contents/data/team.json'&&k.o.method==='put'&&k.o.headers.Authorization==='token github_pat_AB12_cd'&&k.p.content==='W10K'&&k.p.sha==='a'.repeat(40)&&k.p.branch==='main'&&k.p.message==='Team','GitHub: Datei geschrieben, Token bereinigt');
+g=post(gc,{...A,pfad:'img/carousel/abc_foto.jpg',loeschen:true,sha:'a'.repeat(40),nachricht:'weg'}); k=calls[1];
+ok(g.ok&&k.o.method==='delete'&&k.p.content===undefined,'GitHub: Bild geloescht');
+antw={code:401,body:'{"message":"Bad credentials"}'}; g=post(gc,{...A,...D});
+ok(g.keinToken===true&&/ungültig oder abgelaufen/.test(g.error)&&!/github_pat/.test(JSON.stringify(g)),'GitHub: ungueltiges Token verstaendlich gemeldet');
+antw={code:409,body:'{}'}; ok(/neu laden/.test(post(gc,{...A,...D}).error),'GitHub: Versionskonflikt gemeldet');
+antw={throw:true}; ok(/nicht erreichbar/.test(post(gc,{...A,...D}).error),'GitHub: Netzfehler gemeldet');
+}
+
 console.log(fails?('\n'+fails+' FEHLGESCHLAGEN'):'\nalle Tests bestanden'); process.exit(fails?1:0);

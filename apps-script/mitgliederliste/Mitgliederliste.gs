@@ -412,12 +412,20 @@ function doPost(e) {
       if (user.rolle !== 'admin') return jsonResponse({ error: 'Keine Berechtigung' });
 
       if (action === 'getConfig') {
-        return jsonResponse({ config: getConfigAll() });
+        return jsonResponse({ config: getConfigAll(), github: !!ghToken() });
       }
       if (action === 'saveConfig') {
         var items = body.items || [];
         return jsonResponse(saveConfig(items));
       }
+    }
+
+    // Website-Dateien (Team, Bilder, Banner) ins GitHub-Repository schreiben (nur Admin)
+    if (action === 'ghDatei') {
+      var ghUser = authenticateUser(body.username, body.password);
+      if (!ghUser) return jsonResponse({ error: 'Nicht authentifiziert' });
+      if (ghUser.rolle !== 'admin') return jsonResponse({ error: 'Keine Berechtigung' });
+      return jsonResponse(ghDatei(body));
     }
 
     // Auth-geschützte Newsletter-Aktion
@@ -4166,3 +4174,62 @@ function dienstInfoBasis(hit) {
   };
 }
 // <<< DIENSTE-KERN
+
+
+// ═══════════════════════════════════════════════════
+// GITHUB: Website-Dateien schreiben
+// ═══════════════════════════════════════════════════
+// Der Admin-Bereich aendert Team, Bilder und Banner als Dateien im
+// Website-Repository. Das Token dafuer liegt einmal zentral in den
+// Skripteigenschaften (GITHUB_TOKEN) statt in jedem Browser.
+
+var GH_REPO = 'boulderhallezugzwang/zugzwang-website';
+var GH_BRANCH = 'main';
+var GH_PFAD_OK = /^(data\/(team|ticker|carousel|jugendtraining-fotos)\.json|img\/(vorstand|carousel|jugendtraining)\/[A-Za-z0-9._-]+\.(jpg|jpeg|png|webp))$/;
+var GH_MAX_BASE64 = 8 * 1024 * 1024;
+
+function ghToken() {
+  var t = PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN') || '';
+  return t.toString().replace(/[^A-Za-z0-9_]/g, '');
+}
+
+function ghDatei(d) {
+  var pfad = (d.pfad || '').toString();
+  if (!GH_PFAD_OK.test(pfad) || pfad.indexOf('..') >= 0) return { error: 'Diese Datei darf hier nicht geändert werden.' };
+  var loeschen = d.loeschen === true;
+  var inhalt = (d.inhalt || '').toString();
+  var sha = (d.sha || '').toString();
+  if (!loeschen && (!inhalt || !/^[A-Za-z0-9+\/=]+$/.test(inhalt))) return { error: 'Kein gültiger Inhalt.' };
+  if (inhalt.length > GH_MAX_BASE64) return { error: 'Die Datei ist zu groß.' };
+  if (sha && !/^[0-9a-f]{40}$/.test(sha)) return { error: 'Ungültige Dateiversion.' };
+  if (loeschen && !sha) return { error: 'Ungültige Dateiversion.' };
+
+  var token = ghToken();
+  if (!token) return { error: 'Der GitHub-Zugang ist noch nicht hinterlegt.', keinToken: true };
+
+  var payload = { message: (d.nachricht || 'Website aktualisiert').toString().slice(0, 200), branch: GH_BRANCH };
+  if (sha) payload.sha = sha;
+  if (!loeschen) payload.content = inhalt;
+  var resp;
+  try {
+    resp = UrlFetchApp.fetch('https://api.github.com/repos/' + GH_REPO + '/contents/' + pfad, {
+      method: loeschen ? 'delete' : 'put',
+      contentType: 'application/json',
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github+json' },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+  } catch (e) {
+    return { error: 'GitHub ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.' };
+  }
+  var code = resp.getResponseCode();
+  var antwort = {};
+  try { antwort = JSON.parse(resp.getContentText() || '{}'); } catch (e) {}
+  if (code === 200 || code === 201) {
+    return { ok: true, content: { sha: (antwort.content && antwort.content.sha) || '' } };
+  }
+  if (code === 401) return { error: 'Der hinterlegte GitHub-Zugang ist ungültig oder abgelaufen.', keinToken: true };
+  if (code === 403 || code === 404) return { error: 'Der hinterlegte GitHub-Zugang darf diese Website nicht ändern.', keinToken: true };
+  if (code === 409 || code === 422) return { error: 'Die Datei wurde zwischenzeitlich geändert. Bitte Seite neu laden und noch einmal versuchen.' };
+  return { error: 'GitHub-Fehler ' + code + (antwort.message ? ': ' + antwort.message : '') };
+}
