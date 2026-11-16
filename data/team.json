@@ -145,5 +145,12 @@
     "bereich": "Routenbau",
     "reihenfolge": 3,
     "bild": ""
+  },
+  {
+    "name": "Sabine Baumann",
+    "rolle": "Kassier",
+    "bereich": "Vorstand",
+    "reihenfolge": 3,
+    "bild": ""
   }
 ]
