@@ -927,6 +927,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data && data.events) renderCalendar(data.events, data.oezHinweis || '');
     else document.getElementById('calFeed').innerHTML = '<div class="cal-empty">Keine Termine verfügbar</div>';
     markLoad('calendar', !!(data && data.events));
+    // Massgeblicher Banner-Stand aus der Config (gilt auch ohne GitHub-Token).
+    if (data && data.ticker) setzeTicker(data.ticker);
   });
 
   fetchAction('news').then(data => {
@@ -935,16 +937,24 @@ document.addEventListener('DOMContentLoaded', () => {
     markLoad('news', !!(data && data.news));
   });
 
-  // Aktuell-Banner aus statischer JSON (GitHub Pages — sofort verfuegbar,
-  // kein Warten auf Apps Script). Wird vom Admin-Bereich beim Speichern
-  // ueberschrieben (data/ticker.json).
+  // Aktuell-Banner zuerst aus statischer JSON (GitHub Pages — sofort da,
+  // kein Warten auf Apps Script). Der Stand aus der Config kommt kurz danach
+  // mit den Terminen und hat Vorrang (siehe oben).
   fetch('data/ticker.json?t=' + Date.now())
     .then(r => r.ok ? r.json() : null)
     .then(data => {
-      if (data && data.aktiv && data.text) renderTicker(data.text);
+      if (data && !tickerAusConfig) setzeTicker(data, true);
     })
     .catch(() => {});
 });
+
+var tickerAusConfig = false;
+function setzeTicker(t, vorlaeufig) {
+  if (!vorlaeufig) tickerAusConfig = true;
+  if (t && t.aktiv && t.text) { renderTicker(t.text); return; }
+  var bar = document.getElementById('newsTicker');
+  if (bar) bar.hidden = true;
+}
 
 function renderTicker(text) {
   var bar = document.getElementById('newsTicker');

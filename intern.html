@@ -1108,7 +1108,7 @@
     <div class="event-form" id="cfgGhTokenBox" style="margin-bottom:16px;">
       <h3>GitHub-Zugriff</h3>
       <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">
-        Wird benötigt, damit Änderungen am Aktuell-Banner und am Team direkt auf die Website übernommen werden. Token einmal eingeben — wird nur lokal in diesem Browser gespeichert.
+        Wird nur für Änderungen am Team und an den Bildern benötigt. Einstellungen und das Aktuell-Banner funktionieren ohne Token. Token einmal eingeben — wird nur lokal in diesem Browser gespeichert.
         <a href="https://github.com/settings/tokens" target="_blank" rel="noopener" style="color:var(--yellow);">Token erstellen ↗</a>
       </p>
       <div class="form-row">
@@ -3605,7 +3605,7 @@ function cfgRefreshTokenStatus() {
     if (clearBtn) clearBtn.style.display = '';
   } else {
     inp.value = '';
-    status.textContent = '⚠ Kein Token hinterlegt — Banner-Aktualisierung erst beim nächsten manuellen Eingreifen';
+    status.textContent = 'Kein Token hinterlegt — nur für Team und Bilder nötig';
     status.style.color = 'var(--text-dim)';
     if (clearBtn) clearBtn.style.display = 'none';
   }
@@ -3642,7 +3642,8 @@ function cfgSyncTickerJson() {
   var tickerTextEl = document.getElementById('cfg_ticker_text');
   if (!tickerAktivEl || !tickerTextEl) return Promise.resolve('');
   var token = tmGetToken();
-  if (!token) return Promise.resolve('(Hinweis: GitHub Token fehlt, Banner aktualisiert sich verzoegert)');
+  // Ohne Token: die Startseite holt den Banner-Stand direkt aus der Config.
+  if (!token) return Promise.resolve('');
 
   var payload = {
     aktiv: !!tickerAktivEl.checked,
@@ -3654,15 +3655,17 @@ function cfgSyncTickerJson() {
     var sha = existing && existing.sha ? existing.sha : null;
     return tmGhPut('data/ticker.json', content, sha, 'Aktuell-Banner aktualisiert');
   }).then(function() {
-    return '(Banner live in ca. 30-60 Sek.)';
+    return '';
   }).catch(function(err) {
     // Falls Datei noch nicht existiert: ohne SHA erstellen
     if (err && /not.*found|404/i.test(err.message || '')) {
       return tmGhPut('data/ticker.json', content, null, 'Aktuell-Banner erstellt')
-        .then(function() { return '(Banner live in ca. 30-60 Sek.)'; })
-        .catch(function(e2) { return '(Banner-Sync fehlgeschlagen: ' + e2.message + ')'; });
+        .then(function() { return ''; })
+        .catch(function(e2) { console.warn('Banner-Sync:', e2); return ''; });
     }
-    return '(Banner-Sync fehlgeschlagen: ' + (err && err.message ? err.message : err) + ')';
+    // Kein Fehler fuer den Nutzer: die Startseite liest den Stand aus der Config.
+    console.warn('Banner-Sync:', err);
+    return '';
   });
 }
 
